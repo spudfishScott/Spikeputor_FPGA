@@ -1,0 +1,17 @@
+*~
+*.pyc
+.DS_Store
+/*.log
+/*.log-*
+/.cache
+/logs
+/.Python
+/bin
+/node
+/python
+/node_modules
+/node_modules.old
+/node_modules.hide
+/build
+/dist
+/data
