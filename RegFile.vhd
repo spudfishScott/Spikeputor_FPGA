@@ -1,7 +1,7 @@
 -- Spikeputor Register File
 -- Inputs:
 -- Three Data Inputs, Three Register Controls (Rega, RegB, RegC), 
--- Input Select, CLK, plus WERF (Write enable register flag)
+-- Clock Enable, Input Select, CLK, plus WERF (Write enable register flag)
 -- Outputs:
 -- Two Data Outputs (Channel A and Channel B), Reg A Zero
 
@@ -11,9 +11,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+constant BIT_DEPTH : Integer := 16;
+
 entity REG_FILE is
     port (
-        CLK, WERF, RBSEL : in std_logic;
+        RESET : in std_logic;
+        CLK, CLK_EN, WERF, RBSEL : in std_logic;
         REGA, REGB, REGC : in std_logic_vector(2 downto 0);
         INSEL : in std_logic_vector(1 downto 0);
         IN0, IN1, IN2 : in std_logic_vector(15 downto 0);
@@ -58,7 +61,7 @@ architecture RTL of REG_FILE is
         generic (n: positive); -- width of register
 
         port (
-            CLK, LE : in std_logic; -- clock, latch enable
+            RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable 
             REGIN : in std_logic_vector(n-1 downto 0);	-- input
             DOUT : out std_logic_vector(n-1 downto 0);	-- output channel A
         );
@@ -84,7 +87,7 @@ architecture RTL of REG_FILE is
 
 begin
     -- Handle Register Inputs
-    REG_INS : MUX3 generic map(16) port map (	-- inputs are 16 bits wide
+    REG_INS : MUX3 generic map(BIT_DEPTH) port map (
            IN2 => IN2,
            IN1 => IN1,
            IN0 => IN0,
@@ -107,7 +110,7 @@ begin
         OUTS  => BOUT_SEL
     );
 
-    -- Register Write selections depends on WERF
+    -- Register Write selection depends on WERF, REGC is WERF is selected, Register 0 if not
     W_DECIN <= REGC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
     WREG_CTRL: DECODE3_8 port map ( -- Register Write Select
         DECIN => W_DECIN,
@@ -117,16 +120,18 @@ begin
     -- Registers
     REGISTERS: for r in (1 to 7) generate   -- generate the 7 registers
     begin
-        REG_r : REG_LE generic map(16) port map (  -- Registers
-              CLK => CLK,
-               LE => WREG_SEL(r),
-            REGIN => REG_IN,
-             DOUT => REGS_OUT(r)
+        REG_r : REG_LE generic map(BIT_DEPTH) port map (  -- Registers
+             RESET => RESET,
+                EN => CLK_EN,
+               CLK => CLK,
+                LE => WREG_SEL(r),
+             REGIN => REG_IN,
+              DOUT => REGS_OUT(r)
         );
     end generate REGISTERS;
 
     -- Register Output A
-    REGOUT_A: MUX8 generic map(16) port map (   -- Register Channel A Output
+    REGOUT_A: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel A Output
         IN7 => REGS_OUT(7),
         IN6 => REGS_OUT(6),
         IN5 => REGS_OUT(5),
@@ -142,7 +147,7 @@ begin
     AZERO <= '1' when AOUT = (others => '0') else '0';   -- zero detect output
 
     -- Register Output B
-    REGOUT_B: MUX8 generic map(16) port map (   -- Register Channel B Output
+    REGOUT_B: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel B Output
         IN7 => REGS_OUT(7),
         IN6 => REGS_OUT(6),
         IN5 => REGS_OUT(5),

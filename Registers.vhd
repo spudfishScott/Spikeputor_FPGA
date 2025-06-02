@@ -9,7 +9,7 @@ entity REG_HILO is
 	generic (n : positive); -- width of register in bits
 	
 	port (
-		CLK, SEL, LE : in std_logic; -- clock, hi/lo select, latch enable active high
+		CLK, EN, SEL, LE : in std_logic; -- clock, clock enable, hi/lo select, latch enable active high
 		       REGIN : in std_logic_vector((n/2)-1 downto 0);	-- input for hi/lo register is half the full width
 		       REGOUT: out std_logic_vector(n-1 downto 0)     -- output is the full width register
 	);
@@ -25,7 +25,7 @@ begin
 	-- hi/lo D-REG with latch enable
 	P_REG_HILO : process(CLK) is
 	begin
-		if rising_edge(CLK) then -- rising edge of clock
+		if (EN = '1' and rising_edge(CLK)) then -- rising edge of clock and REG is enabled
 			if (LE = '1') then -- if latch enable is high, update the correct half of the register
 				if (SEL = '1') then
 					REG_HIGH <= REGIN; -- if SEL is high, update the high portion of the register from input
@@ -43,20 +43,24 @@ entity REG_LE is
 	generic (n: positive); -- width of register
 
 	port (
-		CLK, LE : in std_logic; -- clock, latch enable
+		RESET, EN, CLK, LE : in std_logic; -- clock, reset, latch enable, register enable
 		REGIN : in std_logic_vector(n-1 downto 0);	-- input
-		DOUT : out std_logic_vector(n-1 downto 0);	-- output channel A
+		DOUT : out std_logic_vector(n-1 downto 0)	-- output channel A
 	);
 end REG_LE;
 
 architecture Behavior of REG_LE is
 	signal DATA : std_logic_vector(n-1 downto 0); -- the internal data memory
 begin
-	P_REG_LE : process(CLK) is
+	P_REG_LE : process(CLK, RESET) is
 	begin
-		if rising_edge(CLK) then -- changes on rising edge of clock
-			if (LE = '1') then
-				DATA <= REGIN;
+		if (RESET = '1') then
+			DATA <= (others => '0');	-- clear out registers on reset
+		else
+			if (EN = '1' and rising_edge(CLK)) then -- changes on rising edge of clock
+				if (LE = '1') then
+					DATA <= REGIN;
+				end if;
 			end if;
 		end if;
 	end process P_REG_LE;
