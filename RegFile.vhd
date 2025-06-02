@@ -1,6 +1,6 @@
 -- Spikeputor Register File
 -- Inputs:
--- Three Data Inputs, Three Register Controls (Aout, Bout, Wreg), 
+-- Three Data Inputs, Three Register Controls (Rega, RegB, RegC), 
 -- Input Select, CLK, plus WERF (Write enable register flag)
 -- Outputs:
 -- Two Data Outputs (Channel A and Channel B), Reg A Zero
