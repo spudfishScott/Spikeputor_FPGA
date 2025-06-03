@@ -127,7 +127,7 @@ begin   -- architecture begin
     );
 
     -- Registers
-    REGISTERS: for r in (1 to 7) generate   -- generate the 7 registers
+    REGISTERS: for r in 1 to 7 generate   -- generate the 7 registers
     begin
         RX : REG_LE generic map(16) port map (  -- Registers
             RESET => RESET,
