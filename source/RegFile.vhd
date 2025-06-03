@@ -16,9 +16,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-constant BIT_DEPTH : Integer := 16;
-
 entity REG_FILE is
+    constant BIT_DEPTH : Integer := 16;
+    
     port (
         RESET : in std_logic;
         IN0, IN1, IN2 : in std_logic_vector(15 downto 0);
