@@ -17,8 +17,6 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity REG_FILE is
-    constant BIT_DEPTH : Integer := 16;
-    
     port (
         RESET : in std_logic;
         IN0, IN1, IN2 : in std_logic_vector(15 downto 0);
@@ -35,6 +33,7 @@ end REG_FILE;
 
 architecture RTL of REG_FILE is
     type RARRAY is array(1 to 7) of std_logic_vector(15 downto 0); -- define a an array type of 7 registers
+    constant BIT_DEPTH : Integer := 16;
 
     -- component definitions
     -- MUX3 - need one to select REG_IN
