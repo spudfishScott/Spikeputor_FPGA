@@ -38,7 +38,7 @@ end component;
   signal  dataq_resp : std_logic_vector(15 downto 0);
 
 begin
-  clk: CLK_ENABLE generic map(2, 2) port map (
+  clk: CLK_ENABLE generic map(2, 1) port map (
 	  CLK_IN => clock,
 	  CLK_EN => clk_en
   );
@@ -61,7 +61,7 @@ begin
   begin
 	-- negate reset after 20ns
 	wait for 20 ns;
-  reset <= '0';
+    reset <= '0';
 	
 	-- latch FE into MSB
 	data_stim <= X"FE";
