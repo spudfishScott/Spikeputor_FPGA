@@ -65,10 +65,10 @@ begin
 	CLK_TICK : process(CLK_IN)
 	begin
 		if rising_edge(CLK_IN) then
-			if (QUANTA = QUANTA_MAX) then
-				QUANTA <= 0;
-			else
+			if (QUANTA < QUANTA_MAX) then
 				QUANTA <= QUANTA + 1;
+			else
+				QUANTA <= 0;
 			end if;
 		end if;
 	end process CLK_TICK;
