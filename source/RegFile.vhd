@@ -33,7 +33,7 @@ end REG_FILE;
 
 architecture RTL of REG_FILE is
     type RARRAY is array(1 to 7) of std_logic_vector(15 downto 0); -- define a an array type of 7 registers
-    constant BIT_DEPTH : Integer := 16;
+--    constant BIT_DEPTH : Integer := 16;
 
     -- component definitions
     -- MUX3 - need one to select REG_IN
@@ -97,7 +97,7 @@ architecture RTL of REG_FILE is
 begin   -- architecture begin
 
     -- Handle Register Inputs
-    REG_INS : MUX3 generic map(BIT_DEPTH) port map (
+    REG_INS : MUX3 generic map(16) port map (
            IN2 => IN2,
            IN1 => IN1,
            IN0 => IN0,
@@ -129,7 +129,7 @@ begin   -- architecture begin
     -- Registers
     REGISTERS: for r in (1 to 7) generate   -- generate the 7 registers
     begin
-        RX : REG_LE generic map(BIT_DEPTH) port map (  -- Registers
+        RX : REG_LE generic map(16) port map (  -- Registers
             RESET => RESET,
                EN => CLK_EN,
               CLK => CLK,
@@ -140,7 +140,7 @@ begin   -- architecture begin
     end generate REGISTERS;
 
     -- Register Output A
-    REGOUT_A: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel A Output
+    REGOUT_A: MUX8 generic map(16) port map (   -- Register Channel A Output
         IN7 => REGS_OUT(7),
         IN6 => REGS_OUT(6),
         IN5 => REGS_OUT(5),
@@ -156,7 +156,7 @@ begin   -- architecture begin
     AZERO <= '1' when AOUT = (others => '0') else '0';   -- zero detect output
 
     -- Register Output B
-    REGOUT_B: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel B Output
+    REGOUT_B: MUX8 generic map(16) port map (   -- Register Channel B Output
         IN7 => REGS_OUT(7),
         IN6 => REGS_OUT(6),
         IN5 => REGS_OUT(5),
