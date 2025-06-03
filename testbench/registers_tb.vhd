@@ -24,7 +24,7 @@ architecture testbench of registers_tb is
 	);
 
 	port (
-		CLK_IN, RESET : in std_logic;
+		CLK_IN : in std_logic;
 		CLK_EN : out std_logic
 	);
 end component;
