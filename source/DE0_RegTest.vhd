@@ -47,12 +47,12 @@ architecture Structural of RegTest is
 	
 	-- HI/LO D_REG with LE
 	component REG_HILO is
-		generic (n : positive);
+		generic (width : positive := 8);
 	
 		port (
 			CLK, EN, SEL, LE : in std_logic;
-			       REGIN : in std_logic_vector((n/2)-1 downto 0);
-		          REGOUT : out std_logic_vector(n-1 downto 0)
+			D : in std_logic_vector((width/2)-1 downto 0);
+		    Q : out std_logic_vector(width-1 downto 0)
 		);
 	end component;
 	
@@ -65,7 +65,7 @@ architecture Structural of RegTest is
 
 begin
 	-- Structure
-	CLOCK : CLK_ENABLE generic map(100000, 0) port map (
+	CLOCK : CLK_ENABLE generic map(2, 1) port map (
 		RESET => '0',
 		CLK_IN => CLOCK_50,
 		CLK_EN => REG_EN
@@ -73,12 +73,12 @@ begin
 
 	-- D REG with enable
 	HILO_16 : REG_HILO generic map(16) port map (	-- register is 16 bits wide
-		   CLK => CLOCK_50,
-		    EN => REG_EN,
-		   SEL => SW(9),		-- switch 9 up = update high byte, down = update low byte
-		   LE  => NOT BUTTON(0), 	-- enable is button 0, invert it because the reg is active high and the button is active low
-		 REGIN => SW(7 downto 0), 	-- input is switches 7 to 0
-		REGOUT => REG
+		CLK => CLOCK_50,
+		 EN => REG_EN,
+		SEL => SW(9),		-- switch 9 up = update high byte, down = update low byte
+		 LE => NOT BUTTON(0), 	-- enable is button 0, invert it because the reg is active high and the button is active low
+		  D => SW(7 downto 0), 	-- input is switches 7 to 0
+		 Q => REG
 	);
 	
 	-- Word to 7 Segment Output

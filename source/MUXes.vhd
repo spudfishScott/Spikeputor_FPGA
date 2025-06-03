@@ -7,19 +7,19 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity MUX8 is
-    generic (n: positive); -- width of input signal
+    generic (width: positive := 8); -- width of input signal
 
     port (
-        IN7 : in std_logic_vector(n-1 downto 0); -- input 7
-        IN6 : in std_logic_vector(n-1 downto 0); -- input 6
-        IN5 : in std_logic_vector(n-1 downto 0); -- input 5
-        IN4 : in std_logic_vector(n-1 downto 0); -- input 4
-        IN3 : in std_logic_vector(n-1 downto 0); -- input 3
-        IN2 : in std_logic_vector(n-1 downto 0); -- input 2
-        IN1 : in std_logic_vector(n-1 downto 0); -- input 1
-        IN0 : in std_logic_vector(n-1 downto 0); -- input 0
+        IN7 : in std_logic_vector(width-1 downto 0); -- input 7
+        IN6 : in std_logic_vector(width-1 downto 0); -- input 6
+        IN5 : in std_logic_vector(width-1 downto 0); -- input 5
+        IN4 : in std_logic_vector(width-1 downto 0); -- input 4
+        IN3 : in std_logic_vector(width-1 downto 0); -- input 3
+        IN2 : in std_logic_vector(width-1 downto 0); -- input 2
+        IN1 : in std_logic_vector(width-1 downto 0); -- input 1
+        IN0 : in std_logic_vector(width-1 downto 0); -- input 0
         SEL : in std_logic_vector(2 downto 0);   -- selection
-        MUXOUT : out std_logic_vector(n-1 downto 0) -- selected output
+        MUXOUT : out std_logic_vector(width-1 downto 0) -- selected output
     );
 end MUX8;
 
@@ -46,14 +46,14 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity MUX3 is
-    generic (n: positive); -- width of in/out signals
+    generic (width: positive); -- width of in/out signals
 
     port (
-        IN2 : in std_logic_vector(n-1 downto 0); -- input 2
-        IN1 : in std_logic_vector(n-1 downto 0); -- input 1
-        IN0 : in std_logic_vector(n-1 downto 0); -- input 0
+        IN2 : in std_logic_vector(width-1 downto 0); -- input 2
+        IN1 : in std_logic_vector(width-1 downto 0); -- input 1
+        IN0 : in std_logic_vector(width-1 downto 0); -- input 0
         SEL : in std_logic_vector(1 downto 0); -- selection
-        MUXOUT : out std_logic_vector(n-1 downto 0) -- output
+        MUXOUT : out std_logic_vector(width-1 downto 0) -- output
     );
 end MUX3;
 
