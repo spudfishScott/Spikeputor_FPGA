@@ -29,19 +29,19 @@ end RegTest;
 architecture Structural of RegTest is
 	-- Signal Declarations
 	signal REG : std_logic_vector(15 downto 0);
-	signal USR_CLK : std_logic;
+	signal REG_EN : std_logic;
 
 	-- Components
 	-- CLOCK_ENABLE
 	component CLK_ENABLE is
 		generic (
-			QUANTA_MAX : Integer := 100;
-			QUANTA_ENABLE : Integer := 0;
+			QUANTA_MAX : Integer := 4;
+			QUANTA_ENABLE : Integer := 1
 		);
 
 		port (
 			CLK_IN, RESET : in std_logic;
-			CLK_EN : out std_logic;
+			CLK_EN : out std_logic
 		);
 	end component CLK_ENABLE;
 	
@@ -66,15 +66,15 @@ architecture Structural of RegTest is
 begin
 	-- Structure
 	CLOCK : CLK_ENABLE generic map(100000, 0) port map (
-		RESET => 0,
+		RESET => '0',
 		CLK_IN => CLOCK_50,
-		CLK_EN => EN
+		CLK_EN => REG_EN
 	);
 
 	-- D REG with enable
 	HILO_16 : REG_HILO generic map(16) port map (	-- register is 16 bits wide
 		   CLK => CLOCK_50,
-		    EN => CLK_EN,
+		    EN => REG_EN,
 		   SEL => SW(9),		-- switch 9 up = update high byte, down = update low byte
 		   LE  => NOT BUTTON(0), 	-- enable is button 0, invert it because the reg is active high and the button is active low
 		 REGIN => SW(7 downto 0), 	-- input is switches 7 to 0
@@ -98,7 +98,7 @@ begin
 	LEDG(8 downto 1) <= (others => '0');
   
 	-- assign output signals from variable signals
-	LEDG(0) <= EN;
+	LEDG(0) <= REG_EN;
 	LEDG(9) <= NOT BUTTON(0);
 
 end Structural;

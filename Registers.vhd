@@ -1,10 +1,10 @@
+-- This module synthesizes registers with various functionality
+
+-- This is a D-REG that updates half at a time depending on the value of SEL and if LE and EN is set
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- This module synthesizes registers with various functionality
-
--- This is a D-REG that updates half at a time depending on the value of SEL and if LE is set
 entity REG_HILO is
 	generic (n : positive); -- width of register in bits
 	
@@ -39,11 +39,18 @@ begin
 	REGOUT <= REG_HIGH & REG_LOW;	-- output is concatenation of HIGH and LOW internal register
 end Behavior;
 
+--------------------------------------------------------------------------------------------------------------
+-- This is an edge-triggered D-REG that requires both a Latch Enable Signal and a Clock Enable 
+-- signal to change its contents. RESET is an asynchronus signal to clear the register data.
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
 entity REG_LE is
 	generic (n: positive); -- width of register
 
 	port (
-		RESET, EN, CLK, LE : in std_logic; -- clock, reset, latch enable, register enable
+		RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable
 		REGIN : in std_logic_vector(n-1 downto 0);	-- input
 		DOUT : out std_logic_vector(n-1 downto 0)	-- output channel A
 	);
@@ -68,6 +75,3 @@ begin
 	-- send internal data to output
 	DOUT <= DATA;
 end Behavior;
-
-
-	

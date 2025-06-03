@@ -1,13 +1,16 @@
+-- This module synthesizes a few kinds of clocks
+
+-- Clock Frequency Divider
+-- This entity synthesizes a clock of desired frequency from an input clock of defined frequency and duty cycle
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- This module synthesizes a clock of desired frequency from an input clock of defined frequency and duty cycle
 entity FREQ_CLOCK is
 	generic ( -- Desired Frequency in Hz
 		FREQUENCY : Integer := 1000;
 		 SRC_FREQ : Integer := 50000000;
-		 DUTY_CYC : Integer := 50;
+		 DUTY_CYC : Integer := 50
 	);
 	
 	port(
@@ -34,20 +37,25 @@ begin
 	CLK_OUT <= '1' when (COUNTER < ((SRC_FREQ/FREQUENCY) * DUTY_CYC / 100)) else '0';
 end Behavior;
 
+------------------------------------------------------------------------------------------------------------------
 -- Clock Enable entity
 -- Produces an enable signal every QUANTA_ENABLE ticks of QUANTA_MAX ticks
 -- Everyone gets the system clock signal and their own clock enable signal as required
 -- This gives a more FPGA-friendly "clock divider" with one monolithic clock signal and tailored enable signals
 -- Includes asynchronous reset 
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
 entity CLK_ENABLE is
 	generic (
-		QUANTA_MAX : Integer := 100;
-		QUANTA_ENABLE : Integer := 0;
+		QUANTA_MAX : Integer := 4;
+		QUANTA_ENABLE : Integer := 1
 	);
 
 	port (
 		CLK_IN, RESET : in std_logic;
-		CLK_EN : out std_logic;
+		CLK_EN : out std_logic
 	);
 end CLK_ENABLE;
 

@@ -1,3 +1,7 @@
+-- This module contains MUXes of various sizes and functionality
+
+-- This is an eight input MUX with a three bit selector.
+-- The bit width can be selected through the generic
 library IEEE;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -34,6 +38,13 @@ begin
             IN0 when others;
 end Behavior;
 
+-------------------------------------------------------------------------------------------------------------
+-- This is a three input MUX with a two bit selector.
+-- The high bit of the selector selects input 2 regardless of the low bit value
+library IEEE;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
 entity MUX3 is
     generic (n: positive); -- width of in/out signals
 
@@ -50,7 +61,7 @@ architecture Behavior of MUX3 is
 begin
     with (SEL) select
         MUXOUT <=
-            IN2 when "10" | "11",
+            IN2 when "10" | "11", -- if high bit is '1', low bit does not matter
             IN1 when "01",
             IN0 when "00",
             IN0 when others;

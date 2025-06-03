@@ -1,3 +1,6 @@
+-- This module has decoders of various sizes and functionality
+
+-- This is a 3 bit to 8 bit output one-hot decoder
 library IEEE;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

@@ -1,11 +1,16 @@
 -- Spikeputor Register File
 -- Inputs:
--- Three Data Inputs, Three Register Controls (Rega, RegB, RegC), 
--- Clock Enable, Input Select, CLK, plus WERF (Write enable register flag)
+--     Asynchronous RESET to clear all registers
+--     Three Data Inputs 
+--     Three Register Controls (Rega, RegB, RegC) from the opcode 
+--     Clock Enable, CLK, Input Select
+--     WERF (Write enable register flag) and RBSEL (Register Channel B Selector)
 -- Outputs:
--- Two Data Outputs (Channel A and Channel B), Reg A Zero
+--     Two Data Outputs (Channel A and Channel B)
+--     Zero detect for Register Channel A 
 
--- All data is 16 bits wide. Register controls are 3 bits wide. Input select is 2 bits wide.
+-- All data is 16 bits wide (Defined in BIT_DEPTH). 
+-- Register controls are 3 bits wide. Input select is 2 bits wide.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -16,10 +21,11 @@ constant BIT_DEPTH : Integer := 16;
 entity REG_FILE is
     port (
         RESET : in std_logic;
-        CLK, CLK_EN, WERF, RBSEL : in std_logic;
-        REGA, REGB, REGC : in std_logic_vector(2 downto 0);
-        INSEL : in std_logic_vector(1 downto 0);
         IN0, IN1, IN2 : in std_logic_vector(15 downto 0);
+        CLK, CLK_EN : in std_logic;
+        INSEL : in std_logic_vector(1 downto 0);
+        REGA, REGB, REGC : in std_logic_vector(2 downto 0);
+        WERF, RBSEL : in std_logic;
 
         AOUT : out std_logic_vector(15 downto 0);
         BOUT : out std_logic_vector(15 downto 0);
@@ -28,14 +34,10 @@ entity REG_FILE is
 end REG_FILE;
 
 architecture RTL of REG_FILE is
-    type RARRAY is array(1 to 7) of std_logic_vector(15 downto 0);
+    type RARRAY is array(1 to 7) of std_logic_vector(15 downto 0); -- define a an array type of 7 registers
 
-    signal REG_IN : std_logic_vector(15 downto 0);
-    signal B_DECIN, W_DECIN : std_logic_vector(2 downto 0);
-    signal AOUT_SEL, BOUT_SEL, WREG_SEL : std_logic_vector(7 downto 0);
-    signal REGS_OUT : RARRAY;
-
-    -- MUX3 need one to select REG_IN
+    -- component definitions
+    -- MUX3 - need one to select REG_IN
     component MUX3 is
         generic (n: positive); -- width of in/out signals
 
@@ -48,7 +50,7 @@ architecture RTL of REG_FILE is
         );
     end component;
 
-    -- Decoder3_8 need three to select AOUT, BOUT and WREG
+    -- Decoder3_8 - need three to select AOUT, BOUT and WREG
     component DECODE3_8 is
         port (
             DECIN : in std_logic_vector(2 downto 0); -- decoder input
@@ -56,7 +58,7 @@ architecture RTL of REG_FILE is
         );
     end component;
 
-    -- REG_LE need 7, plus one "always zero" register
+    -- REG_LE - need 7 of these plus logic for one "always zero" register
     component REG_LE is
         generic (n: positive); -- width of register
 
@@ -67,7 +69,15 @@ architecture RTL of REG_FILE is
         );
     end component;
 
-    -- MUX8 need one for the 8 register outputs
+    -- end components
+
+    -- internal signals
+    signal REG_IN : std_logic_vector(15 downto 0);
+    signal B_DECIN, W_DECIN : std_logic_vector(2 downto 0);
+    signal AOUT_SEL, BOUT_SEL, WREG_SEL : std_logic_vector(7 downto 0);
+    signal REGS_OUT : RARRAY;
+
+    -- MUX8 - need one for the 8 register outputs
     component MUX8 is
         generic (n: positive); -- width of in/out signals
 
@@ -85,7 +95,8 @@ architecture RTL of REG_FILE is
         );
     end component;
 
-begin
+begin   -- architecture begin
+
     -- Handle Register Inputs
     REG_INS : MUX3 generic map(BIT_DEPTH) port map (
            IN2 => IN2,
@@ -96,7 +107,6 @@ begin
     );
 
     -- Handle Register Address Controls
-
     -- Channel A selection is simply REGA
     AOUT_CTRL: DECODE3_8 port map (  -- Channel A Register Select
         DECIN => REGA,
@@ -120,7 +130,7 @@ begin
     -- Registers
     REGISTERS: for r in (1 to 7) generate   -- generate the 7 registers
     begin
-        REG_r : REG_LE generic map(BIT_DEPTH) port map (  -- Registers
+        RX : REG_LE generic map(BIT_DEPTH) port map (  -- Registers
              RESET => RESET,
                 EN => CLK_EN,
                CLK => CLK,
