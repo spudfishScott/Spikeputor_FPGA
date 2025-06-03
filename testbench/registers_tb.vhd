@@ -74,7 +74,7 @@ begin
 	le_stim <= '0';
 	sel_stim <= '0';
 	
-	wait for 30 ns;
+	wait for 20 ns;
 	
 	-- latch ED into LSB
 	data_stim <= X"ED";
