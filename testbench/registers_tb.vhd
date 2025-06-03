@@ -17,15 +17,33 @@ architecture testbench of registers_tb is
 	  );
   end component;
 
+  component CLK_ENABLE is
+	generic (
+		QUANTA_MAX : Integer := 4;
+		QUANTA_ENABLE : Integer := 1
+	);
+
+	port (
+		CLK_IN, RESET : in std_logic;
+		CLK_EN : out std_logic
+	);
+end component;
+
   signal  reset: std_logic := '1';
   signal  clock : std_logic := '0';
-  signal  clk_en : std_logic := '1';
+  signal  clk_en : std_logic := '0';
   signal  data_stim : std_logic_vector(7 downto 0) := (others => '0');
   signal  sel_stim : std_logic := '0';
   signal  le_stim : std_logic := '0';
   signal  dataq_resp : std_logic_vector(15 downto 0);
 
 begin
+  clk: CLK_ENABLE generic map(2, 1) port map (
+	   RESET => reset,
+	  CLK_IN => clock,
+	  CLK_EN => clk_en
+  );
+
   dut: REG_HILO generic map(16) port map (
 	  RESET => reset, 
 	  CLK => clock,
