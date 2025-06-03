@@ -54,7 +54,7 @@ architecture RTL of REG_FILE is
     component DECODE3_8 is
         port (
             DECIN : in std_logic_vector(2 downto 0); -- decoder input
-            OUTS : out std_logic_vector(7 downto 0); -- decoded output signal
+            OUTS : out std_logic_vector(7 downto 0) -- decoded output signal
         );
     end component;
 
@@ -64,8 +64,8 @@ architecture RTL of REG_FILE is
 
         port (
             RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable 
-            REGIN : in std_logic_vector(n-1 downto 0);	-- input
-            DOUT : out std_logic_vector(n-1 downto 0);	-- output channel A
+            D : in std_logic_vector(n-1 downto 0);	-- input
+            Q : out std_logic_vector(n-1 downto 0)	-- output channel A
         );
     end component;
 
@@ -131,12 +131,12 @@ begin   -- architecture begin
     REGISTERS: for r in (1 to 7) generate   -- generate the 7 registers
     begin
         RX : REG_LE generic map(BIT_DEPTH) port map (  -- Registers
-             RESET => RESET,
-                EN => CLK_EN,
-               CLK => CLK,
-                LE => WREG_SEL(r),
-             REGIN => REG_IN,
-              DOUT => REGS_OUT(r)
+            RESET => RESET,
+               EN => CLK_EN,
+              CLK => CLK,
+               LE => WREG_SEL(r),
+                D => REG_IN,
+                Q => REGS_OUT(r)
         );
     end generate REGISTERS;
 

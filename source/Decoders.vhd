@@ -8,7 +8,7 @@ use ieee.numeric_std.all;
 entity DECODE3_8 is
     port (
         DECIN : in std_logic_vector(2 downto 0); -- decoder input
-        OUTS : out std_logic_vector(7 downto 0); -- decoded output signal
+        OUTS : out std_logic_vector(7 downto 0) -- decoded output signal
     );
 end DECODE3_8;
 
