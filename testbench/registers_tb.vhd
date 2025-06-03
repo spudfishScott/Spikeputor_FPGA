@@ -9,11 +9,11 @@ end entity;
 architecture testbench of registers_tb is
 
   component REG_HILO
-    generic (n : positive); -- width of register in bits
+    generic (width : positive); -- width of register in bits
     port (
       RESET, CLK, EN, LE, SEL: in std_logic; -- clock, clock enable, hi/lo select, latch enable active high
-	    D : in std_logic_vector((n/2)-1 downto 0);	-- input for hi/lo register is half the full width
-	    Q: out std_logic_vector(n-1 downto 0)     -- output is the full width register
+	    D : in std_logic_vector((width/2)-1 downto 0);	-- input for hi/lo register is half the full width
+	    Q: out std_logic_vector(width-1 downto 0)     -- output is the full width register
 	  );
   end component;
 
