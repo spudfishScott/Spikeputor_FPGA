@@ -38,8 +38,7 @@ end component;
   signal  dataq_resp : std_logic_vector(15 downto 0);
 
 begin
-  clk: CLK_ENABLE generic map(2, 1) port map (
-	   RESET => reset,
+  clk: CLK_ENABLE generic map(2, 2) port map (
 	  CLK_IN => clock,
 	  CLK_EN => clk_en
   );
@@ -88,7 +87,7 @@ begin
 	le_stim <= '0';
 	sel_stim <= '0';
 	
-	wait for 8 ns;
+	wait for 18 ns;
 	reset <= '1';
 	
 	wait;

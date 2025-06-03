@@ -54,7 +54,7 @@ entity CLK_ENABLE is
 	);
 
 	port (
-		CLK_IN, RESET : in std_logic;
+		CLK_IN : in std_logic;
 		CLK_EN : out std_logic
 	);
 end CLK_ENABLE;
@@ -62,17 +62,13 @@ end CLK_ENABLE;
 architecture Behavior of CLK_ENABLE is
 	signal QUANTA : Integer := 0;
 begin
-	CLK_TICK : process(CLK_IN, RESET)
+	CLK_TICK : process(CLK_IN)
 	begin
-		if RESET = '1' then
-			QUANTA <= 0;
-		else
-			if rising_edge(CLK_IN) then
-				if (QUANTA = QUANTA_MAX) then
-					QUANTA <= 0;
-				else
-					QUANTA <= QUANTA + 1;
-				end if;
+		if rising_edge(CLK_IN) then
+			if (QUANTA = QUANTA_MAX) then
+				QUANTA <= 0;
+			else
+				QUANTA <= QUANTA + 1;
 			end if;
 		end if;
 	end process CLK_TICK;
