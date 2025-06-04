@@ -1,6 +1,5 @@
 library ieee;
 use ieee.std_logic_1164.all;
--- use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
 entity registers_tb is
@@ -76,10 +75,10 @@ begin
       AZERO => azero_resp
   );
 
-  -- clock for REG_HILO module
+  -- clock for RegFile module
   clock <= not clock after 5 ns; -- chip clock is 10 ns, cpu clock is 100 ns
    
-  -- exercise the REG_HILO component
+  -- exercise the RegFile component
   process
   begin
     -- set up input signals
@@ -91,6 +90,8 @@ begin
 	wait for 75 ns;
     reset <= '0';
 	
+    wait until rising_edge(CLK_EN);
+    
 	-- load values into the registers
     for i in 1 to 7 loop
         werf_stim <= '1';
