@@ -34,7 +34,6 @@ endif
 	@mkdir -p simulation
 	@$(GHDL_CMD) -i $(GHDL_FLAGS) --workdir=simulation --work=work $(TESTBENCHPATH) $(FILES)
 	@$(GHDL_CMD) -m  $(GHDL_FLAGS) --workdir=simulation --work=work $(TESTBENCHFILE)
-	#@mv $(TESTBENCHFILE) simulation/$(TESTBENCHFILE)
 
 
 
@@ -43,6 +42,8 @@ run:
 
 view:
 	@gunzip --stdout $(SIMDIR)/$(TESTBENCHFILE).vcdgz | $(WAVEFORM_VIEWER) --vcd
+	@rm $(TESTBENCHFILE)
+	@rm e~$(TESTBENCHFILE).o
 
 clean:
 	@rm -rf $(SIMDIR)

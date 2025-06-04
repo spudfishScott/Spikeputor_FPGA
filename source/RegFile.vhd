@@ -2,7 +2,7 @@
 -- Inputs:
 --     Asynchronous RESET to clear all registers
 --     Three Data Inputs 
---     Three Register Controls (Rega, RegB, RegC) from the opcode 
+--     Three Register Controls (OPA, OPB, OPC) from the opcode 
 --     Clock Enable, CLK, Input Select
 --     WERF (Write enable register flag) and RBSEL (Register Channel B Selector)
 -- Outputs:
@@ -24,7 +24,7 @@ entity REG_FILE is
         IN0, IN1, IN2 : in std_logic_vector(15 downto 0);
         CLK, CLK_EN : in std_logic;
         INSEL : in std_logic_vector(1 downto 0);
-        REGA, REGB, REGC : in std_logic_vector(2 downto 0);
+        OPA, OPB, OPC : in std_logic_vector(2 downto 0);
         WERF, RBSEL : in std_logic;
 
         AOUT : out std_logic_vector(15 downto 0);
@@ -60,12 +60,12 @@ architecture RTL of REG_FILE is
 
     -- REG_LE - need 7 of these plus logic for one "always zero" register
     component REG_LE is
-        generic (n: positive); -- width of register
+        generic (width: positive); -- width of register
 
         port (
             RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable 
-            D : in std_logic_vector(n-1 downto 0);	-- input
-            Q : out std_logic_vector(n-1 downto 0)	-- output channel A
+            D : in std_logic_vector(width-1 downto 0);	-- input
+            Q : out std_logic_vector(width-1 downto 0)	-- output channel A
         );
     end component;
 
@@ -92,7 +92,9 @@ architecture RTL of REG_FILE is
     -- internal signals
     signal REG_IN : std_logic_vector(15 downto 0);
     signal B_DECIN, W_DECIN : std_logic_vector(2 downto 0);
-    signal AOUT_SEL, BOUT_SEL, WREG_SEL : std_logic_vector(7 downto 0);
+    signal AOUT_SEL, BOUT_SEL : std_logic_vector(2 downto 0); 
+    signal WREG_SEL : std_logic_vector(7 downto 0);
+    signal AOUT_INT : std_logic_vector(15 downto 0);
     signal REGS_OUT : RARRAY;
 
 begin   -- architecture begin
@@ -107,21 +109,14 @@ begin   -- architecture begin
     );
 
     -- Handle Register Address Controls
-    -- Channel A selection is simply REGA
-    AOUT_CTRL: DECODE3_8 port map (  -- Channel A Register Select
-        DECIN => REGA,
-        OUTS  => AOUT_SEL
-    );
+    -- Channel A selection is simply OPA
+    AOUT_SEL <= OPA;
 
-    -- Channel B selection depends on the RBSEL signal and is either REGB or REGC
-    B_DECIN <= REGB when RBSEL = '0' else REGC;
-    BOUT_CTRL: DECODE3_8 port map (  -- Channel B Register Select
-        DECIN => B_DECIN,
-        OUTS  => BOUT_SEL
-    );
+    -- Channel B selection depends on the RBSEL signal and is either OPB or OPC
+    BOUT_SEL <= OPB when RBSEL = '0' else OPC;
 
-    -- Register Write selection depends on WERF, REGC is WERF is selected, Register 0 if not
-    W_DECIN <= REGC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
+    -- Register Write selection depends on WERF, OPC is WERF is selected, Register 0 if not
+    W_DECIN <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
     WREG_CTRL: DECODE3_8 port map ( -- Register Write Select
         DECIN => W_DECIN,
         OUTS  => WREG_SEL
@@ -140,22 +135,6 @@ begin   -- architecture begin
         );
     end generate REGISTERS;
 
-    -- Register Output A
-    REGOUT_A: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel A Output
-        IN7 => REGS_OUT(7),
-        IN6 => REGS_OUT(6),
-        IN5 => REGS_OUT(5),
-        IN4 => REGS_OUT(4),
-        IN3 => REGS_OUT(3),
-        IN2 => REGS_OUT(2),
-        IN1 => REGS_OUT(1),
-        IN0 => (others => '0'),     -- Register 0 is always 0
-        SEL => AOUT_SEL,
-        MUXOUT => AOUT
-    );
-
-    AZERO <= '1' when AOUT = (others => '0') else '0';   -- zero detect output
-
     -- Register Output B
     REGOUT_B: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel B Output
         IN7 => REGS_OUT(7),
@@ -169,5 +148,22 @@ begin   -- architecture begin
         SEL => BOUT_SEL,
         MUXOUT => BOUT
     );
+
+        -- Register Output A
+    REGOUT_A: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel A Output
+        IN7 => REGS_OUT(7),
+        IN6 => REGS_OUT(6),
+        IN5 => REGS_OUT(5),
+        IN4 => REGS_OUT(4),
+        IN3 => REGS_OUT(3),
+        IN2 => REGS_OUT(2),
+        IN1 => REGS_OUT(1),
+        IN0 => (others => '0'),     -- Register 0 is always 0
+        SEL => AOUT_SEL,
+        MUXOUT => AOUT_INT
+    );
+
+    AOUT <= AOUT_INT;
+    AZERO <= '1' when AOUT_INT = "0000000000000000" else '0';   -- zero detect output
 
 end RTL;
