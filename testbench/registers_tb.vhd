@@ -94,27 +94,29 @@ begin
 	-- load values into the registers
     for i in 1 to 7 loop
         werf_stim <= '1';
+        operand_stim(8 downto 6) <= std_logic_vector(to_unsigned(i, 3) - 2);
+        operand_stim(5 downto 3) <= std_logic_vector(to_unsigned(i, 3) - 1);
         operand_stim(2 downto 0) <= std_logic_vector(to_unsigned(i, 3));
         insel_stim <= std_logic_vector(to_unsigned(i mod 3, 2));
-        wait for 50 ns;
+        wait for 100 ns;
 
         werf_stim <= '0';
-        wait for 50 ns;
+        wait for 100 ns;
     end loop;
 	
     operand_stim(8 downto 6) <= "010"; -- register 2 to Channel A
     operand_stim(5 downto 3) <= "100"; -- register 4 to Channel B
-    wait for 50 ns;
+    wait for 100 ns;
 
     rbsel_stim <= '1';
     operand_stim(8 downto 6) <= "011"; -- register 3 to Channel A
     operand_stim(2 downto 0) <= "110"; -- register 6 to Channel B (via operand C and rbsel)
-    wait for 50 ns;
+    wait for 100 ns;
 
     rbsel_stim <= '0';
     operand_stim(8 downto 6) <= "100"; -- register 3 to Channel A
     operand_stim(5 downto 3) <= "101"; -- register 5 to Channel B (via operand B)
-	wait for 50 ns;
+	wait for 100 ns;
 
 	reset <= '1';
 	

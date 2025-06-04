@@ -1,31 +1,31 @@
 v 4
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/Registers.vhd" "e5d92d65fb958169a267802dc7982144bdc5ccf1" "20250604021432.336":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/Registers.vhd" "e5d92d65fb958169a267802dc7982144bdc5ccf1" "20250604144713.463":
   entity reg_hilo at 4( 166) + 0 on 25;
   architecture behavior of reg_hilo at 18( 658) + 0 on 26;
   entity reg_le at 48( 1960) + 0 on 27;
   architecture behavior of reg_le at 62( 2328) + 0 on 28;
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/RegFile.vhd" "7c75983473c5629b5c70880c96b780300098c697" "20250604021432.173":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/RegFile.vhd" "7c75983473c5629b5c70880c96b780300098c697" "20250604144713.306":
   entity reg_file at 15( 525) + 0 on 17;
   architecture rtl of reg_file at 36( 1086) + 0 on 18;
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/MUXes.vhd" "d27a3d5be47aadda3d4ca0188f50439dc542918c" "20250604021432.256":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/MUXes.vhd" "d27a3d5be47aadda3d4ca0188f50439dc542918c" "20250604144713.386":
   entity mux8 at 5( 176) + 0 on 19;
   architecture behavior of mux8 at 26( 1001) + 0 on 20;
   entity mux3 at 44( 1592) + 0 on 21;
   architecture behavior of mux3 at 60( 2083) + 0 on 22;
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/LED7Seg.vhd" "611ed61f75feed4953d632e0d0381a2d954b159d" "20250604021431.904":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/LED7Seg.vhd" "611ed61f75feed4953d632e0d0381a2d954b159d" "20250604144713.009":
   entity wordto7segs at 1( 0) + 0 on 4;
   architecture behavior of wordto7segs at 13( 260) + 0 on 4;
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/Decoders.vhd" "8195fd170466e025a05e4533178566bc0ed6f1e6" "20250604021432.308":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/Decoders.vhd" "8195fd170466e025a05e4533178566bc0ed6f1e6" "20250604144713.437":
   entity decode3_8 at 4( 115) + 0 on 23;
   architecture behavior of decode3_8 at 15( 378) + 0 on 24;
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/DE0_RegTest.vhd" "b88a65d43a92e9f9582d072bf1b4bb639c27837c" "20250604021431.904":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/DE0_RegTest.vhd" "b88a65d43a92e9f9582d072bf1b4bb639c27837c" "20250604144713.008":
   entity regtest at 3( 55) + 0 on 4;
   architecture structural of regtest at 29( 685) + 0 on 4;
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/Clocks.vhd" "d1aab04bde3ed7fff3a74d0395374c74b9595eaf" "20250604021432.148":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "source/Clocks.vhd" "d1aab04bde3ed7fff3a74d0395374c74b9595eaf" "20250604144713.281":
   entity freq_clock at 5( 189) + 0 on 13;
   architecture behavior of freq_clock at 22( 498) + 0 on 14;
   entity clk_enable at 46( 1325) + 0 on 15;
   architecture behavior of clk_enable at 62( 1571) + 0 on 16;
-file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "testbench/registers_tb.vhd" "b1ed4e12ee3e44b81c49a7311465211f44d0ad9e" "20250604021432.041":
+file "/Users/spike/Desktop/Electronics Projects/Spikeputor Project v3/" "testbench/registers_tb.vhd" "209f287a6651a93f70a3ad977bc50281c6e7a4d0" "20250604144713.160":
   entity registers_tb at 1( 0) + 0 on 11;
   architecture testbench of registers_tb at 9( 142) + 0 on 12;
