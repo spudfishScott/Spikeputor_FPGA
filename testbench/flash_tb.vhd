@@ -17,7 +17,7 @@ architecture tb of Flash_tb is
             ERASE_IN    : in  std_logic_vector(1 downto 0);
             RD_IN       : in  std_logic;
             WR_IN       : in  std_logic; 
-            ADDR_IN     : in  std_logic_vector(20 downto 0);
+            ADDR_IN     : in  std_logic_vector(21 downto 0);
             DATA_IN     : in  std_logic_vector(15 downto 0);
             DATA_OUT    : out std_logic_vector(15 downto 0);
             BUSY_OUT    : out std_logic;
@@ -32,7 +32,7 @@ architecture tb of Flash_tb is
             OE_n        : out std_logic;
             WE_n        : out std_logic;
             BY_n        : in  std_logic;
-            A           : out std_logic_vector(20 downto 0);
+            A           : out std_logic_vector(21 downto 0);
             DQ          : inout std_logic_vector(15 downto 0)
         );
     end component;
@@ -43,7 +43,7 @@ architecture tb of Flash_tb is
     signal erase       : std_logic_vector(1 downto 0) := "00";
     signal rd          : std_logic := '0';
     signal wr          : std_logic := '0';
-    signal addr        : std_logic_vector(20 downto 0) := (others => '0');
+    signal addr        : std_logic_vector(21 downto 0) := (others => '0');
     signal din         : std_logic_vector(15 downto 0) := (others => '0');
     signal dout        : std_logic_vector(15 downto 0);
     signal busy        : std_logic;
@@ -107,7 +107,7 @@ begin
         wait for clk_period;
 
         -- Write operation - successful
-        addr <= "000000000000000000001";  -- Address 1
+        addr <= "0000000000000000000001";  -- Address 1
         din  <= x"1234";
         wr   <= '1';
         wait for clk_period;
@@ -119,7 +119,7 @@ begin
         wait for 100 ns;
 
         -- Read operation
-        addr <= "000000000000000000001";  -- Address 1
+        addr <= "0000000000000000000011";  -- Address 1
         rd   <= '1';
         wait for 100 ns;
         rd   <= '0';
@@ -135,7 +135,7 @@ begin
 
         -- Sector erase operation
         erase <= "10";
-        addr  <= "000000000000000010000"; -- Address 16
+        addr  <= "0000000000000000010000"; -- Address 16
         wait for clk_period;
         erase <= "00";
         wait for 500 ns;
@@ -143,7 +143,7 @@ begin
         wait for 500 ns;
 
         -- Write operation - unsuccessful
-        addr <= "000000000000000000010";  -- Address 2
+        addr <= "0000000000000000000010";  -- Address 2
         din  <= x"5678";
         wr   <= '1';
         wait for clk_period;
@@ -156,6 +156,6 @@ begin
     end process;
 
     -- Simulate DQ as bidirectional (simple model)
-    dq <= (others => 'Z') when rd = '0' else x"1234";
+    dq <= (others => 'Z') when oe_n = '1' else x"BEEF"; -- Simulate read data
 
 end architecture;

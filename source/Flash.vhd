@@ -23,7 +23,7 @@ entity FLASH_RAM is
         ERASE_IN    : in  std_logic_vector(1 downto 0);
         RD_IN       : in  std_logic;
         WR_IN       : in  std_logic; 
-        ADDR_IN     : in  std_logic_vector(20 downto 0);
+        ADDR_IN     : in  std_logic_vector(21 downto 0);
         DATA_IN     : in  std_logic_vector(15 downto 0);
         DATA_OUT    : out std_logic_vector(15 downto 0);
         BUSY_OUT    : out std_logic; -- Low when controller ready for a new operation
@@ -38,7 +38,7 @@ entity FLASH_RAM is
         OE_n        : out std_logic; -- output enable
         WE_n        : out std_logic; -- write enable
         BY_n        :  in std_logic; -- chip ready/~busy
-        A	        : out std_logic_vector(20 downto 0); -- chip Address
+        A	        : out std_logic_vector(21 downto 0); -- chip Address
         DQ          : inout std_logic_vector(15 downto 0) -- chip DQ
 	);
 end entity;
@@ -109,7 +109,7 @@ architecture rtl of FLASH_RAM is
     -- data I/O and address signals 
     signal dq_data_out_r        : std_logic_vector(15 downto 0);
     signal dq_data_in_r         : std_logic_vector(15 downto 0);
-    signal address_wr_r         : std_logic_vector(20 downto 0);
+    signal address_wr_r         : std_logic_vector(21 downto 0);
     -- internal busy signal
     signal busy_i               : std_logic;
     -- data polling signals
@@ -135,7 +135,7 @@ begin
 
     -- controller to flash chip in signal ('Z' when chip output is not enabled or in reading/polling phases of state machines)
     DQ          <= dq_data_out_r when (output_enable = '0' and st_main /= ST_READ) else (others => 'Z');
-    A           <= address_wr_r when (st_main = ST_IDLE);
+    
     process(CLK_IN, RST_IN)
     begin
         if (RST_IN = '1') then  -- RESET
@@ -143,6 +143,7 @@ begin
             chip_enable	            <= '0';
             output_enable           <= '0';
             write_enable            <= '0';
+            A                       <= (others => '0'); -- reset chip address
             st_main                 <= ST_IDLE; -- reset state machines
             st_writing              <= W_SEQ0;
             st_chip_erasing         <= E0_SEQ0;
@@ -189,6 +190,9 @@ begin
                             address_wr_r    <= ADDR_IN;         -- get address to read
                             dq_data_in_r    <= (others => '0'); -- clear data in register
                             busy_i          <= '1';             -- mark controller as busy
+                            write_enable    <= '0';             -- start the chip read process
+                            output_enable   <= '1';	
+                            chip_enable     <= '1';
                         elsif (RD_IN = '0' and WR_IN = '1' and ERASE_IN = "00") then -- enter Write Command
                             st_main         <= ST_WRITE;        -- new state is ST_WRITE
                             address_wr_r    <= ADDR_IN;         -- get address to write
@@ -218,11 +222,7 @@ begin
                         t_RD <= t_RD + 1;
                     end if;
 
-                    if (t_RD = 0) then                      -- immediately set output_enable and chip_enable
-                        write_enable    <= '0';
-                        output_enable   <= '1';	
-                        chip_enable     <= '1';
-                    elsif (t_RD = 70/MAIN_CLK_NS + 1) then  -- after 70 ns, address is valid, clear OE and CE, next state is ST_IDLE
+                    if (t_RD = 70/MAIN_CLK_NS) then  -- after 70 ns, address is valid, clear OE and CE, next state is ST_IDLE
                         write_enable    <= '0';
                         output_enable   <= '0';	
                         chip_enable     <= '0';	
