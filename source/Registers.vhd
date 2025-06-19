@@ -55,7 +55,7 @@ entity REG_LE is
 	port (
 		RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable
 		D : in std_logic_vector(width-1 downto 0);	-- input
-		Q : out std_logic_vector(width-1 downto 0)	-- output channel A
+		Q : out std_logic_vector(width-1 downto 0)	-- output
 	);
 end REG_LE;
 

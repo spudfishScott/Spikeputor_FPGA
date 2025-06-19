@@ -285,7 +285,7 @@ begin
                             end case;
                         end if;
                     else    -- state is waiting, so wait for the "program" cycle to complete
-                        if (t_WHWH1 > (360100/MAIN_CLK_NS)) then    -- timeout, there was an error writing the data
+                        if (t_WHWH1 > (360100/MAIN_CLK_NS)) then    -- timeout, there was an error writing the data, stop counting
                                 programming_complete    <= '0';
                                 programming_error       <= '1';
                                 st_main                 <= ST_IDLE;
