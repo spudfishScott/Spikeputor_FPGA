@@ -26,7 +26,7 @@ entity FLASH_RAM is
         ADDR_IN     : in  std_logic_vector(21 downto 0);
         DATA_IN     : in  std_logic_vector(15 downto 0);
         DATA_OUT    : out std_logic_vector(15 downto 0);
-        BUSY_OUT    : out std_logic; -- Low when controller ready for a new operation
+        READY_OUT   : out std_logic; -- High when controller ready for a new operation
         VALID_OUT	: out std_logic; -- High when controller wrote bytes / erased without errors
         ERROR_OUT	: out std_logic; -- High when error, system need to reset chip and repeat operation
 
@@ -75,30 +75,30 @@ architecture rtl of FLASH_RAM is
     signal t_WHWH3  : integer range 0 to (120/MAIN_CLK_NS) := 0; -- Sector erase counter - wait 90 ns max before n_busy goes low
 
     -- Flash commands (Word mode) - The command *might* need to be repeated in the high byte (0xF0F0), but probably not
-    constant write_data_reset   : std_logic_vector(15 downto 0) := x"00F0";
+    constant write_data_reset   : std_logic_vector(15 downto 0) := x"F0F0";
 
-    constant write_data_first   : std_logic_vector(15 downto 0) := x"00AA";
-    constant write_data_second  : std_logic_vector(15 downto 0) := x"0055";
-    constant write_data_third   : std_logic_vector(15 downto 0) := x"00A0";
+    constant write_data_first   : std_logic_vector(15 downto 0) := x"AAAA";
+    constant write_data_second  : std_logic_vector(15 downto 0) := x"5555";
+    constant write_data_third   : std_logic_vector(15 downto 0) := x"A0A0";
 
-    constant write_addr_first   : std_logic_vector(20 downto 0) := "000000000010101010101"; -- 555
-    constant write_addr_second  : std_logic_vector(20 downto 0) := "000000000001010101010"; -- 2AA
-    constant write_addr_third   : std_logic_vector(20 downto 0) := "000000000010101010101"; -- 555
+    constant write_addr_first   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
+    constant write_addr_second  : std_logic_vector(21 downto 0) := "0000000000001010101010"; -- 2AA
+    constant write_addr_third   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
 
-    constant erase_data_first   : std_logic_vector(15 downto 0) := x"00AA";
-    constant erase_data_second  : std_logic_vector(15 downto 0) := x"0055";
-    constant erase_data_third   : std_logic_vector(15 downto 0) := x"0080";
-    constant erase_data_fourth  : std_logic_vector(15 downto 0) := x"00AA";
-    constant erase_data_fifth   : std_logic_vector(15 downto 0) := x"0055";
-    constant erase_data_sixth   : std_logic_vector(15 downto 0) := x"0010";
-    constant erase_data_sector  : std_logic_vector(15 downto 0) := x"0030";
+    constant erase_data_first   : std_logic_vector(15 downto 0) := x"AAAA";
+    constant erase_data_second  : std_logic_vector(15 downto 0) := x"5555";
+    constant erase_data_third   : std_logic_vector(15 downto 0) := x"8080";
+    constant erase_data_fourth  : std_logic_vector(15 downto 0) := x"AAAA";
+    constant erase_data_fifth   : std_logic_vector(15 downto 0) := x"5555";
+    constant erase_data_sixth   : std_logic_vector(15 downto 0) := x"1010";
+    constant erase_data_sector  : std_logic_vector(15 downto 0) := x"3030";
 
-    constant erase_addr_first   : std_logic_vector(20 downto 0) := "000000000010101010101"; -- 555
-    constant erase_addr_second  : std_logic_vector(20 downto 0) := "000000000001010101010"; -- 2AA
-    constant erase_addr_third   : std_logic_vector(20 downto 0) := "000000000010101010101"; -- 555
-    constant erase_addr_fourth  : std_logic_vector(20 downto 0) := "000000000010101010101"; -- 555
-    constant erase_addr_fifth   : std_logic_vector(20 downto 0) := "000000000001010101010"; -- 2AA
-    constant erase_addr_sixth   : std_logic_vector(20 downto 0) := "000000000010101010101"; -- 555
+    constant erase_addr_first   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
+    constant erase_addr_second  : std_logic_vector(21 downto 0) := "0000000000001010101010"; -- 2AA
+    constant erase_addr_third   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
+    constant erase_addr_fourth  : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
+    constant erase_addr_fifth   : std_logic_vector(21 downto 0) := "0000000000001010101010"; -- 2AA
+    constant erase_addr_sixth   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
 
     -- internal signals
      -- reset and command bits
@@ -130,7 +130,7 @@ begin
     -- controller output signals
     ERROR_OUT   <= programming_error;
     VALID_OUT   <= programming_complete;
-    BUSY_OUT    <= busy_i or BY_n; -- show busy if either state machines or chip is busy
+    READY_OUT   <= (not busy_i) and BY_n; -- not ready if either state machines or chip is busy
     DATA_OUT    <= dq_data_in_r;
 
     -- controller to flash chip in signal ('Z' when chip output is not enabled or in reading/polling phases of state machines)
@@ -184,7 +184,7 @@ begin
                     st_chip_erasing     <= E0_SEQ0;
                     st_sector_erasing   <= E1_SEQ0;
 
-                    if (BY_n = '0' and programming_error = '0') then -- don't enter new state until chip is not busy and no error
+                    if (BY_n = '1' and programming_error = '0') then -- don't enter new state until chip is not busy and no error
                         if (RD_IN = '1' and WR_IN = '0' and ERASE_IN = "00") then -- enter Read Mode
                             st_main         <= ST_READ;         -- new state is ST_READ
                             address_wr_r    <= ADDR_IN;         -- get address to read
@@ -366,7 +366,7 @@ begin
                         end if;
                     else    -- state is waiting, so wait for the "chip erase" cycle to complete - typical timing is 45 seconds!
                         if (t_WHWH2 > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
-                            if (BY_n = '0') then                    -- when RY/BY# = 0, write is complete
+                            if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
                                 programming_complete    <= '1';
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
@@ -441,7 +441,7 @@ begin
                         end if;
                     else    -- state is waiting, so wait for the "sector erase" cycle to complete - typical timing is ~1 second
                         if (t_WHWH3 > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
-                            if (BY_n = '0') then                    -- when RY/BY# = 0, write is complete
+                            if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
                                 programming_complete    <= '1';
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;

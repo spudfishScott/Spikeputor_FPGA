@@ -4,7 +4,7 @@ library ieee;
 	use ieee.std_logic_1164.all;
 	use ieee.numeric_std.all;
 
-entity FlashTest is -- the interface to the DE0 board
+entity DE0_FlashTest is -- the interface to the DE0 board
 	port (
 		-- CLOCK
 		CLOCK_50 : in std_logic; -- 20 ns clock
@@ -23,20 +23,20 @@ entity FlashTest is -- the interface to the DE0 board
 		HEX3_DP : out std_logic;
 		-- LED
 		LEDG : out std_logic_vector(9 downto 0);
-        -- FLASH
-        FL_BYTE_N : out std_logic;
-        FL_CE_N : out std_logic;
-        FL_OE_N : out std_logic;
-        FL_RST_N : out std_logic;
-        FL_WE_N : out std_logic;
-        FL_WP_N : out std_logic;
-        FL_ADDR : out std_logic_vector(21 downto 0);
-        FL_DQ : inout std_logic_vector(15 downto 0);
-        FL_RY : in std_logic
+      -- FLASH
+      FL_BYTE_N : out std_logic;
+      FL_CE_N : out std_logic;
+      FL_OE_N : out std_logic;
+      FL_RST_N : out std_logic;
+      FL_WE_N : out std_logic;
+      FL_WP_N : out std_logic;
+      FL_ADDR : out std_logic_vector(21 downto 0);
+      FL_DQ : inout std_logic_vector(15 downto 0);
+      FL_RY : in std_logic
 	);
-end FlashTest;
+end DE0_FlashTest;
 
-architecture Structural of RegTest is
+architecture Structural of DE0_FlashTest is
 	-- Components
 	-- CLOCK_ENABLE
 	component CLK_ENABLE is
@@ -46,7 +46,7 @@ architecture Structural of RegTest is
 		);
 
 		port (
-			CLK_IN, RESET : in std_logic;
+			CLK_IN : in std_logic;
 			CLK_EN : out std_logic
 		);
 	end component CLK_ENABLE;
@@ -93,7 +93,7 @@ architecture Structural of RegTest is
             ADDR_IN     : in  std_logic_vector(21 downto 0);
             DATA_IN     : in  std_logic_vector(15 downto 0);
             DATA_OUT    : out std_logic_vector(15 downto 0);
-            BUSY_OUT    : out std_logic; -- Low when controller ready for a new operation
+            READY_OUT   : out std_logic; -- High when controller ready for a new operation
             VALID_OUT	: out std_logic; -- High when controller wrote bytes / erased without errors
             ERROR_OUT	: out std_logic; -- High when error, system need to reset chip and repeat operation
 
@@ -121,8 +121,7 @@ architecture Structural of RegTest is
 begin
 	-- Structure
     -- CPU Clock Enable
-	CLOCK : CLK_ENABLE generic map(5, 1) port map ( -- 100 ns clock enable for "cpu"
-		RESET => '0',
+	CLOCK_EN : CLK_ENABLE generic map(5, 1) port map ( -- 100 ns clock enable for "cpu"
 		CLK_IN => CLOCK_50,
 		CLK_EN => CLK_EN
 	);
@@ -136,6 +135,7 @@ begin
 
 	-- D REG with enable
 	ADDR_REG : REG_LE generic map(10) port map (	-- address register is 10 bits wide - that's how many switches we have
+	 RESET => STARTUP,
 		CLK => CLOCK_50,
 		 EN => CLK_EN,
 		 LE => NOT BUTTON(0), 	-- address set is button 0, invert it because the reg is active high and the button is active low
@@ -144,6 +144,7 @@ begin
 	);
 
     DATA_REG : REG_LE generic map(10) port map (	-- address register is 10 bits wide - that's how many switches we have
+    RESET => STARTUP,
 		CLK => CLOCK_50,
 		 EN => CLK_EN,
 		 LE => NOT BUTTON(1), 	-- data set is button 1, invert it because the reg is active high and the button is active low
@@ -170,7 +171,7 @@ begin
       ADDR_IN   => "000000000011" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended
       DATA_IN   => "000000" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
      DATA_OUT   => DATA_OUT,                -- controller output
-     BUSY_OUT   => LEDG(0),                 -- busy signal is output to LED 0
+     READY_OUT  => LEDG(0),                 -- busy signal is output to LED 0
     VALID_OUT   => LEDG(1),                 -- valid operation signal is output to LED 1
     ERROR_OUT   => LEDG(2),                 -- error signal is output to LED 2
         -- flash chip signals
@@ -186,8 +187,8 @@ begin
    );
 
     -- display is either the address register or the data register
-    DISPLAY <= "000000" & DATA_OUT  when BUTTON(2) = '0' else   -- if button 2 is pressed, display data from flash chip
-               "000000" & ADDR;                                 -- else display address register
+    DISPLAY <= DATA_OUT when BUTTON(2) = '0' else   -- if button 2 is pressed, display data from flash chip
+               "000000" & ADDR;                      -- else display address register
 
     LEDG(9) <= STARTUP; -- LED 9 is the startup signal
 
