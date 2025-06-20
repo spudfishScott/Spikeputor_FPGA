@@ -56,8 +56,16 @@ architecture tb of Flash_tb is
     signal oe_n        : std_logic;
     signal we_n        : std_logic;
     signal by_n        : std_logic := '0'; -- Simulate chip ready
-    signal a           : std_logic_vector(21 downto 0);
-    signal dq          : std_logic_vector(15 downto 0);
+    signal a_o         : std_logic_vector(21 downto 0);
+    signal dq_io       : std_logic_vector(15 downto 0);
+
+    -- signals for DQ simulation
+    signal dq_timer      : integer := 0;
+    signal last_oe_n        : std_logic := '1';
+    signal last_ce_n        : std_logic := '1';
+    signal dq_drive_value   : std_logic_vector(15 downto 0) := (others => 'Z');
+
+
 
     -- Clock generation
     constant clk_period : time := 20 ns;
@@ -84,8 +92,8 @@ begin
             OE_n        => oe_n,
             WE_n        => we_n,
             BY_n        => by_n,
-            A           => a,
-            DQ          => dq
+            A           => a_o,
+            DQ          => dq_io
         );
 
     -- Clock process
@@ -109,7 +117,7 @@ begin
         
         -- Write operation - successful
         addr <= "0000000000000000000001";  -- Address 1
-        din  <= x"1234";
+        din  <= x"eaea";
         wr   <= '1';
         wait for clk_period;
         by_n <= '0';  -- Simulate chip not ready
@@ -119,16 +127,24 @@ begin
         wait until valid = '1'; -- wait for write to complete
         wait for 100 ns;
 
-        -- Read operation
+        -- Read operation 1
         addr <= "0000000000000000000011";  -- Address 1
         rd   <= '1';
-        wait for 100 ns;
+        wait for 200 ns;
+        rd   <= '0';
+        wait for 500 ns;
+
+        -- Read operation 2
+        addr <= "0000000000000000000001";  -- Address 1
+        rd   <= '1';
+        wait for 200 ns;
         rd   <= '0';
         wait for 500 ns;
 
         -- Chip erase operation
         erase <= "01";
         wait for clk_period;
+        by_n <= '0';  -- Simulate chip not ready
         erase <= "00";
         wait for 500 ns;
         by_n <= '1';  -- Simulate chip ready
@@ -138,6 +154,7 @@ begin
         erase <= "10";
         addr  <= "0000000000000000010000"; -- Address 16
         wait for clk_period;
+        by_n <= '0';  -- Simulate chip not ready
         erase <= "00";
         wait for 500 ns;
         by_n <= '1';  -- Simulate chip ready
@@ -156,7 +173,40 @@ begin
         wait;
     end process;
 
-    -- Simulate DQ as bidirectional (simple model)
-    dq <= (others => 'Z') when oe_n = '1' else x"BEEF"; -- Simulate read data
+--    Simulate DQ as bidirectional with 80 ns lag between OE/CE and valid output
+dq_drive_proc: process(clk)
+    begin
+        if rising_edge(clk) then
+            -- Detect when output should be enabled
+            if ce_n = '0' and oe_n = '0' then
+                -- Start delay if OE/CE changed to 0
+                if (oe_n /= last_oe_n) or (ce_n /= last_ce_n) then
+                    dq_timer   <= 2; -- 4 cycles x 20ns = 80ns (close to 70ns) (one has already happened to get here)
+                elsif dq_timer > 1 then -- otherwise if timer started and nOE/nCN still 0, then decrement timer
+                    dq_timer <= dq_timer - 1;
+                end if;
+            else -- if nOE/nCE are no longer 0, then reset timer and set DQ to high impedance
+                dq_timer   <= 0;
+                dq_drive_value <= (others => 'U'); -- Set DQ to undefined state
+            end if;
+
+            -- Drive value after delay
+            if dq_timer = 1 then
+                if a_o = "0000000000000000000001" then
+                    dq_drive_value <= x"1234";
+                else
+                    dq_drive_value <= x"BEEF";
+                end if;
+            end if;
+
+            -- Update last values
+            last_oe_n <= oe_n;
+            last_ce_n <= ce_n;
+        end if;
+    end process;
+
+    dq_io <= dq_drive_value when oe_n = '0' else (others => 'Z');
+
+
 
 end architecture;

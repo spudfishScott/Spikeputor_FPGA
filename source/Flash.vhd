@@ -188,11 +188,12 @@ begin
                         if (RD_IN = '1' and WR_IN = '0' and ERASE_IN = "00") then -- enter Read Mode
                             st_main         <= ST_READ;         -- new state is ST_READ
                             address_wr_r    <= ADDR_IN;         -- get address to read
-                            dq_data_in_r    <= (others => '0'); -- clear data in register
                             busy_i          <= '1';             -- mark controller as busy
-                            write_enable    <= '0';             -- start the chip read process
-                            output_enable   <= '1';	
-                            chip_enable     <= '1';
+                            A               <= address_wr_r;    -- set chip address
+                            write_enable    <= '0';             -- set WE to 0, so chip is in read mode
+                            output_enable   <= '1';             -- set OE to 1, so chip outputs data on DQ
+                            chip_enable     <= '1';             -- set CE to 1, so chip is enabled
+                            programming_complete <= '0';        -- clear programming complete flag
                         elsif (RD_IN = '0' and WR_IN = '1' and ERASE_IN = "00") then -- enter Write Command
                             st_main         <= ST_WRITE;        -- new state is ST_WRITE
                             address_wr_r    <= ADDR_IN;         -- get address to write
@@ -215,22 +216,17 @@ begin
                     end if;
 
                 when ST_READ => 
-                    -- Set flash chip address from controller address and controller data in register from DQ
-                    A               <= address_wr_r;
-                    dq_data_in_r    <= DQ;
+                    dq_data_in_r    <= DQ;              -- set data in register to input from chip DQ
 
-                    if (t_RD > (70/MAIN_CLK_NS)) then   -- Read cycle time counter
-                        t_RD <= 0;
-                    else
+                    -- Timer for read cycle time
+                    if (t_RD < 70/MAIN_CLK_NS) then   -- Read cycle time counter - count up to 70 ns
                         t_RD <= t_RD + 1;
-                    end if;
-
-                    if (t_RD = 70/MAIN_CLK_NS) then  -- after 70 ns, address is valid, clear OE and CE, next state is ST_IDLE
---                        dq_data_in_r    <= DQ;	-- only set dq_data_in_r at end of read
-								write_enable    <= '0';
-                        output_enable   <= '0';	
-                        chip_enable     <= '0';	
-                        st_main         <= ST_IDLE;
+                    else                                    -- after 70 ns, ata is ready to read
+                        if (RD_IN = '0') then
+                            st_main         <= ST_IDLE;     -- but don't go back to idle until the CPU clears RD_IN
+                        else 
+                            busy_i      <= '0';             -- set busy signal low so CPU knows it can use the data
+                        end if;
                     end if;
 
                 when ST_WRITE =>
