@@ -189,10 +189,6 @@ begin
                             st_main         <= ST_READ;         -- new state is ST_READ
                             address_wr_r    <= ADDR_IN;         -- get address to read
                             busy_i          <= '1';             -- mark controller as busy
-                            A               <= address_wr_r;    -- set chip address
-                            write_enable    <= '0';             -- set WE to 0, so chip is in read mode
-                            output_enable   <= '1';             -- set OE to 1, so chip outputs data on DQ
-                            chip_enable     <= '1';             -- set CE to 1, so chip is enabled
                             programming_complete <= '0';        -- clear programming complete flag
                         elsif (RD_IN = '0' and WR_IN = '1' and ERASE_IN = "00") then -- enter Write Command
                             st_main         <= ST_WRITE;        -- new state is ST_WRITE
@@ -215,19 +211,26 @@ begin
                         st_main <= ST_IDLE;     -- stay idle if state machines or chip is busy or error
                     end if;
 
-                when ST_READ => 
+                when ST_READ =>
+					     A               <= address_wr_r;    -- set chip address 
                     dq_data_in_r    <= DQ;              -- set data in register to input from chip DQ
 
                     -- Timer for read cycle time
                     if (t_RD < 70/MAIN_CLK_NS) then   -- Read cycle time counter - count up to 70 ns
                         t_RD <= t_RD + 1;
-                    else                                    -- after 70 ns, ata is ready to read
+                    else                                    -- after 70 ns, data is ready to read
                         if (RD_IN = '0') then
                             st_main         <= ST_IDLE;     -- but don't go back to idle until the CPU clears RD_IN
                         else 
                             busy_i      <= '0';             -- set busy signal low so CPU knows it can use the data
                         end if;
                     end if;
+						  
+						  if (t_RD = 0) then								-- set up chip controls at time 0
+						      write_enable    <= '0';             -- set WE to 0, so chip is in read mode
+                        output_enable   <= '1';             -- set OE to 1, so chip outputs data on DQ
+                        chip_enable     <= '1';             -- set CE to 1, so chip is enabled
+						  end if;
 
                 when ST_WRITE =>
                     -- write state machine - write three commands, then write the actual data

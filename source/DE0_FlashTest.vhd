@@ -112,8 +112,8 @@ architecture Structural of DE0_FlashTest is
 
     -- Signal Declarations
     signal STARTUP : std_logic := '0';                                  -- start up signal
-    signal ADDR : std_logic_vector(9 downto 0) := "0010101010";         -- address register (0x0AA)
-    signal DATA : std_logic_vector(9 downto 0) := "0011011101";         -- data register (0x0DD)
+    signal ADDR : std_logic_vector(9 downto 0);
+    signal DATA : std_logic_vector(9 downto 0);
     signal DATA_OUT : std_logic_vector(15 downto 0);                    -- data output from flash chip
     signal DISPLAY : std_logic_vector(15 downto 0) := (others => '0');  -- display output
     signal CLK_EN : std_logic;                                          -- clock enable signal
@@ -127,7 +127,7 @@ begin
 	);
 
     -- Startup pulse
-    START : PULSE_GEN generic map (PULSE_WIDTH => 1000) port map ( -- 20 us startup pulse
+    START : PULSE_GEN generic map (PULSE_WIDTH => 50000000) port map ( -- 1 sec startup pulse
         START_PULSE => '1', -- start the pulse immediately
         CLK_IN => CLOCK_50,
         PULSE_OUT => STARTUP
@@ -168,7 +168,7 @@ begin
      ERASE_IN   => "00",                    -- no erase operation
         RD_IN   => NOT BUTTON(2),           -- read operation is triggered by button 2
         WR_IN   => NOT BUTTON(1),           -- write operation is triggered by button 1
-      ADDR_IN   => "000000001111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended
+      ADDR_IN   => "000000111111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended
       DATA_IN   => "000000" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
      DATA_OUT   => DATA_OUT,                -- controller output
      READY_OUT  => LEDG(0),                 -- busy signal is output to LED 0
@@ -191,12 +191,13 @@ begin
                "000000" & ADDR;                      -- else display address register
 
     LEDG(9) <= STARTUP; -- LED 9 is the startup signal
+	 LEDG(8) <= NOT Button(1);	-- LED 8 is the write signal
 
 	-- assign output states for unused 7 segment display decimal point and unused LEDs
 	HEX0_DP <= '1';
 	HEX1_DP <= '1';
 	HEX2_DP <= '1';
 	HEX3_DP <= '1';
-	LEDG(8 downto 3) <= (others => '0');
+	LEDG(7 downto 3) <= (others => '0');
 
 end Structural;
