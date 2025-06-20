@@ -75,23 +75,23 @@ architecture rtl of FLASH_RAM is
     signal t_WHWH3  : integer range 0 to (120/MAIN_CLK_NS) := 0; -- Sector erase counter - wait 90 ns max before n_busy goes low
 
     -- Flash commands (Word mode) - The command *might* need to be repeated in the high byte (0xF0F0), but probably not
-    constant write_data_reset   : std_logic_vector(15 downto 0) := x"F0F0";
+    constant write_data_reset   : std_logic_vector(15 downto 0) := x"00F0";
 
-    constant write_data_first   : std_logic_vector(15 downto 0) := x"AAAA";
-    constant write_data_second  : std_logic_vector(15 downto 0) := x"5555";
-    constant write_data_third   : std_logic_vector(15 downto 0) := x"A0A0";
+    constant write_data_first   : std_logic_vector(15 downto 0) := x"00AA";
+    constant write_data_second  : std_logic_vector(15 downto 0) := x"0055";
+    constant write_data_third   : std_logic_vector(15 downto 0) := x"00A0";
 
     constant write_addr_first   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
     constant write_addr_second  : std_logic_vector(21 downto 0) := "0000000000001010101010"; -- 2AA
     constant write_addr_third   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
 
-    constant erase_data_first   : std_logic_vector(15 downto 0) := x"AAAA";
-    constant erase_data_second  : std_logic_vector(15 downto 0) := x"5555";
-    constant erase_data_third   : std_logic_vector(15 downto 0) := x"8080";
-    constant erase_data_fourth  : std_logic_vector(15 downto 0) := x"AAAA";
-    constant erase_data_fifth   : std_logic_vector(15 downto 0) := x"5555";
-    constant erase_data_sixth   : std_logic_vector(15 downto 0) := x"1010";
-    constant erase_data_sector  : std_logic_vector(15 downto 0) := x"3030";
+    constant erase_data_first   : std_logic_vector(15 downto 0) := x"00AA";
+    constant erase_data_second  : std_logic_vector(15 downto 0) := x"0055";
+    constant erase_data_third   : std_logic_vector(15 downto 0) := x"0080";
+    constant erase_data_fourth  : std_logic_vector(15 downto 0) := x"00AA";
+    constant erase_data_fifth   : std_logic_vector(15 downto 0) := x"0055";
+    constant erase_data_sixth   : std_logic_vector(15 downto 0) := x"0010";
+    constant erase_data_sector  : std_logic_vector(15 downto 0) := x"0030";
 
     constant erase_addr_first   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
     constant erase_addr_second  : std_logic_vector(21 downto 0) := "0000000000001010101010"; -- 2AA
@@ -226,7 +226,8 @@ begin
                     end if;
 
                     if (t_RD = 70/MAIN_CLK_NS) then  -- after 70 ns, address is valid, clear OE and CE, next state is ST_IDLE
-                        write_enable    <= '0';
+--                        dq_data_in_r    <= DQ;	-- only set dq_data_in_r at end of read
+								write_enable    <= '0';
                         output_enable   <= '0';	
                         chip_enable     <= '0';	
                         st_main         <= ST_IDLE;

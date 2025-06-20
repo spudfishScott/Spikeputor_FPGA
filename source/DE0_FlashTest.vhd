@@ -143,7 +143,7 @@ begin
 		  Q => ADDR
 	);
 
-    DATA_REG : REG_LE generic map(10) port map (	-- address register is 10 bits wide - that's how many switches we have
+    DATA_REG : REG_LE generic map(10) port map (	-- data register is 10 bits wide - that's how many switches we have
     RESET => STARTUP,
 		CLK => CLOCK_50,
 		 EN => CLK_EN,
@@ -168,7 +168,7 @@ begin
      ERASE_IN   => "00",                    -- no erase operation
         RD_IN   => NOT BUTTON(2),           -- read operation is triggered by button 2
         WR_IN   => NOT BUTTON(1),           -- write operation is triggered by button 1
-      ADDR_IN   => "000000000011" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended
+      ADDR_IN   => "000000001111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended
       DATA_IN   => "000000" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
      DATA_OUT   => DATA_OUT,                -- controller output
      READY_OUT  => LEDG(0),                 -- busy signal is output to LED 0
