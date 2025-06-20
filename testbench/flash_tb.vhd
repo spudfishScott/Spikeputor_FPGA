@@ -20,7 +20,7 @@ architecture tb of Flash_tb is
             ADDR_IN     : in  std_logic_vector(21 downto 0);
             DATA_IN     : in  std_logic_vector(15 downto 0);
             DATA_OUT    : out std_logic_vector(15 downto 0);
-            BUSY_OUT    : out std_logic;
+           READY_OUT    : out std_logic;
             VALID_OUT   : out std_logic;
             ERROR_OUT   : out std_logic;
 
@@ -46,7 +46,7 @@ architecture tb of Flash_tb is
     signal addr        : std_logic_vector(21 downto 0) := (others => '0');
     signal din         : std_logic_vector(15 downto 0) := (others => '0');
     signal dout        : std_logic_vector(15 downto 0);
-    signal busy        : std_logic;
+    signal ready       : std_logic;
     signal valid       : std_logic;
     signal err         : std_logic;
     signal wp_n        : std_logic;
@@ -56,7 +56,7 @@ architecture tb of Flash_tb is
     signal oe_n        : std_logic;
     signal we_n        : std_logic;
     signal by_n        : std_logic := '0'; -- Simulate chip ready
-    signal a           : std_logic_vector(20 downto 0);
+    signal a           : std_logic_vector(21 downto 0);
     signal dq          : std_logic_vector(15 downto 0);
 
     -- Clock generation
@@ -74,7 +74,7 @@ begin
             ADDR_IN     => addr,
             DATA_IN     => din,
             DATA_OUT    => dout,
-            BUSY_OUT    => busy,
+           READY_OUT    => ready,
             VALID_OUT   => valid,
             ERROR_OUT   => err,
             WP_n        => wp_n,
@@ -105,16 +105,17 @@ begin
         wait for 100 ns;
         rst <= '0';
         wait for clk_period;
-
+        by_n <= '1';  -- Simulate chip ready
+        
         -- Write operation - successful
         addr <= "0000000000000000000001";  -- Address 1
         din  <= x"1234";
         wr   <= '1';
         wait for clk_period;
-        by_n <= '1';  -- Simulate chip not ready
+        by_n <= '0';  -- Simulate chip not ready
         wr   <= '0';
         wait for 400 ns;
-        by_n <= '0';  -- Simulate chip ready
+        by_n <= '1';  -- Simulate chip ready
         wait until valid = '1'; -- wait for write to complete
         wait for 100 ns;
 
@@ -130,7 +131,7 @@ begin
         wait for clk_period;
         erase <= "00";
         wait for 500 ns;
-        by_n <= '0';  -- Simulate chip ready
+        by_n <= '1';  -- Simulate chip ready
         wait for 500 ns;
 
         -- Sector erase operation
@@ -139,7 +140,7 @@ begin
         wait for clk_period;
         erase <= "00";
         wait for 500 ns;
-        by_n <= '0';  -- Simulate chip ready
+        by_n <= '1';  -- Simulate chip ready
         wait for 500 ns;
 
         -- Write operation - unsuccessful
@@ -147,7 +148,7 @@ begin
         din  <= x"5678";
         wr   <= '1';
         wait for clk_period;
-        by_n <= '1';  -- Simulate chip not ready
+        by_n <= '0';  -- Simulate chip not ready
         wr   <= '0';
         wait for 500 ns; -- entity should still be busy
 

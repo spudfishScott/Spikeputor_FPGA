@@ -133,7 +133,7 @@ begin
     READY_OUT   <= (not busy_i) and BY_n; -- not ready if either state machines or chip is busy
     DATA_OUT    <= dq_data_in_r;
 
-    -- controller to flash chip in signal ('Z' when chip output is not enabled or in reading/polling phases of state machines)
+    -- controller to flash chip in signal ('Z' when chip output is not enabled or in reading phase of state machines)
     DQ          <= dq_data_out_r when (output_enable = '0' and st_main /= ST_READ) else (others => 'Z');
     
     process(CLK_IN, RST_IN)
@@ -197,13 +197,16 @@ begin
                             st_main         <= ST_WRITE;        -- new state is ST_WRITE
                             address_wr_r    <= ADDR_IN;         -- get address to write
                             busy_i          <= '1';             -- mark controller as busy
+                            programming_complete <= '0';        -- clear programming complete flag
                         elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "01") then -- enter Chip Erase
                             st_main         <= ST_CHIP_ERASE;   -- new state is ST_CHIP_ERASE
                             busy_i          <= '1';
+                            programming_complete <= '0';        -- clear programming complete flag
                         elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "10") then -- enter Sector Erase
                             st_main         <= ST_SECTOR_ERASE; -- new state is ST_SECTOR_ERASE
                             address_wr_r    <= ADDR_IN;         -- get sector number to erase
                             busy_i          <= '1';             -- mark controller as busy
+                            programming_complete <= '0';        -- clear programming complete flag
                         else
                             st_main         <= ST_IDLE;         -- stay idle if the new command doesn't make sense
                         end if; 
@@ -290,7 +293,7 @@ begin
                                 programming_error       <= '1';
                                 st_main                 <= ST_IDLE;
                         elsif (t_WHWH1 > (90/MAIN_CLK_NS)) then     -- after 90 ns, poll the BY_n signal
-                            if (BY_n = '0') then                    -- when RY/BY# = 0, write is complete
+                            if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
                                 programming_complete    <= '1';
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
