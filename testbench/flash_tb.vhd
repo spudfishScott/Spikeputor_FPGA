@@ -7,36 +7,6 @@ end entity;
 
 architecture tb of Flash_tb is
 
-    -- Component declaration
-    component FLASH_RAM
-        generic (MAIN_CLK_NS : integer := 20);
-        port (
-            -- controller signals
-            CLK_IN      : in  std_logic;
-            RST_IN      : in  std_logic;
-            ERASE_IN    : in  std_logic_vector(1 downto 0);
-            RD_IN       : in  std_logic;
-            WR_IN       : in  std_logic; 
-            ADDR_IN     : in  std_logic_vector(21 downto 0);
-            DATA_IN     : in  std_logic_vector(15 downto 0);
-            DATA_OUT    : out std_logic_vector(15 downto 0);
-           READY_OUT    : out std_logic;
-            VALID_OUT   : out std_logic;
-            ERROR_OUT   : out std_logic;
-
-            -- flash chip signals
-            WP_n        : out std_logic;
-            BYTE_n      : out std_logic;
-            RST_n       : out std_logic;
-            CE_n        : out std_logic;
-            OE_n        : out std_logic;
-            WE_n        : out std_logic;
-            BY_n        : in  std_logic;
-            A           : out std_logic_vector(21 downto 0);
-            DQ          : inout std_logic_vector(15 downto 0)
-        );
-    end component;
-
     -- Signals for DUT
     signal clk         : std_logic := '0';
     signal rst         : std_logic := '1';
@@ -72,7 +42,7 @@ architecture tb of Flash_tb is
 begin
 
     -- Instantiate DUT
-    DUT: FLASH_RAM
+    DUT: entity work.FLASH_RAM
         port map (
             CLK_IN      => clk,
             RST_IN      => rst,

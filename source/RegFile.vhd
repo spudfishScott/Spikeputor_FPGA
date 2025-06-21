@@ -34,60 +34,7 @@ entity REG_FILE is
 end REG_FILE;
 
 architecture RTL of REG_FILE is
-    type RARRAY is array(1 to 7) of std_logic_vector(15 downto 0); -- define a an array type of 7 registers
-
-    -- component definitions
-    -- MUX3 - need one to select REG_IN
-    component MUX3 is
-        generic (width: positive); -- width of in/out signals
-
-        port (
-            IN2 : in std_logic_vector(width-1 downto 0); -- input 2
-            IN1 : in std_logic_vector(width-1 downto 0); -- input 1
-            IN0 : in std_logic_vector(width-1 downto 0); -- input 0
-            SEL : in std_logic_vector(1 downto 0); -- selection
-            MUXOUT : out std_logic_vector(width-1 downto 0) -- output
-        );
-    end component;
-
-    -- Decoder3_8 - need three to select AOUT, BOUT and WREG
-    component DECODE3_8 is
-        port (
-            DECIN : in std_logic_vector(2 downto 0); -- decoder input
-            OUTS : out std_logic_vector(7 downto 0) -- decoded output signal
-        );
-    end component;
-
-    -- REG_LE - need 7 of these plus logic for one "always zero" register
-    component REG_LE is
-        generic (width: positive); -- width of register
-
-        port (
-            RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable 
-            D : in std_logic_vector(width-1 downto 0);	-- input
-            Q : out std_logic_vector(width-1 downto 0)	-- output channel A
-        );
-    end component;
-
-    -- MUX8 - need one for the 8 register outputs
-    component MUX8 is
-        generic (width: positive := 8); -- width of in/out signals
-
-        port (
-            IN7 : in std_logic_vector(width-1 downto 0); -- input 7
-            IN6 : in std_logic_vector(width-1 downto 0); -- input 6
-            IN5 : in std_logic_vector(width-1 downto 0); -- input 5
-            IN4 : in std_logic_vector(width-1 downto 0); -- input 4
-            IN3 : in std_logic_vector(width-1 downto 0); -- input 3
-            IN2 : in std_logic_vector(width-1 downto 0); -- input 2
-            IN1 : in std_logic_vector(width-1 downto 0); -- input 1
-            IN0 : in std_logic_vector(width-1 downto 0); -- input 0
-            SEL : in std_logic_vector(2 downto 0);   -- selection
-            MUXOUT : out std_logic_vector(width-1 downto 0) -- selected output
-        );
-    end component;
-
-    -- end components
+    type RARRAY is array(1 to 7) of std_logic_vector(15 downto 0); -- define an array type of 7 registers
 
     -- internal signals
     signal REG_IN : std_logic_vector(15 downto 0);
@@ -100,7 +47,7 @@ architecture RTL of REG_FILE is
 begin   -- architecture begin
 
     -- Handle Register Inputs
-    REG_INS : MUX3 generic map(BIT_DEPTH) port map (
+    REG_INS : entity work.MUX3 generic map(BIT_DEPTH) port map (
            IN2 => IN2,
            IN1 => IN1,
            IN0 => IN0,
@@ -117,7 +64,8 @@ begin   -- architecture begin
 
     -- Register Write selection depends on WERF, OPC is WERF is selected, Register 0 if not
     W_DECIN <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
-    WREG_CTRL: DECODE3_8 port map ( -- Register Write Select
+
+    WREG_CTRL: entity work.DECODE3_8 port map ( -- Register Write Select
         DECIN => W_DECIN,
         OUTS  => WREG_SEL
     );
@@ -125,7 +73,7 @@ begin   -- architecture begin
     -- Registers
     REGISTERS: for r in 1 to 7 generate   -- generate the 7 registers
     begin
-        RX : REG_LE generic map(BIT_DEPTH) port map (  -- Registers
+        RX : entity work.REG_LE generic map(BIT_DEPTH) port map (  -- Registers
             RESET => RESET,
                EN => CLK_EN,
               CLK => CLK,
@@ -136,7 +84,7 @@ begin   -- architecture begin
     end generate REGISTERS;
 
     -- Register Output B
-    REGOUT_B: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel B Output
+    REGOUT_B: entity work.MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel B Output
         IN7 => REGS_OUT(7),
         IN6 => REGS_OUT(6),
         IN5 => REGS_OUT(5),
@@ -150,7 +98,7 @@ begin   -- architecture begin
     );
 
         -- Register Output A
-    REGOUT_A: MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel A Output
+    REGOUT_A: entity work.MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel A Output
         IN7 => REGS_OUT(7),
         IN6 => REGS_OUT(6),
         IN5 => REGS_OUT(5),
