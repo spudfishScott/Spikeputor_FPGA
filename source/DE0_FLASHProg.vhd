@@ -3,7 +3,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity TopLevel is
+entity DE0_FLASHProg is
     -- DE0 Pins
     port (
         -- CLOCK
@@ -35,13 +35,13 @@ entity TopLevel is
         FL_ADDR       : out std_logic_vector(21 downto 0);
         FL_DQ         : inout std_logic_vector(15 downto 0)
     );
-end TopLevel;
+end DE0_FLASHProg;
 
-architecture rtl of TopLevel is
+architecture rtl of DE0_FLASHProg is
 
     -- Internal signals for interconnection
     signal flash_ready  : std_logic;
-    signal addresss     : std_logic_vector(21 downto 0);
+    signal address      : std_logic_vector(21 downto 0);
     signal data         : std_logic_vector(15 downto 0);
     signal flash_write  : std_logic;
 
@@ -92,7 +92,7 @@ begin
 
     -- Word to 7 Segment Output
     SEGSOUT : entity work.WORDTO7SEGS port map (
-         WORD => address,   -- display the current address
+         WORD => address(15 downto 0),   -- display the current address
         SEGS3 => HEX3_D,
         SEGS2 => HEX2_D,
         SEGS1 => HEX1_D,
