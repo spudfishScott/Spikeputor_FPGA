@@ -12,6 +12,15 @@ entity TopLevel is
         BUTTON        : in std_logic_vector(2 downto 0);
         -- LEDs
         LEDG          : out std_logic_vector(9 downto 0);
+        -- 7-SEG Display
+        HEX0_D : out std_logic_vector(6 downto 0);
+        HEX0_DP : out std_logic;
+        HEX1_D : out std_logic_vector(6 downto 0);
+        HEX1_DP : out std_logic;
+        HEX2_D : out std_logic_vector(6 downto 0);
+        HEX2_DP : out std_logic;
+        HEX3_D : out std_logic_vector(6 downto 0);
+        HEX3_DP : out std_logic;
         -- RS-232
         UART_RXD      : in  std_logic;
         UART_TXD      : out std_logic;
@@ -81,6 +90,15 @@ begin
             TX_BUSY    => uart_tx_busy    -- Indicates if the transmitter is busy
         );
 
+    -- Word to 7 Segment Output
+    SEGSOUT : entity work.WORDTO7SEGS port map (
+         WORD => address,   -- display the current address
+        SEGS3 => HEX3_D,
+        SEGS2 => HEX2_D,
+        SEGS1 => HEX1_D,
+        SEGS0 => HEX0_D
+    );
+
     -- Flash Controller
     flash_ctrl: entity work.FLASH_RAM
         generic map (
@@ -109,4 +127,10 @@ begin
             DQ          => FL_DQ                    -- chip data input/output
         );
 
+     -- assign output states for unused 7 segment display decimal point and unused LEDs
+    HEX0_DP <= '1';
+    HEX1_DP <= '1';
+    HEX2_DP <= '1';
+    HEX3_DP <= '1';
+    LEDG(9 downto 2) <= (others => '0');
 end rtl;
