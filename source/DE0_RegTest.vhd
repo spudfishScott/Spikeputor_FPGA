@@ -31,38 +31,6 @@ architecture Structural of RegTest is
 	signal REG : std_logic_vector(15 downto 0);
 	signal REG_EN : std_logic;
 
-	-- -- Components
-	-- -- CLOCK_ENABLE
-	-- component CLK_ENABLE is
-	-- 	generic (
-	-- 		QUANTA_MAX : Integer := 4;
-	-- 		QUANTA_ENABLE : Integer := 1
-	-- 	);
-
-	-- 	port (
-	-- 		CLK_IN, RESET : in std_logic;
-	-- 		CLK_EN : out std_logic
-	-- 	);
-	-- end component CLK_ENABLE;
-	
-	-- -- HI/LO D_REG with LE
-	-- component REG_HILO is
-	-- 	generic (width : positive := 8);
-	
-	-- 	port (
-	-- 		CLK, EN, SEL, LE : in std_logic;
-	-- 		D : in std_logic_vector((width/2)-1 downto 0);
-	-- 	    Q : out std_logic_vector(width-1 downto 0)
-	-- 	);
-	-- end component;
-	
-	-- component WORDTO7SEGS is
-	-- port (
-	-- 	WORD : std_logic_vector(15 downto 0);
-	-- 	SEGS0, SEGS1, SEGS2, SEGS3 : out std_logic_vector(6 downto 0)
-	-- );
-	-- end component;
-
 begin
 	-- Structure
 	CLOCK : entity work.CLK_ENABLE generic map(2, 1) port map (
@@ -82,7 +50,7 @@ begin
 	);
 	
 	-- Word to 7 Segment Output
-	SEGSOUT : entity.WORDTO7SEGS port map (
+	SEGSOUT : entity work.WORDTO7SEGS port map (
 		 WORD => REG,
 		SEGS3 => HEX3_D,
 		SEGS2 => HEX2_D,

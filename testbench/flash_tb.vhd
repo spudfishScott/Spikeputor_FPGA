@@ -80,7 +80,7 @@ begin
     begin
         -- Reset
         rst <= '1';
-        wait for 100 ns;
+        wait for 110 ns;
         rst <= '0';
         wait for clk_period;
         by_n <= '1';  -- Simulate chip ready

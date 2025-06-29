@@ -37,79 +37,6 @@ entity DE0_FlashTest is -- the interface to the DE0 board
 end DE0_FlashTest;
 
 architecture Structural of DE0_FlashTest is
-	-- -- Components
-	-- -- CLOCK_ENABLE
-	-- component CLK_ENABLE is
-	-- 	generic (
-	-- 		QUANTA_MAX : Integer := 4;
-	-- 		QUANTA_ENABLE : Integer := 1
-	-- 	);
-
-	-- 	port (
-	-- 		CLK_IN : in std_logic;
-	-- 		CLK_EN : out std_logic
-	-- 	);
-	-- end component CLK_ENABLE;
-
-    -- component PULSE_GEN is
-    --     generic (
-    --         PULSE_WIDTH : Integer := 10 -- pulse width in clock ticks
-    --     );
-    --     port (
-    --         START_PULSE : in std_logic; -- start the pulse generation
-    --         CLK_IN : in std_logic; -- clock input
-    --         PULSE_OUT : out std_logic -- output pulse signal
-    --     );
-    -- end component;
-	
-	-- -- D_REG with LE
-	-- component REG_LE is
-    --     generic (width : positive := 8); -- width of register
-
-    --     port (
-    --         RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable
-    --         D : in std_logic_vector(width-1 downto 0);	-- input
-    --         Q : out std_logic_vector(width-1 downto 0)	-- output
-    --     );
-    -- end component;
-	
-    -- -- convert a word to 7 segment display output
-	-- component WORDTO7SEGS is
-	-- port (
-	-- 	WORD : std_logic_vector(15 downto 0);
-	-- 	SEGS0, SEGS1, SEGS2, SEGS3 : out std_logic_vector(6 downto 0)
-	-- );
-	-- end component;
-
-    -- component FLASH_RAM is
-    --     generic (MAIN_CLK_NS : integer := 20 ); -- 50 MHz = 20 ns
-    --     port (
-    --         -- controller signals
-    --         CLK_IN      : in  std_logic;
-    --         RST_IN      : in  std_logic;
-    --         ERASE_IN    : in  std_logic_vector(1 downto 0);
-    --         RD_IN       : in  std_logic;
-    --         WR_IN       : in  std_logic; 
-    --         ADDR_IN     : in  std_logic_vector(21 downto 0);
-    --         DATA_IN     : in  std_logic_vector(15 downto 0);
-    --         DATA_OUT    : out std_logic_vector(15 downto 0);
-    --         READY_OUT   : out std_logic; -- High when controller ready for a new operation
-    --         VALID_OUT	: out std_logic; -- High when controller wrote bytes / erased without errors
-    --         ERROR_OUT	: out std_logic; -- High when error, system need to reset chip and repeat operation
-
-    --         -- flash chip signals
-    --         WP_n        : out std_logic; -- write protection
-    --         BYTE_n      : out std_logic; -- byte mode/~word mode
-    --         RST_n       : out std_logic; -- chip reset
-    --         CE_n        : out std_logic; -- chip enable
-    --         OE_n        : out std_logic; -- output enable
-    --         WE_n        : out std_logic; -- write enable
-    --         BY_n        :  in std_logic; -- chip ready/~busy
-    --         A	        : out std_logic_vector(21 downto 0); -- chip Address
-    --         DQ          : inout std_logic_vector(15 downto 0) -- chip DQ
-    --     );
-    -- end component;
-
     -- Signal Declarations
     signal STARTUP : std_logic := '0';                                  -- start up signal
     signal ADDR : std_logic_vector(9 downto 0);
@@ -168,8 +95,8 @@ begin
      ERASE_IN   => "00",                    -- no erase operation
         RD_IN   => NOT BUTTON(2),           -- read operation is triggered by button 2
         WR_IN   => NOT BUTTON(1),           -- write operation is triggered by button 1
-      ADDR_IN   => "000000111111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended
-      DATA_IN   => "000000" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
+      ADDR_IN   => "000001111111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended (word address == byte address/2)
+      DATA_IN   => "111111" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
      DATA_OUT   => DATA_OUT,                -- controller output
      READY_OUT  => LEDG(0),                 -- busy signal is output to LED 0
     VALID_OUT   => LEDG(1),                 -- valid operation signal is output to LED 1
