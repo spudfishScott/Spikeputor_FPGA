@@ -75,7 +75,7 @@ begin
 
     uart_controller: entity work.UART
         generic map (
-            CLK_SPEED => 50_000_000,      -- 50 MHz clock speed
+            CLK_SPEED => 50000000,        -- 50 MHz clock speed
             BAUD_RATE => 115200           -- Baud rate for UART communication
         )
         port map (
@@ -132,5 +132,6 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-    LEDG(9 downto 2) <= (others => '0');
+	 LEDG(2) <= not BUTTON(0);
+    LEDG(9 downto 3) <= (others => '0');
 end rtl;

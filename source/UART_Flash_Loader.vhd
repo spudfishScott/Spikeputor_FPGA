@@ -52,6 +52,7 @@ architecture behavioral of uart_flash_loader is
 
 begin
     ACTIVITY <= activity_conn;  -- connect activity indicator to output
+
     --  State machine to implement transfer protocol
     process(CLK)
     begin
@@ -62,16 +63,16 @@ begin
 
             if RST = '1' then
                 activity_conn <= '0';                                       -- reset activity indicator
-                COMPLETED  <= '0';                                          -- reset completed flag
+					 COMPLETED <= '0';
                 p_state    <= WAIT_STAR;
                 bytes_seen <= (others => '0');
             else
-                case p_state is
+                case (p_state) is
 
     --  WAIT_STAR: Wait for '*' to be recieved from UART
                     when WAIT_STAR =>                                       -- wait for RX_ready and rx_byte is '*'
                         if RX_READY = '1' and RX_DATA = C_STAR then
-                            activity_conn  <= '1';                         -- indicate activity
+								    activity_conn <= '1';
                             COMPLETED <= '0';                               -- reset completed flag
                             p_state   <= ACK_START;                         -- received '*', acknowledge by sending '!'
                         end if;
