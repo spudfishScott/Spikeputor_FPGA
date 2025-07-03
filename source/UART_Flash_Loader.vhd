@@ -62,18 +62,15 @@ begin
             TX_LOAD   <= '0';
 
             if RST = '1' then
-                activity_conn <= '0';                                       -- reset activity indicator
-					 COMPLETED <= '0';
                 p_state    <= WAIT_STAR;
                 bytes_seen <= (others => '0');
             else
                 case (p_state) is
 
     --  WAIT_STAR: Wait for '*' to be recieved from UART
-                    when WAIT_STAR =>                                       -- wait for RX_ready and rx_byte is '*'
+                    when WAIT_STAR =>                                       -- wait for RX_ready and rx_byte is '*'				 
                         if RX_READY = '1' and RX_DATA = C_STAR then
-								    activity_conn <= '1';
-                            COMPLETED <= '0';                               -- reset completed flag
+								    COMPLETED <= '0';
                             p_state   <= ACK_START;                         -- received '*', acknowledge by sending '!'
                         end if;
 
