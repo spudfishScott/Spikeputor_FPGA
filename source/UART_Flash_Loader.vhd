@@ -45,7 +45,7 @@ architecture behavioral of uart_flash_loader is
     signal address     : std_logic_vector(21 downto 0); -- address to write to (upper 6 bits fixed, lower 16 bits from header)
     signal write_len   : unsigned(15 downto 0);         -- number of bytes to recieve
 
-    signal bytes_seen  : unsigned(15 downto 0);         -- number of bytes recieved so far
+    signal bytes_seen  : unsigned(15 downto 0) := (others => '0'); -- number of bytes recieved so far
     signal word_buf    : std_logic_vector(15 downto 0); -- buffer for the word to write to flash
    
 
@@ -64,10 +64,6 @@ begin
 
             if RST = '1' then
                 p_state    <= WAIT_STAR;
-                bytes_seen <= (others => '0');
-                ADDRESS_OUT <= (others => '0');
-                DATA_OUT   <= (others => '0');
-                TX_DATA   <= (others => '0');
             else
                 case (p_state) is
 
@@ -107,7 +103,6 @@ begin
                     when HDR_3 =>
                         if RX_READY = '1' then                              -- wait for RX_ready to get low byte of length of data
                             write_len(7 downto 0) <= unsigned(RX_DATA);     -- store low byte of length
-                            bytes_seen  <= (others => '0');                 -- reset byte counter
                             address(21 downto 16) <= FIXED_ADDR_TOP;        -- set next address to write to (upper 6 bits fixed, lower 16 bits from header)
                             p_state <= LOAD_H;                              -- move to next state to load first word
                         end if;
@@ -140,6 +135,7 @@ begin
 
                         if bytes_seen + 2 >= write_len then                         -- check if all data has been written
                             p_state <= ACK_DONE;                                    -- if so, move to next state to acknowledge completion
+									 bytes_seen <= (others => '0');                          -- and clear byte counter
                         else
                             p_state <= LOAD_H;                                      -- otherwise, fetch next word
                     end if;

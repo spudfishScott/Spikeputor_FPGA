@@ -41,8 +41,8 @@ architecture rtl of DE0_FLASHProg is
 
     -- Internal signals for interconnection
     signal flash_ready  : std_logic;
-    signal address      : std_logic_vector(21 downto 0);
-    signal data         : std_logic_vector(15 downto 0);
+    signal flash_address: std_logic_vector(21 downto 0);
+    signal flash_data   : std_logic_vector(15 downto 0);
     signal flash_write  : std_logic;
 
     signal uart_rx_data : std_logic_vector(7 downto 0);
@@ -66,8 +66,8 @@ begin
             TX_LOAD    => uart_tx_load,   -- Strobe to load data into UART transmitter
             TX_BUSY    => uart_tx_busy,   -- Indicates if UART transmitter is busy
             FLASH_RDY  => flash_ready,    -- Flash controller ready signal
-            ADDR_OUT   => address,        -- Address for next word
-            DATA_OUT   => data,           -- Data word to write to flash
+            ADDR_OUT   => flash_address,  -- Address for next word
+            DATA_OUT   => flash_data,     -- Data word to write to flash
             WR_OUT     => flash_write,    -- Write signal to flash controller
             ACTIVITY   => LEDG(0),        -- Activity indicator (LED)
             COMPLETED  => LEDG(1)         -- Transfer completed indicator (LED)
@@ -92,7 +92,7 @@ begin
 
     -- Word to 7 Segment Output
     SEGSOUT : entity work.WORDTO7SEGS port map (
-         WORD => address(15 downto 0),   -- display the current address
+         WORD => flash_address(15 downto 0),   -- display the current address
         SEGS3 => HEX3_D,
         SEGS2 => HEX2_D,
         SEGS1 => HEX1_D,
@@ -110,8 +110,8 @@ begin
             ERASE_IN    => "00",                    -- Not used by loader
             RD_IN       => '0',                     -- Not used by loader
             WR_IN       => flash_write,             -- Controller write signal
-            ADDR_IN     => address,                 -- Current flash controller address
-            DATA_IN     => data,                    -- Data to write to flash
+            ADDR_IN     => flash_address,           -- Current flash controller address
+            DATA_IN     => flash_data,              -- Data to write to flash
             DATA_OUT    => open,                    -- Not used by loader
             READY_OUT   => flash_ready,             -- Controller ready signal
             VALID_OUT   => open,                    -- Not used by loader
@@ -132,6 +132,6 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-	 LEDG(2) <= not BUTTON(0);
+	 LEDG(2) <= not BUTTON(0); -- show reset button being pushed
     LEDG(9 downto 3) <= (others => '0');
 end rtl;
