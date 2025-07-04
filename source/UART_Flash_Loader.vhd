@@ -47,11 +47,12 @@ architecture behavioral of uart_flash_loader is
 
     signal bytes_seen  : unsigned(15 downto 0);         -- number of bytes recieved so far
     signal word_buf    : std_logic_vector(15 downto 0); -- buffer for the word to write to flash
-    signal activity_conn: std_logic := '0';             -- activity indicator connection
    
 
 begin
-    ACTIVITY <= activity_conn;  -- connect activity indicator to output
+    -- flicker activity when the process is running, show completed when process is over and ready for next session
+    ACTIVITY <= '0' when (p_state = WAIT_STAR or p_state = HDR_0 or p_state = HDR_2 or p_state = LOAD_H or p_state = NEXT_ADDRESS) else '1';
+    COMPLETED <= '1' when (p_state = ACK_DONE or p_state = WAIT_STAR) else '0';
 
     --  State machine to implement transfer protocol
     process(CLK)
@@ -64,13 +65,15 @@ begin
             if RST = '1' then
                 p_state    <= WAIT_STAR;
                 bytes_seen <= (others => '0');
+                ADDRESS_OUT <= (others => '0');
+                DATA_OUT   <= (others => '0');
+                TX_DATA   <= (others => '0');
             else
                 case (p_state) is
 
     --  WAIT_STAR: Wait for '*' to be recieved from UART
                     when WAIT_STAR =>                                       -- wait for RX_ready and rx_byte is '*'				 
                         if RX_READY = '1' and RX_DATA = C_STAR then
-								    COMPLETED <= '0';
                             p_state   <= ACK_START;                         -- received '*', acknowledge by sending '!'
                         end if;
 
@@ -132,7 +135,6 @@ begin
 
     -- NEXT_ADDRESS: update address and byte counters, and check for end of data
                     when NEXT_ADDRESS =>
-                        activity_conn <= not activity_conn;                         -- toggle activity indicator to show progress
                         address     <= std_logic_vector(unsigned(address) + 1);     -- increment address by 1 (next word)
                         bytes_seen  <= bytes_seen + 2;                              -- increment byte counter by 2 (one word = 2 bytes)
 
@@ -147,7 +149,6 @@ begin
                         if TX_BUSY = '0' then                                       -- wait until UART is not busy to transmit
                             TX_DATA <= C_STAR;                                      -- send '*' to acknowledge completion
                             TX_LOAD <= '1';                                         -- strobe tx_load to transmit data
-                            COMPLETED <= '1';                                       -- set completed flag to indicate transfer is done
                             p_state <= WAIT_STAR;                                   -- move to next state - ready for next session
                         end if;
                 end case;
