@@ -29,7 +29,7 @@ entity DE0_UART_Test is
     );
 end DE0_UART_Test;
 
-architecture rtl of DE0_FLASHProg is
+architecture rtl of DE0_UART_Test is
     signal received : std_logic_vector(7 downto 0);     -- byte received from the UART
     signal byte_ready : std_logic;
     signal reg_value : std_logic_vector(7 downto 0);    -- register to hold last sent byte
@@ -49,11 +49,12 @@ begin
             TX_SERIAL  => UART_TXD,         -- Serial data output
             TX_DATA    => SW(7 downto 0),   -- Data to send through UART (set through switches)
             TX_LOAD    => NOT BUTTON(2),    -- Press button to send a byte
-            TX_BUSY    => LED(0)            -- Indicates if the transmitter is busy
+            TX_BUSY    => LEDG(0)            -- Indicates if the transmitter is busy
         );
 
     reg: entity work.REG_LE
         port map (
+              CLK       => CLOCK_50,
             RESET       => NOT BUTTON(0),
             EN          => '1',             -- enabled on every clock pulse
             LE          => byte_ready,      -- when a byte has been received, enable the register latch
@@ -66,8 +67,8 @@ begin
          WORD => reg_value & "00000000",    -- display the current byte in the register, padded with zeros
         SEGS3 => HEX3_D,    -- display byte in HEX3 and HEX2
         SEGS2 => HEX2_D,
-        SEGS1 => null,      -- unused
-        SEGS0 => null       -- unused
+        SEGS1 => open,      -- unused
+        SEGS0 => open       -- unused
     );
 
     -- assign output states for unused 7 segment displays and unused LEDs
