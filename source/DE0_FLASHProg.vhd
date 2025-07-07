@@ -132,6 +132,6 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-	 LEDG(2) <= not BUTTON(0); -- show reset button being pushed
+    LEDG(2) <= not BUTTON(0); -- show reset button being pushed
     LEDG(9 downto 3) <= (others => '0');
 end rtl;

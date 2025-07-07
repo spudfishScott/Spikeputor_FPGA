@@ -212,7 +212,7 @@ begin
                     end if;
 
                 when ST_READ =>
-					     A               <= address_wr_r;    -- set chip address 
+                    A               <= address_wr_r;    -- set chip address 
                     dq_data_in_r    <= DQ;              -- set data in register to input from chip DQ
 
                     -- Timer for read cycle time
