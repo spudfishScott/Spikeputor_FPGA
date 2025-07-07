@@ -119,7 +119,7 @@ begin
                         end if;
 
                     when TX_BITS =>
-                        TX_BITS <= '1';                     -- keep busy flag set to indicate transmission is in progress
+                        TX_BUSY <= '1';                     -- keep busy flag set to indicate transmission is in progress
                         if tx_cnt = 0 then                  -- wait for counter to expire
                             tx_shift <= '1' & tx_shift(9 downto 1);     -- shift right, backfill with '1'
                             if tx_bit = 9 then              -- if all bits have been sent, go back to idle state

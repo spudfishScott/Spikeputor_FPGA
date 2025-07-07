@@ -30,10 +30,11 @@ entity DE0_UART_Test is
 end DE0_UART_Test;
 
 architecture rtl of DE0_FLASHProg is
-    signal received: std_logic_vector(7 downto 0); -- signal to hold the received byte from UART
+    signal received : std_logic_vector(7 downto 0);     -- byte received from the UART
+    signal byte_ready : std_logic;
+    signal reg_value : std_logic_vector(7 downto 0);    -- register to hold last sent byte
 
 begin
-
     uart_controller: entity work.UART
         generic map (
             CLK_SPEED => 50000000,        -- 50 MHz clock speed
@@ -44,24 +45,33 @@ begin
             RST        => NOT BUTTON(0),    -- Reset on button press
             RX_SERIAL  => UART_RXD,         -- Serial data input
             RX_DATA    => received,         -- Received byte output
-            RX_READY   => null,             -- Strobed when a byte has been received - not used
+            RX_READY   => byte_ready,       -- Strobed when a byte has been received
             TX_SERIAL  => UART_TXD,         -- Serial data output
-            TX_DATA    => SW(7 downto 0),   -- Data to send through UART
-            TX_LOAD    => NOT BUTTON(2),    -- Strobe to send a byte
+            TX_DATA    => SW(7 downto 0),   -- Data to send through UART (set through switches)
+            TX_LOAD    => NOT BUTTON(2),    -- Press button to send a byte
             TX_BUSY    => LED(0)            -- Indicates if the transmitter is busy
+        );
+
+    reg: entity work.REG_LE
+        port map (
+            RESET       => NOT BUTTON(0),
+            EN          => '1',             -- enabled on every clock pulse
+            LE          => byte_ready,      -- when a byte has been received, enable the register latch
+            D           => received,        -- the received byte
+            Q           => reg_value        -- the stored value in the register
         );
 
     -- Word to 7 Segment Output
     SEGSOUT : entity work.WORDTO7SEGS port map (
-         WORD => recieved & "00000000",   -- display the current byte received from UART, padded with zeros
+         WORD => reg_value & "00000000",    -- display the current byte in the register, padded with zeros
         SEGS3 => HEX3_D,    -- display byte in HEX3 and HEX2
         SEGS2 => HEX2_D,
         SEGS1 => null,      -- unused
         SEGS0 => null       -- unused
     );
 
-    -- assign output states for unused 7 segment display decimal point and unused LEDs
-    HEX0_DP <= '1';
+    -- assign output states for unused 7 segment displays and unused LEDs
+    HEX0_DP <= '1';      -- clear all DP's
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
