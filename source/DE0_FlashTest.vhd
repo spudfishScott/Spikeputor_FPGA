@@ -95,8 +95,8 @@ begin
      ERASE_IN   => "00",                    -- no erase operation
         RD_IN   => NOT BUTTON(2),           -- read operation is triggered by button 2
         WR_IN   => NOT BUTTON(1),           -- write operation is triggered by button 1
-      ADDR_IN   => "000001111111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended (word address == byte address/2)
-      DATA_IN   => "111111" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
+      ADDR_IN   => "000010" & "111111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended (word address == byte address/2)
+      DATA_IN   => "000000" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
      DATA_OUT   => DATA_OUT,                -- controller output
      READY_OUT  => LEDG(0),                 -- busy signal is output to LED 0
     VALID_OUT   => LEDG(1),                 -- valid operation signal is output to LED 1
@@ -115,7 +115,7 @@ begin
 
     -- display is either the address register or the data register
     DISPLAY <= DATA_OUT when BUTTON(2) = '0' else   -- if button 2 is pressed, display data from flash chip
-               "000000" & ADDR;                      -- else display address register
+               "111111" & ADDR;                     -- else display address register
 
     LEDG(9) <= STARTUP;         -- LED 9 is the startup signal
     LEDG(8) <= NOT Button(1);   -- LED 8 is the write signal

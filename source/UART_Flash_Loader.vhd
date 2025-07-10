@@ -37,12 +37,13 @@ architecture behavioral of uart_flash_loader is
         WAIT_STAR, ACK_START,
         HDR_0, HDR_1, HDR_2, HDR_3,
         LOAD_L, LOAD_H,
-        WRITE_FLASH, NEXT_ADDRESS,
+        WRITE_FLASH, WAIT_FLASH,
+		  NEXT_ADDRESS,
         ACK_DONE
     );
     signal p_state     : proto_fsm := WAIT_STAR;
 
-    signal address     : std_logic_vector(21 downto 0); -- address to write to (upper 6 bits fixed, lower 16 bits from header)
+    signal address     : std_logic_vector(15 downto 0); -- lower 16 bits of address to write to
     signal write_len   : unsigned(15 downto 0);         -- number of bytes to recieve
 
     signal bytes_seen  : unsigned(15 downto 0) := (others => '0'); -- number of bytes recieved so far
@@ -53,18 +54,19 @@ begin
     -- flicker activity when the process is running, show completed when process is over and ready for next session
     ACTIVITY <= '0' when (p_state = WAIT_STAR or p_state = HDR_0 or p_state = HDR_2 or p_state = LOAD_H or p_state = NEXT_ADDRESS) else '1';
     COMPLETED <= '1' when (p_state = ACK_DONE or p_state = WAIT_STAR) else '0';
-
+	 
+	 -- wire ADDR_OUT, DATA_OUT, TX_DATA and WR_OUT connections
+    ADDR_OUT  <= FIXED_ADDR_TOP & address;                           -- set address to write to
+    DATA_OUT  <= word_buf;                          -- set data to write
+    TX_DATA   <= C_BANG when (p_state = ACK_START or p_state = HDR_0) else C_STAR;  -- send '!' to acknowledge start of data receipt, '*' to acknowledge completion
+    WR_OUT    <= '1' when p_state = WRITE_FLASH else '0'; -- strobe WR_OUT during the WRITE_FLASH state
+	
     --  State machine to implement transfer protocol
     process(CLK)
     begin
         if rising_edge(CLK) then
             -- defaults each cycle - asserting these signals will last one clock cycle maximum
-            WR_OUT    <= '0';
             TX_LOAD   <= '0';
-
-            ADDR_OUT  <= address;                           -- set address to write to
-            DATA_OUT  <= word_buf;                          -- set data to write
-            TX_DATA   <= C_STAR when p_state = ACK_DONE else C_BANG;  -- send '!' to acknowledge start of data receipt, '*' to acknowledge completion
 
             if RST = '1' then
                 p_state    <= WAIT_STAR;
@@ -106,7 +108,6 @@ begin
                     when HDR_3 =>
                         if RX_READY = '1' then                              -- wait for RX_ready to get low byte of length of data
                             write_len(7 downto 0) <= unsigned(RX_DATA);     -- store low byte of length
-                            address(21 downto 16) <= FIXED_ADDR_TOP;        -- set next address to write to (upper 6 bits fixed, lower 16 bits from header)
                             p_state <= LOAD_H;                              -- move to next state to load first word
                         end if;
 
@@ -122,12 +123,17 @@ begin
                             word_buf(7 downto 0) <= RX_DATA;                -- store full word from byte_buf & low byte
                             p_state  <= WRITE_FLASH;                        -- move to next state to wait for flash to be ready to write
                         end if;
-    -- WRITE_FLASH: wait for flash to be ready and write the word to flash at the current address
+    -- WRITE_FLASH: write the word to flash at the current address
                     when WRITE_FLASH =>
-                        if FLASH_RDY = '1' then                             -- wait for flash idle → can assert WE
-                            WR_OUT    <= '1';                               -- assert write enable signal for one clock cycle
-                            p_state   <= NEXT_ADDRESS;                      -- move to next state to update counters and check if all data recieved
-                        end if;
+						      if FLASH_RDY = '1' then
+                            p_state   <= WAIT_FLASH;                        -- move to next state to wait for flash to finish writing
+								end if;
+
+	 -- WAIT_FLASH: wait for flash to be ready after it has written the word
+	                 when WAIT_FLASH =>
+						      if FLASH_RDY = '1' then                             -- wait for flash idle
+								    p_state <= NEXT_ADDRESS;                        -- move to next state to update counters and proceed
+								end if;
 
     -- NEXT_ADDRESS: update address and byte counters, and check for end of data
                     when NEXT_ADDRESS =>

@@ -55,7 +55,7 @@ begin
     -- UART Flash Loader
     uart_loader: entity work.uart_flash_loader
         generic map (
-            FIXED_ADDR_TOP => "000001"  -- upper 6 flash-address bits (fixed for DE0)
+            FIXED_ADDR_TOP => "000010"  -- upper 6 flash-address bits (fixed for DE0)
         )
         port map (
             CLK        => CLOCK_50,
@@ -76,7 +76,8 @@ begin
     uart_controller: entity work.UART
         generic map (
             CLK_SPEED => 50000000,        -- 50 MHz clock speed
-            BAUD_RATE => 115200           -- Baud rate for UART communication
+            BAUD_RATE => 57600            -- Baud rate for UART communication 
+														-- (where two bytes is sent in the time it takes to write a word to FLASH memory)
         )
         port map (
             CLK        => CLOCK_50,
@@ -114,8 +115,8 @@ begin
             DATA_IN     => flash_data,              -- Data to write to flash
             DATA_OUT    => open,                    -- Not used by loader
             READY_OUT   => flash_ready,             -- Controller ready signal
-            VALID_OUT   => open,                    -- Not used by loader
-            ERROR_OUT   => open,                    -- Not used by loader
+            VALID_OUT   => LEDG(9),						 -- valid write indicator
+            ERROR_OUT   => LEDG(8),                 -- error indicator
             WP_n        => FL_WP_N,                 -- write protection signal (active low)
             BYTE_n      => FL_BYTE_N,               -- byte mode signal (word mode high)
             RST_n       => FL_RST_N,                -- chip reset signal
@@ -133,5 +134,5 @@ begin
     HEX2_DP <= '1';
     HEX3_DP <= '1';
     LEDG(2) <= not BUTTON(0); -- show reset button being pushed
-    LEDG(9 downto 3) <= (others => '0');
+    LEDG(7 downto 3) <= (others => '0');
 end rtl;
