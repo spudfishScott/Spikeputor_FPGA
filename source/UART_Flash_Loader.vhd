@@ -62,6 +62,10 @@ begin
             WR_OUT    <= '0';
             TX_LOAD   <= '0';
 
+            ADDR_OUT  <= address;                           -- set address to write to
+            DATA_OUT  <= word_buf;                          -- set data to write
+            TX_DATA   <= C_STAR when p_state = ACK_DONE else C_BANG;  -- send '!' to acknowledge start of data receipt, '*' to acknowledge completion
+
             if RST = '1' then
                 p_state    <= WAIT_STAR;
             else
@@ -76,7 +80,6 @@ begin
     --  ACK_START: Acknowledge the start of a new session with '!'
                     when ACK_START =>
                         if TX_BUSY = '0' then
-                            TX_DATA <= C_BANG;
                             TX_LOAD <= '1';
                             p_state <= HDR_0;                               -- start header read
                         end if;
@@ -122,8 +125,6 @@ begin
     -- WRITE_FLASH: wait for flash to be ready and write the word to flash at the current address
                     when WRITE_FLASH =>
                         if FLASH_RDY = '1' then                             -- wait for flash idle → can assert WE
-                            ADDR_OUT  <= address;                           -- set address to write to
-                            DATA_OUT  <= word_buf;                          -- set data to write
                             WR_OUT    <= '1';                               -- assert write enable signal for one clock cycle
                             p_state   <= NEXT_ADDRESS;                      -- move to next state to update counters and check if all data recieved
                         end if;
@@ -143,7 +144,6 @@ begin
     --  ACK_DONE: send acknowledgement and reset state to wait for next upload
                     when ACK_DONE =>
                         if TX_BUSY = '0' then                                       -- wait until UART is not busy to transmit
-                            TX_DATA <= C_STAR;                                      -- send '*' to acknowledge completion
                             TX_LOAD <= '1';                                         -- strobe tx_load to transmit data
                             p_state <= WAIT_STAR;                                   -- move to next state - ready for next session
                         end if;

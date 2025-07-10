@@ -55,7 +55,7 @@ begin
     -- UART Flash Loader
     uart_loader: entity work.uart_flash_loader
         generic map (
-            FIXED_ADDR_TOP => "111111"  -- upper 6 flash-address bits (fixed for DE0)
+            FIXED_ADDR_TOP => "000001"  -- upper 6 flash-address bits (fixed for DE0)
         )
         port map (
             CLK        => CLOCK_50,
