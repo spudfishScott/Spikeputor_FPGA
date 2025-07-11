@@ -188,7 +188,7 @@ begin
                     when ACK_DONE =>
                         if TX_BUSY = '0' then                               -- wait until UART is not busy to transmit
                             TX_LOAD <= '1';                                 -- strobe tx_load to transmit data
-                            p_state <= WAIT_STAR;                           -- move to next state - ready for next session
+                            p_state <= WAIT_START;                           -- move to next state - ready for next session
                         end if;
                 end case;
             end if;
