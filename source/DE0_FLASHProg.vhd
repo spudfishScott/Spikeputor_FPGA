@@ -78,7 +78,7 @@ begin
     uart_controller: entity work.UART
         generic map (
             CLK_SPEED => 50_000_000,      -- 50 MHz clock speed
-            BAUD_RATE => 57600            -- Baud rate for UART communication 
+            BAUD_RATE => 38400            -- Baud rate for UART communication 
                                           -- (where two bytes is sent in the time it takes to write a word to FLASH memory)
         )
         port map (

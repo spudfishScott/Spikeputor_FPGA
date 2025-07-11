@@ -49,10 +49,11 @@ architecture Behavioral of UART is
 begin
 
     -- RX Input Synchronizer
-	 process(CLK)
+	 
+	 process(CLK) -- need to sample at half the clock rate to give time for metastable flip-flop to stabilize
 	 begin
 	     if rising_edge(CLK) then		-- these are very important for handling outside asynchronous signals
-		      rx_sync(0) <= RX_SERIAL;
+				rx_sync(0) <= RX_SERIAL;
 				rx_sync(1) <= rx_sync(0);
 				rx_serial_s <= rx_sync(1);
         end if;
@@ -62,14 +63,14 @@ begin
     process(CLK)
     begin
         if rising_edge(CLK) then
-            RX_READY <= '0';            -- clear ready flag at the start of each clock cycle
-
+				RX_READY <= '0';
+								
             if RST = '1' then
                 rx_state <= RX_IDLE;    -- reset state machine
             else
                 case rx_state is
                     when RX_IDLE =>
-                        if rx_serial_s = '0' then             -- start bit detected
+                        if rx_serial_s = '0' then           -- start bit detected
                             rx_cnt   <= BIT_PERIOD/2;       -- wait to sample in the middle
                             rx_state <= RX_START;           -- set next state
                         end if;
