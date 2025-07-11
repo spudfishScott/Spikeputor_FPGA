@@ -80,7 +80,7 @@ begin
             else
                 case (p_state) is
 
-    --  WAIT_STAR: Wait for '*' or '?' to be recieved from UART
+    --  WAIT_START: Wait for '*' or '?' to be recieved from UART
                     when WAIT_START =>                                      -- wait for RX_ready and rx_byte is '*'				 
                         if RX_READY = '1' then
                             if RX_DATA = C_STAR then
