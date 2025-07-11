@@ -13,14 +13,14 @@ entity DE0_FLASHProg is
         -- LEDs
         LEDG          : out std_logic_vector(9 downto 0);
         -- 7-SEG Display
-        HEX0_D : out std_logic_vector(6 downto 0);
-        HEX0_DP : out std_logic;
-        HEX1_D : out std_logic_vector(6 downto 0);
-        HEX1_DP : out std_logic;
-        HEX2_D : out std_logic_vector(6 downto 0);
-        HEX2_DP : out std_logic;
-        HEX3_D : out std_logic_vector(6 downto 0);
-        HEX3_DP : out std_logic;
+        HEX0_D        : out std_logic_vector(6 downto 0);
+        HEX0_DP       : out std_logic;
+        HEX1_D        : out std_logic_vector(6 downto 0);
+        HEX1_DP       : out std_logic;
+        HEX2_D        : out std_logic_vector(6 downto 0);
+        HEX2_DP       : out std_logic;
+        HEX3_D        : out std_logic_vector(6 downto 0);
+        HEX3_DP       : out std_logic;
         -- RS-232
         UART_RXD      : in  std_logic;
         UART_TXD      : out std_logic;
@@ -44,6 +44,7 @@ architecture rtl of DE0_FLASHProg is
     signal flash_address: std_logic_vector(21 downto 0);
     signal flash_data   : std_logic_vector(15 downto 0);
     signal flash_write  : std_logic;
+    signal flash_erase  : std_logic_vector(1 downto 0);
 
     signal uart_rx_data : std_logic_vector(7 downto 0);
     signal uart_rx_rdy  : std_logic;
@@ -58,7 +59,7 @@ begin
             FIXED_ADDR_TOP => "000010"  -- upper 6 flash-address bits (fixed for DE0)
         )
         port map (
-            CLK        => CLOCK_50,
+            CLK        => CLOCK_50,       -- System clock (50 MHz)
             RST        => NOT BUTTON(0),  -- Reset on button press
             RX_DATA    => uart_rx_data,   -- Data received from UART
             RX_READY   => uart_rx_rdy,    -- Strobed when a byte is ready to be read from UART
@@ -69,15 +70,16 @@ begin
             ADDR_OUT   => flash_address,  -- Address for next word
             DATA_OUT   => flash_data,     -- Data word to write to flash
             WR_OUT     => flash_write,    -- Write signal to flash controller
+            ERASE_OUT  => flash_erase,    -- Chip erase signal to flash controller
             ACTIVITY   => LEDG(0),        -- Activity indicator (LED)
             COMPLETED  => LEDG(1)         -- Transfer completed indicator (LED)
         );
 
     uart_controller: entity work.UART
         generic map (
-            CLK_SPEED => 50000000,        -- 50 MHz clock speed
+            CLK_SPEED => 50_000_000,      -- 50 MHz clock speed
             BAUD_RATE => 57600            -- Baud rate for UART communication 
-														-- (where two bytes is sent in the time it takes to write a word to FLASH memory)
+                                          -- (where two bytes is sent in the time it takes to write a word to FLASH memory)
         )
         port map (
             CLK        => CLOCK_50,
@@ -108,14 +110,14 @@ begin
         port map (
             CLK_IN      => CLOCK_50,
             RST_IN      => NOT BUTTON(0),           -- Reset on button press
-            ERASE_IN    => "00",                    -- Not used by loader
+            ERASE_IN    => flash_erase,             -- Controller chip erase signal
             RD_IN       => '0',                     -- Not used by loader
             WR_IN       => flash_write,             -- Controller write signal
             ADDR_IN     => flash_address,           -- Current flash controller address
             DATA_IN     => flash_data,              -- Data to write to flash
             DATA_OUT    => open,                    -- Not used by loader
             READY_OUT   => flash_ready,             -- Controller ready signal
-            VALID_OUT   => LEDG(9),						 -- valid write indicator
+            VALID_OUT   => LEDG(9),                 -- valid write indicator
             ERROR_OUT   => LEDG(8),                 -- error indicator
             WP_n        => FL_WP_N,                 -- write protection signal (active low)
             BYTE_n      => FL_BYTE_N,               -- byte mode signal (word mode high)
