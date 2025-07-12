@@ -40,7 +40,7 @@ begin
 
 	-- D REG with enable
 	HILO_16 : entity work.REG_HILO generic map(16) port map (	-- register is 16 bits wide
-      RESET => NOT BUTTTON(1)
+      RESET => NOT BUTTON(1),
 		CLK => CLOCK_50,
 		 EN => REG_EN,
 		SEL => SW(9),		-- switch 9 up = update high byte, down = update low byte

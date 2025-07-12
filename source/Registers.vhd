@@ -22,7 +22,7 @@ architecture Behavior of REG_HILO is
 begin
     assert (width mod 2 = 0) severity failure;	-- for a hi/lo register, n must be even
 
-    -- hi/lo D-REG with latch enable
+    -- hi/lo D-REG with latch enable and asynchronous reset
     P_REG_HILO : process(CLK, RESET) is
     begin
         if (RESET = '1') then
@@ -32,9 +32,7 @@ begin
             if (EN = '1' and LE = '1') then -- if latch enable is high, update the correct half of the register
                 if (SEL = '1') then
                     REG_HIGH <= D; -- if SEL is high, update the high portion of the register from input
-                    REG_LOW <= REG_LOW;
                 else
-                    REG_HIGH <= REG_HIGH;
                     REG_LOW <= D; -- if SEL is low, update the low portion of the register from input
                 end if;
             end if;
@@ -72,8 +70,6 @@ begin
         elsif (rising_edge(CLK)) then -- changes on rising edge of clock
             if (EN = '1' and LE = '1') then
                 DATA <= D;
-            else
-                DATA <= DATA;
             end if;
         end if;
     end process P_REG_LE;

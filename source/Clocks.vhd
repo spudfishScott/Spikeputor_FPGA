@@ -20,7 +20,7 @@ entity FREQ_CLOCK is
 end FREQ_CLOCK;
 
 architecture Behavior of FREQ_CLOCK is
-    signal COUNTER : unsigned(31 downto 0) := 0;
+    signal COUNTER : Integer := 0;
 
 begin
     CLK_DIV : process(CLK_IN)
@@ -60,7 +60,7 @@ entity CLK_ENABLE is
 end CLK_ENABLE;
 
 architecture Behavior of CLK_ENABLE is
-    signal QUANTA : Integer range 0 to 32767 := 0;
+    signal QUANTA : Integer := 0;
 
 begin
     CLK_TICK : process(CLK_IN)
@@ -99,25 +99,20 @@ entity PULSE_GEN is
 end PULSE_GEN;
 
 architecture Behavior of PULSE_GEN is
-    signal COUNTER : unsigned(31 downto 1) := 0;
+    signal COUNTER : Integer := 0;
     signal PULSE_ACTIVE : std_logic := '0';
 
 begin
     PULSE_GEN_PROCESS : process(CLK_IN)
     begin
         if rising_edge(CLK_IN) then
-		      if START_PULSE = '1' then
-                if PULSE_ACTIVE = '1' then
-                    if (COUNTER < PULSE_WIDTH) then -- freezes the counter after reaching the desired pulse width
-                        COUNTER <= COUNTER + 1;
-                    end if;
-                else    -- get ready for a new pulse
-                    PULSE_ACTIVE <= '1';        -- Activate pulse counting
-                end if;
-            else							    -- if START_PULSE goes low, deactivate pulse
-                PULSE_ACTIVE <= '0';    -- deactivate pulse when START_PULSE goes low
-                COUNTER <= 0;           -- Reset counter
-				end if;
+				PULSE_ACTIVE <= START_PULSE;    -- PULSE_ACTIVE changes based on the START_PULSE input
+                if (PULSE_ACTIVE = '1' AND COUNTER < PULSE_WIDTH) then
+                        COUNTER <= COUNTER + 1;    -- increment the counter if pulse active and counter not done
+                 end if;
+					if START_PULSE = '0' then
+                  COUNTER <= 0;           -- Reset counter when pulse_start goes low
+					end if;
         end if;
     end process PULSE_GEN_PROCESS;
 
