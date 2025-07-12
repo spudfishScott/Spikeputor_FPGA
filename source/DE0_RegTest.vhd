@@ -34,13 +34,13 @@ architecture Structural of RegTest is
 begin
 	-- Structure
 	CLOCK : entity work.CLK_ENABLE generic map(2, 1) port map (
-		RESET => '0',
 		CLK_IN => CLOCK_50,
 		CLK_EN => REG_EN
 	);
 
 	-- D REG with enable
 	HILO_16 : entity work.REG_HILO generic map(16) port map (	-- register is 16 bits wide
+      RESET => NOT BUTTTON(1)
 		CLK => CLOCK_50,
 		 EN => REG_EN,
 		SEL => SW(9),		-- switch 9 up = update high byte, down = update low byte

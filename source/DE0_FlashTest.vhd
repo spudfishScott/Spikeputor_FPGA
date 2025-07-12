@@ -54,7 +54,7 @@ begin
     );
 
     -- Startup pulse
-    START : entity work.PULSE_GEN generic map (PULSE_WIDTH => 50000000) port map ( -- 1 sec startup pulse
+    START : entity work.PULSE_GEN generic map (PULSE_WIDTH => 50_000_000) port map ( -- 1 sec startup pulse
         START_PULSE => '1', -- start the pulse immediately
         CLK_IN => CLOCK_50,
         PULSE_OUT => STARTUP

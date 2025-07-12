@@ -33,11 +33,13 @@ architecture Behavioral of UART is
     --  UART-RX  (strobes 'rx_ready' when byte is recieved)
     type RX_FSM is (RX_IDLE, RX_START, RX_BITS, RX_STOP);           -- state definitions for recieving data
     signal rx_state : RX_FSM := RX_IDLE;
+
     signal rx_cnt   : integer range 0 to BIT_PERIOD := 0;           -- counter for bit timing
     signal rx_bit   : integer range 0 to 7 := 0;                    -- bit counter for received data
     signal rx_shift : std_logic_vector(7 downto 0);                 -- shift register to store received data
-	 signal rx_sync  : std_logic_vector(1 downto 0) := (others => '1');
-	 signal rx_serial_s : std_logic; -- Debounced version of RX_SERIAL
+
+    signal rx_sync  : std_logic_vector(1 downto 0) := (others => '1');  -- "Double Flop" to prevent metastable states with ansynchronous signals
+    signal rx_serial_s : std_logic;                                 -- Debounced version of RX_SERIAL
 
     --  UART-TX  (driven by 'tx_load')
     type TX_FSM is (TX_IDLE, TX_BITS);                              -- state definitions for transmitting data
@@ -49,22 +51,21 @@ architecture Behavioral of UART is
 begin
 
     -- RX Input Synchronizer
-	 
-	 process(CLK) -- need to sample at half the clock rate to give time for metastable flip-flop to stabilize
-	 begin
-	     if rising_edge(CLK) then		-- these are very important for handling outside asynchronous signals
-				rx_sync(0) <= RX_SERIAL;
-				rx_sync(1) <= rx_sync(0);
-				rx_serial_s <= rx_sync(1);
+    process(CLK)
+    begin
+        if rising_edge(CLK) then		-- these are very important for handling outside asynchronous signals
+            rx_sync(0) <= RX_SERIAL;
+            rx_sync(1) <= rx_sync(0);
+            rx_serial_s <= rx_sync(1);
         end if;
-	 end process;
-	 
+    end process;
+
     --  UART RECEIVER
     process(CLK)
     begin
         if rising_edge(CLK) then
-				RX_READY <= '0';
-								
+            RX_READY <= '0';
+
             if RST = '1' then
                 rx_state <= RX_IDLE;    -- reset state machine
             else
@@ -88,23 +89,23 @@ begin
                             rx_shift(rx_bit) <= rx_serial_s;  -- sample the serial data input line and store in current bit position of rx register
                             if rx_bit = 7 then              -- if all bits have been received, go to stop state
                                 rx_state <= RX_STOP;
-										  rx_cnt <= BIT_PERIOD;       -- reset clock counter for stop bit
+                                rx_cnt <= BIT_PERIOD;       -- reset clock counter for stop bit
                             else                            -- otherwise increment bit counter
                                 rx_bit <= rx_bit + 1;
-										  rx_cnt <= BIT_PERIOD;       -- reset clock counter for next bit
+                                rx_cnt <= BIT_PERIOD;       -- reset clock counter for next bit
                             end if;
                         else rx_cnt <= rx_cnt - 1;          -- decrement counter
                         end if;
 
                     when RX_STOP =>
                         if rx_cnt = 0 then              -- wait for counter to expire
-								    if rx_serial_s = '1' then             -- check for stop bit (should be high)
+                            if rx_serial_s = '1' then             -- check for stop bit (should be high)
                                 RX_DATA  <= rx_shift;       -- output the received byte
                                 RX_READY <= '1';            -- strobe ready flag to indicate byte is ready
-									 end if;
-									 rx_state <= RX_IDLE;        -- go back to idle state
+                            end if;
+                            rx_state <= RX_IDLE;        -- go back to idle state
                         else 
-									 rx_cnt <= rx_cnt - 1;      -- decrement counter
+                            rx_cnt <= rx_cnt - 1;      -- decrement counter
                         end if;
                         
                 end case;

@@ -110,6 +110,7 @@ architecture rtl of FLASH_RAM is
     signal dq_data_out_r        : std_logic_vector(15 downto 0);
     signal dq_data_in_r         : std_logic_vector(15 downto 0);
     signal address_wr_r         : std_logic_vector(21 downto 0);
+    signal address_out          : std_logic_vector(21 downto 0);
     -- internal busy signal
     signal busy_i               : std_logic;
     -- data polling signals
@@ -136,6 +137,9 @@ begin
     -- controller to flash chip in signal ('Z' when chip output is not enabled or in reading phase of state machines)
     DQ          <= dq_data_out_r when (output_enable = '0' and st_main /= ST_READ) else (others => 'Z');
     
+    -- controller to flash chip address
+    A           <= address_out;
+
     process(CLK_IN, RST_IN)
     begin
         if (RST_IN = '1') then  -- RESET
@@ -143,7 +147,7 @@ begin
             chip_enable	            <= '0';
             output_enable           <= '0';
             write_enable            <= '0';
-            A                       <= (others => '0'); -- reset chip address
+            address_out             <= (others => '0'); -- reset chip address
             st_main                 <= ST_IDLE; -- reset state machines
             st_writing              <= W_SEQ0;
             st_chip_erasing         <= E0_SEQ0;
@@ -212,7 +216,7 @@ begin
                     end if;
 
                 when ST_READ =>
-                    A               <= address_wr_r;    -- set chip address 
+                    address_out     <= address_wr_r;    -- set chip address 
                     dq_data_in_r    <= DQ;              -- set data in register to input from chip DQ
 
                     -- Timer for read cycle time
@@ -225,12 +229,12 @@ begin
                             busy_i      <= '0';             -- set busy signal low so CPU knows it can use the data
                         end if;
                     end if;
-						  
-						  if (t_RD = 0) then								-- set up chip controls at time 0
-						      write_enable    <= '0';             -- set WE to 0, so chip is in read mode
+
+                    if (t_RD = 0) then                      -- set up chip controls at time 0
+                        write_enable    <= '0';             -- set WE to 0, so chip is in read mode
                         output_enable   <= '1';             -- set OE to 1, so chip outputs data on DQ
                         chip_enable     <= '1';             -- set CE to 1, so chip is enabled
-						  end if;
+                    end if;
 
                 when ST_WRITE =>
                     -- write state machine - write three commands, then write the actual data
@@ -252,16 +256,16 @@ begin
                             programming_complete    <= '0';
                             case (st_writing) is    -- set address and data according to current sequence state
                                 when W_SEQ0 =>
-                                    A               <= write_addr_first;
+                                    address_out     <= write_addr_first;
                                     dq_data_out_r   <= write_data_first;
                                 when W_SEQ1 =>
-                                    A               <= write_addr_second;
+                                    address_out     <= write_addr_second;
                                     dq_data_out_r   <= write_data_second;
                                 when W_SEQ2 =>
-                                    A               <= write_addr_third;
+                                    address_out     <= write_addr_third;
                                     dq_data_out_r   <= write_data_third;
                                 when W_SEQ3 =>
-                                    A               <= address_wr_r;
+                                    address_out     <= address_wr_r;
                                     dq_data_out_r   <= DATA_IN;
                                 when others =>
                                     null; -- shouldn't happen, but just in case
@@ -322,22 +326,22 @@ begin
                             chip_enable     <= '1';
                             case (st_chip_erasing) is   -- set address and data according to current sequence state
                                 when E0_SEQ0 =>
-                                    A               <= erase_addr_first;
+                                    address_out     <= erase_addr_first;
                                     dq_data_out_r   <= erase_data_first;
                                 when E0_SEQ1 =>
-                                    A               <= erase_addr_second;
+                                    address_out    <= erase_addr_second;
                                     dq_data_out_r   <= erase_data_second;
                                 when E0_SEQ2 =>
-                                    A               <= erase_addr_third;
+                                    address_out     <= erase_addr_third;
                                     dq_data_out_r   <= erase_data_third;
                                 when E0_SEQ3 =>
-                                    A               <= erase_addr_fourth;
+                                    address_out     <= erase_addr_fourth;
                                     dq_data_out_r   <= erase_data_fourth;
                                 when E0_SEQ4 =>
-                                    A               <= erase_addr_fifth;
+                                    address_out     <= erase_addr_fifth;
                                     dq_data_out_r   <= erase_data_fifth;
                                 when E0_SEQ5 =>
-                                    A               <= erase_addr_sixth;
+                                    address_out     <= erase_addr_sixth;
                                     dq_data_out_r   <= erase_data_sixth;    -- chip erase command
                                 when others =>
                                     null; -- shouldn't happen, but just in case
@@ -397,22 +401,22 @@ begin
                             chip_enable     <= '1';
                             case (st_sector_erasing) is     -- set address and data according to current sequence state
                                 when E1_SEQ0 =>
-                                    A               <= erase_addr_first;
+                                    address_out     <= erase_addr_first;
                                     dq_data_out_r   <= erase_data_first;
                                 when E1_SEQ1 =>
-                                    A               <= erase_addr_second;
+                                    address_out     <= erase_addr_second;
                                     dq_data_out_r   <= erase_data_second;
                                 when E1_SEQ2 =>
-                                    A               <= erase_addr_third;
+                                    address_out     <= erase_addr_third;
                                     dq_data_out_r   <= erase_data_third;
                                 when E1_SEQ3 =>
-                                    A               <= erase_addr_fourth;
+                                    address_out     <= erase_addr_fourth;
                                     dq_data_out_r   <= erase_data_fourth;
                                 when E1_SEQ4 =>
-                                    A               <= erase_addr_fifth;
+                                    address_out     <= erase_addr_fifth;
                                     dq_data_out_r   <= erase_data_fifth;
                                 when E1_SEQ5 =>
-                                    A               <= address_wr_r;
+                                    address_out     <= address_wr_r;
                                     dq_data_out_r   <= erase_data_sector; -- sector erase command
                                 when others =>
                                     null; -- shouldn't happen, but just in case

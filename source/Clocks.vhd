@@ -20,7 +20,7 @@ entity FREQ_CLOCK is
 end FREQ_CLOCK;
 
 architecture Behavior of FREQ_CLOCK is
-    signal COUNTER : Integer := 0;
+    signal COUNTER : unsigned(31 downto 0) := 0;
 
 begin
     CLK_DIV : process(CLK_IN)
@@ -60,7 +60,7 @@ entity CLK_ENABLE is
 end CLK_ENABLE;
 
 architecture Behavior of CLK_ENABLE is
-    signal QUANTA : Integer := 0;
+    signal QUANTA : Integer range 0 to 32767 := 0;
 
 begin
     CLK_TICK : process(CLK_IN)
@@ -99,7 +99,7 @@ entity PULSE_GEN is
 end PULSE_GEN;
 
 architecture Behavior of PULSE_GEN is
-    signal COUNTER : Integer := 0;
+    signal COUNTER : unsigned(31 downto 1) := 0;
     signal PULSE_ACTIVE : std_logic := '0';
 
 begin
