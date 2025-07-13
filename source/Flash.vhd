@@ -144,7 +144,6 @@ begin
             t_WPR                   <= 0;
             t_EX                    <= 0;
             programming_error       <= '0';
-            command                 <= "0000";
 
 
         elsif (rising_edge(CLK_IN)) then -- handle state machines on rising clock edge
@@ -162,7 +161,6 @@ begin
             t_WPR                   <= t_WPR;
             t_EX                    <= t_EX;
             programming_error       <= programming_error;
-            command                 <= command;
 
             case (st_main) is   -- main state machine
                 when ST_IDLE => -- IDLE handler
@@ -177,7 +175,7 @@ begin
                     address_wr_r        <= ADDR_IN;                     -- latch in address write register from ADDR_IN when idle
 
                     if (BY_n = '1' and programming_error = '0') then    -- don't enter new state until chip is not busy and no error
-                        case(command) is    -- command interpreter - set state to new command
+                        case(RD_IN & WR_IN & ERASE_IN) is    -- command interpreter - set state to new command
                             when "1000" =>  -- READ command
                                 st_main <= ST_READ;
                             when "0100" =>  -- WRITE command
