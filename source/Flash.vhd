@@ -132,7 +132,7 @@ begin
 
     -- controller output signals
     ERROR_OUT   <= programming_error;
-    VALID_OUT   <= programming_complete;
+    VALID_OUT   <= '0' when (busy_i = '1' or programming_error = '1') else '1'; -- programming_complete;
     READY_OUT   <= (not busy_i) and BY_n; -- not ready if either state machines or chip is busy
     DATA_OUT    <= dq_data_in_r;
 
@@ -165,13 +165,13 @@ begin
             t_WR                    <= 0;
             t_CE                    <= 0;
             t_SE                    <= 0;
-            programming_complete    <= '0';
+           -- programming_complete    <= '0';
             programming_error       <= '0';
             command                 <= "0000";
 
         elsif (rising_edge(CLK_IN)) then -- handle state machines on rising clock edge
             reset <= '0';
-            programming_complete <= '0' when (busy_i = '1' or programming_error = '1') else '1';
+     --       programming_complete <= '0' when (busy_i = '1' or programming_error = '1') else '1';
 
             case (st_main) is   -- main state machine
 
