@@ -36,10 +36,10 @@ architecture Behavioral of UART is
 
     signal rx_cnt   : integer range 0 to BIT_PERIOD := 0;           -- counter for bit timing
     signal rx_bit   : integer range 0 to 7 := 0;                    -- bit counter for received data
-    signal rx_shift : std_logic_vector(7 downto 0);                 -- shift register to store received data
+    signal rx_shift : std_logic_vector(7 downto 0) := (others => '0');  -- shift register to store received data
 
     signal rx_sync  : std_logic_vector(1 downto 0) := (others => '1');  -- "Double Flop" to prevent metastable states with ansynchronous signals
-    signal rx_serial_s : std_logic;                                 -- Debounced version of RX_SERIAL
+    signal rx_serial_s : std_logic := '1';                              -- Debounced version of RX_SERIAL
 
     --  UART-TX  (driven by 'tx_load')
     type TX_FSM is (TX_IDLE, TX_BITS);                              -- state definitions for transmitting data
