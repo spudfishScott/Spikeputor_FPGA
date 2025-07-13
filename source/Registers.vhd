@@ -60,7 +60,7 @@ entity REG_LE is
 end REG_LE;
 
 architecture Behavior of REG_LE is
-    signal DATA : std_logic_vector(width-1 downto 0); -- the internal data memory
+    signal DATA : std_logic_vector(width-1 downto 0) := (others => '0'); -- the internal data memory
 begin
 
     P_REG_LE : process(CLK, RESET) is

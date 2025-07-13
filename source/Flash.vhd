@@ -71,7 +71,7 @@ architecture rtl of FLASH_RAM is
     constant erase_addr_fifth   : std_logic_vector(21 downto 0) := "0000000000001010101010"; -- 2AA
     constant erase_addr_sixth   : std_logic_vector(21 downto 0) := "0000000000010101010101"; -- 555
 
-    -- internal signals
+    -- internal signals - include initial settings to help with fitter getting stuck
      -- flash chip reset and command bits
     signal reset                : std_logic := '1';
     signal chip_enable          : std_logic := '0';
@@ -147,7 +147,7 @@ begin
 
 
         elsif (rising_edge(CLK_IN)) then -- handle state machines on rising clock edge
-            reset <= '0';           -- put everything thing as a default
+            reset <= '0';           -- put everything in as a default to help with fitter getting stuck
             chip_enable	            <= chip_enable;
             output_enable           <= output_enable;
             write_enable            <= write_enable;
@@ -225,7 +225,7 @@ begin
                         t_EX <= t_EX + 1;
                     end if;
 
-                    -- Execute each of four writes for the "program" sequence, then wait
+                    -- Execute each writes for the "program" sequence (4 for write, 6 for erases), then wait
                     if (st_programming /= PR_WAIT) then  -- if state is not waiting, do standard write timing sequence
                         if (t_EX = 0) then                      -- immediately put command address and data on, and set CE
                             write_enable            <= '0';

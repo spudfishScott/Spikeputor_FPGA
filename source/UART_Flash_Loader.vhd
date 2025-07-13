@@ -34,7 +34,8 @@ architecture behavioral of uart_flash_loader is
     constant C_BANG : std_logic_vector(7 downto 0) := x"21";  -- '!'
     constant C_QUES : std_logic_vector(7 downto 0) := x"3F";  -- '?'
 
-    --  PROTOCOL state
+    -- internal signals, including state machine
+    -- include preliminary values for all to help with fitter getting stuck
     type proto_fsm is (
         WAIT_START, ACK_UPLOAD, ACK_ERASE,
         HDR_0, HDR_1, HDR_2, HDR_3,
@@ -44,15 +45,15 @@ architecture behavioral of uart_flash_loader is
         NEXT_ADDRESS,
         ACK_DONE
     );
-    signal p_state     : proto_fsm := WAIT_START;                   -- start in WAIT_START state
+    signal p_state     : proto_fsm := WAIT_START;                           -- start in WAIT_START state
 
-    signal address     : std_logic_vector(15 downto 0);             -- lower 16 bits of address to write to
-    signal write_len   : unsigned(16 downto 0) := (others => '0');  -- number of bytes to recieve (extra bit for xfer of 64 KBytes)
+    signal address     : std_logic_vector(15 downto 0) := (others => '0');  -- lower 16 bits of address to write to
+    signal write_len   : unsigned(16 downto 0) := (others => '0');          -- number of bytes to recieve (extra bit for xfer of 64 KBytes)
 
-    signal bytes_seen  : unsigned(16 downto 0) := (others => '0');  -- number of bytes recieved so far (extra bit for xfer of 64 KBytes)
-    signal word_buf    : std_logic_vector(15 downto 0);             -- buffer for the word to write to flash
+    signal bytes_seen  : unsigned(16 downto 0) := (others => '0');          -- number of bytes recieved so far (extra bit for xfer of 64 KBytes)
+    signal word_buf    : std_logic_vector(15 downto 0) := (others => '0');  -- buffer for the word to write to flash
 
-    signal activity_flasher : integer range 0 to 50_000_000 := 0; -- counter to flash activity indicator during flash chip erase
+    signal activity_flasher : integer range 0 to 50_000_000 := 0;           -- counter to flash activity indicator during flash chip erase
    
 
 begin
