@@ -173,7 +173,7 @@ begin
                     write_enable        <= '0';
                     t_WPR               <= 0;
                     t_EX                <= 0;
-                    st_programming      <= P_SEQ0;
+                    st_programming      <= PR_SEQ0;
                   --  st_writing          <= W_SEQ0;
                   --  st_chip_erasing     <= E0_SEQ0;
                   --  st_sector_erasing   <= E1_SEQ0;
@@ -225,7 +225,7 @@ begin
                         chip_enable     <= '1';             -- set CE to 1, so chip is enabled
                     end if;
 
-                when ST_WRITE | ST_ERASE | ST_CHIP_ERASE =>
+                when ST_WRITE | ST_SECTOR_ERASE | ST_CHIP_ERASE =>
                     -- write state machine - write three commands, then write the actual data
                     -- Update the write cycle time counter
                     if (t_EX > (70/MAIN_CLK_NS)) then
@@ -248,7 +248,7 @@ begin
                                         when ST_WRITE =>
                                             address_out_r   <= write_addr_first;
                                             dq_data_out_r   <= write_data_first;
-                                        when ST_ERASE | ST_CHIP_ERASE =>
+                                        when ST_SECTOR_ERASE | ST_CHIP_ERASE =>
                                             address_out_r   <= erase_addr_first;
                                             dq_data_out_r   <= erase_data_first;
                                         when others =>
@@ -259,7 +259,7 @@ begin
                                         when ST_WRITE =>
                                             address_out_r   <= write_addr_second;
                                             dq_data_out_r   <= write_data_second;
-                                        when ST_ERASE | ST_CHIP_ERASE =>
+                                        when ST_SECTOR_ERASE | ST_CHIP_ERASE =>
                                             address_out_r   <= erase_addr_second;
                                             dq_data_out_r   <= erase_data_second;
                                         when others =>
@@ -270,7 +270,7 @@ begin
                                         when ST_WRITE =>
                                             address_out_r   <= write_addr_third;
                                             dq_data_out_r   <= write_data_third;
-                                        when ST_ERASE | ST_CHIP_ERASE =>
+                                        when ST_SECTOR_ERASE | ST_CHIP_ERASE =>
                                             address_out_r   <= erase_addr_third;
                                             dq_data_out_r   <= erase_data_third;
                                         when others =>
@@ -281,7 +281,7 @@ begin
                                         when ST_WRITE =>
                                             address_out_r   <= address_wr_r;
                                             dq_data_out_r   <= DATA_IN;
-                                        when ST_ERASE | ST_CHIP_ERASE =>
+                                        when ST_SECTOR_ERASE | ST_CHIP_ERASE =>
                                             address_out_r   <= erase_addr_fourth;
                                             dq_data_out_r   <= erase_data_fourth;
                                         when others =>
@@ -289,7 +289,7 @@ begin
                                     end case;
                                 when PR_SEQ4 =>
                                     case (st_main) is -- set address and data according to current function
-                                        when ST_ERASE | ST_CHIP_ERASE =>
+                                        when ST_SECTOR_ERASE | ST_CHIP_ERASE =>
                                             address_out_r   <= erase_addr_fifth;
                                             dq_data_out_r   <= erase_data_fifth;
                                         when others =>
@@ -297,10 +297,10 @@ begin
                                     end case;
                                 when PR_SEQ5 =>
                                     case (st_main) is -- set address and data according to current function
-                                        when ST_ERASE =>
+                                        when ST_SECTOR_ERASE =>
                                             address_out_r   <= address_wr_r;
                                             dq_data_out_r   <= erase_data_sector; -- sector erase command
-                                        when CHIP_ERASE =>
+                                        when ST_CHIP_ERASE =>
                                             address_out_r   <= erase_addr_sixth;
                                             dq_data_out_r   <= erase_data_sixth;  -- chip erase command
                                         when others =>
@@ -348,7 +348,7 @@ begin
                                 st_main                 <= ST_IDLE;
                             end if;
 
-                            if (s_main = ST_WRITE) then           -- only check for timeout on WRITE, not ERASE operations
+                            if (st_main = ST_WRITE) then           -- only check for timeout on WRITE, not ERASE operations
                                 t_WPR <= t_WPR + 1;               -- still count to see if timeout is surpassed
                             end if;
                         else
