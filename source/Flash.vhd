@@ -201,6 +201,7 @@ begin
                             programming_complete <= '0';        -- clear programming complete flag
                         elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "01") then -- enter Chip Erase
                             st_main         <= ST_CHIP_ERASE;   -- new state is ST_CHIP_ERASE
+                            address_wr_r    <= ADDR_IN;         -- get address to write - not used but common code
                             busy_i          <= '1';
                             programming_complete <= '0';        -- clear programming complete flag
                         elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "10") then -- enter Sector Erase
