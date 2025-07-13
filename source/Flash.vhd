@@ -62,17 +62,19 @@ architecture rtl of FLASH_RAM is
     signal st_sector_erasing : fsm_s_erase;
 
     -- command timers - total number of ticks of master clock for each command
-    -- Only really need one counter, since none of these are ewver ussed at the same time!
-    signal t_RD     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Read counter - tACC is 70 ns max
-    signal t_WR     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Write counter - tWC is 70 ns max
-    signal t_CE     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Chip Erase counter - tWC is 70 ns max
-    signal t_SE     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Sector Erase counter - tWC is 70 ns max
+    -- Only really need one counter, since none of these are ever used at the same time!
+    signal t_EX     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Execution counter - tACC is 70 ns max, tWC is 70 ns max
+    --signal t_WR     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Read counter - tACC is 70 ns max
+    --signal t_WR     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Write counter - tWC is 70 ns max
+    --signal t_CE     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Chip Erase counter - tWC is 70 ns max
+    --signal t_SE     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Sector Erase counter - tWC is 70 ns max
 
     -- wait timers - used while waiting for n_busy to go low as a timeout watchdog in case of error.
     -- Max sector erase time is 10 s, typical chip erase time is 45 s, max word programming time is 360 us.
-    signal t_WHWH1  : integer range 0 to (360100/MAIN_CLK_NS) := 0; -- Write wait counter - 360us max until an error
-    signal t_WHWH2  : integer range 0 to (120/MAIN_CLK_NS) := 0; -- Chip Erase counter - wait 90 ns max before n_busy goes low
-    signal t_WHWH3  : integer range 0 to (120/MAIN_CLK_NS) := 0; -- Sector erase counter - wait 90 ns max before n_busy goes low
+    signal t_WPR    : integer range 0 to (360100/MAIN_CLK_NS) := 0; -- Program wait counter - 360 us max until an error
+    --signal t_WHWH1  : integer range 0 to (360100/MAIN_CLK_NS) := 0; -- Write wait counter - 360us max until an error
+    --signal t_WHWH2  : integer range 0 to (120/MAIN_CLK_NS) := 0; -- Chip Erase counter - wait 90 ns max before n_busy goes low
+    --signal t_WHWH3  : integer range 0 to (120/MAIN_CLK_NS) := 0; -- Sector erase counter - wait 90 ns max before n_busy goes low
 
     -- Flash commands (Word mode) - The command *might* need to be repeated in the high byte (0xF0F0), but probably not
     constant write_data_reset   : std_logic_vector(15 downto 0) := x"00F0";
@@ -116,7 +118,6 @@ architecture rtl of FLASH_RAM is
     -- command signal
     signal command              : std_logic_vector(3 downto 0);
     -- data polling signals
-    signal programming_complete : std_logic; 
     signal programming_error    : std_logic;
 
 begin
@@ -158,20 +159,20 @@ begin
             dq_data_in_r            <= (others => '0');
             dq_data_out_r           <= (others => '0');
             busy_i                  <= '0';             -- reset busy flag
-            t_WHWH1                 <= 0;               -- reset internal wait counters
-            t_WHWH2                 <= 0;
-            t_WHWH3                 <= 0;
-            t_RD                    <= 0;
-            t_WR                    <= 0;
-            t_CE                    <= 0;
-            t_SE                    <= 0;
-           -- programming_complete    <= '0';
+          --  t_WHWH1                 <= 0;               -- reset internal wait counters
+          --  t_WHWH2                 <= 0;
+          --  t_WHWH3                 <= 0;
+            t_WPR                   <= 0;
+            t_EX                    <= 0;
+          --  t_RD                    <= 0;
+          --  t_WR                    <= 0;
+          --  t_CE                    <= 0;
+          --  t_SE                    <= 0;
             programming_error       <= '0';
             command                 <= "0000";
 
         elsif (rising_edge(CLK_IN)) then -- handle state machines on rising clock edge
             reset <= '0';
-     --       programming_complete <= '0' when (busy_i = '1' or programming_error = '1') else '1';
 
             case (st_main) is   -- main state machine
 
@@ -180,13 +181,15 @@ begin
                     chip_enable         <= '0';
                     output_enable       <= '0';
                     write_enable        <= '0';
-                    t_WHWH1	            <= 0;
-                    t_WHWH2	            <= 0;
-                    t_WHWH3	            <= 0;
-                    t_WR                <= 0;
-                    t_RD                <= 0;
-                    t_CE                <= 0;
-                    t_SE                <= 0;
+                  --  t_WHWH1	            <= 0;
+                  --  t_WHWH2	            <= 0;
+                  --  t_WHWH3	            <= 0;
+                    t_WPR               <= 0;
+                    t_EX                <= 0;
+                  --  t_WR                <= 0;
+                  --  t_RD                <= 0;
+                  --  t_CE                <= 0;
+                  --  t_SE                <= 0;
                     st_writing          <= W_SEQ0;
                     st_chip_erasing     <= E0_SEQ0;
                     st_sector_erasing   <= E1_SEQ0;
@@ -200,39 +203,15 @@ begin
                                 st_main <= ST_READ;
                             when "0100" =>  -- WRITE command
                                 st_main <= ST_WRITE;
-                            when "0001" =>  -- CHIP ERASE command
-                                st_main <= ST_CHIP_ERASE;
                             when "0010" =>  -- SECTOR ERASE command
                                 st_main <= ST_SECTOR_ERASE;
+                            when "0001" =>  -- CHIP ERASE command
+                                st_main <= ST_CHIP_ERASE;
                             when others =>  -- invalid command
                                 st_main <= ST_IDLE;         -- stay idle if the new command doesn't make sense
                                 busy_i  <= '0';             -- stay not busy when idle
                         end case;
 
-                      --  if (RD_IN = '1' and WR_IN = '0' and ERASE_IN = "00") then -- enter Read Mode
-                          --  st_main         <= ST_READ;         -- new state is ST_READ
-                          --  address_wr_r    <= ADDR_IN;         -- get address to read
-                          --  busy_i          <= '1';             -- mark controller as busy
-                          --  programming_complete <= '0';        -- clear programming complete flag
-                      --  elsif (RD_IN = '0' and WR_IN = '1' and ERASE_IN = "00") then -- enter Write Command
-                          --  st_main         <= ST_WRITE;        -- new state is ST_WRITE
-                          --  address_wr_r    <= ADDR_IN;         -- get address to write
-                          --  busy_i          <= '1';             -- mark controller as busy
-                          --  programming_complete <= '0';        -- clear programming complete flag
-                      --  elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "01") then -- enter Chip Erase
-                          --  st_main         <= ST_CHIP_ERASE;   -- new state is ST_CHIP_ERASE
-                          -- address_wr_r    <= ADDR_IN;         -- get address to write - not used but common code
-                          --  busy_i          <= '1';
-                          --  programming_complete <= '0';        -- clear programming complete flag
-                      --  elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "10") then -- enter Sector Erase
-                          --  st_main         <= ST_SECTOR_ERASE; -- new state is ST_SECTOR_ERASE
-                          --  address_wr_r    <= ADDR_IN;         -- get sector number to erase
-                          --  busy_i          <= '1';             -- mark controller as busy
-                          --  programming_complete <= '0';        -- clear programming complete flag
-                      --  else
-                          --  st_main         <= ST_IDLE;         -- stay idle if the new command doesn't make sense
-                          --  busy_i          <= '0';             -- stay not busy when idle
-                      --  end if; 
                     else
                         st_main <= ST_IDLE;         -- stay idle if state machines or chip is busy or error
                         busy_i  <= '0';             -- stay not busy when idle
@@ -243,17 +222,17 @@ begin
                     dq_data_in_r    <= DQ;              -- set data in register to input from chip DQ
 
                     -- Timer for read cycle time
-                    if (t_RD < 70/MAIN_CLK_NS) then   -- Read cycle time counter - count up to 70 ns
-                        t_RD <= t_RD + 1;
+                    if (t_EX < 70/MAIN_CLK_NS) then   -- Read cycle time counter - count up to 70 ns
+                        t_EX <= t_EX + 1;
                     else                                    -- after 70 ns, data is ready to read
                         if (RD_IN = '0') then
-                            st_main         <= ST_IDLE;     -- but don't go back to idle until the CPU clears RD_IN
+                            st_main     <= ST_IDLE;         -- but don't go back to idle until the CPU clears RD_IN
                         else 
                             busy_i      <= '0';             -- set busy signal low so CPU knows it can use the data
                         end if;
                     end if;
 
-                    if (t_RD = 0) then                      -- set up chip controls at time 0
+                    if (t_EX = 0) then                      -- set up chip controls at time 0
                         write_enable    <= '0';             -- set WE to 0, so chip is in read mode
                         output_enable   <= '1';             -- set OE to 1, so chip outputs data on DQ
                         chip_enable     <= '1';             -- set CE to 1, so chip is enabled
@@ -262,17 +241,17 @@ begin
                 when ST_WRITE =>
                     -- write state machine - write three commands, then write the actual data
                     -- Update the write cycle time counter
-                    if (t_WR > (70/MAIN_CLK_NS)) then
-                        t_WR <= 0;
+                    if (t_EX > (70/MAIN_CLK_NS)) then
+                        t_EX <= 0;
                     elsif (st_writing = W_WAIT) then    -- reset counter during wait phase
-                        t_WR <= 0;
+                        t_EX <= 0;
                     else
-                        t_WR <= t_WR + 1;
+                        t_EX <= t_EX + 1;
                     end if;
 
                     -- Execute each of four writes for the "program" sequence, then wait
                     if (st_writing /= W_WAIT) then  -- if state is not waiting, do standard write timing sequence
-                        if (t_WR = 0) then                      -- immediately put command address and data on, and set CE
+                        if (t_EX = 0) then                      -- immediately put command address and data on, and set CE
                             write_enable            <= '0';
                             output_enable           <= '0';
                             chip_enable             <= '1';
@@ -292,11 +271,11 @@ begin
                                 when others =>
                                     null; -- shouldn't happen, but just in case
                             end case;
-                        elsif (t_WR = 35/MAIN_CLK_NS + 1) then  -- after 35 ns of setup time, set WE
+                        elsif (t_EX = 35/MAIN_CLK_NS + 1) then  -- after 35 ns of setup time, set WE
                             write_enable    <= '1';
                             output_enable   <= '0';
                             chip_enable     <= '1';
-                        elsif (t_WR = 70/MAIN_CLK_NS + 1) then  -- after 70 ns of WE time, clear WE and CE, set state for next command
+                        elsif (t_EX = 70/MAIN_CLK_NS + 1) then  -- after 70 ns of WE time, clear WE and CE, set state for next command
                             write_enable    <= '0';
                             output_enable   <= '0';
                             chip_enable     <= '0';
@@ -314,35 +293,33 @@ begin
                             end case;
                         end if;
                     else    -- state is waiting, so wait for the "program" cycle to complete
-                        if (t_WHWH1 > (360100/MAIN_CLK_NS)) then    -- timeout, there was an error writing the data, stop counting
-                              --  programming_complete    <= '0';
+                        if (t_WPR > (360100/MAIN_CLK_NS)) then    -- timeout, there was an error writing the data, stop counting
                                 programming_error       <= '1';
                                 st_main                 <= ST_IDLE;
-                        elsif (t_WHWH1 > (90/MAIN_CLK_NS)) then     -- after 90 ns, poll the BY_n signal
-                            if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
-                              --  programming_complete    <= '1';
+                        elsif (t_WPR > (90/MAIN_CLK_NS)) then     -- after 90 ns, poll the BY_n signal
+                            if (BY_n = '1') then                  -- when RY/BY# = 1, write is complete
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
                             end if;
-                            t_WHWH1 <= t_WHWH1 + 1;                 -- still count to see if timeout is surpassed 
+                            t_WPR <= t_WPR + 1;                   -- still count to see if timeout is surpassed 
                         else
-                            t_WHWH1	<= t_WHWH1 + 1;
+                            t_WPR <= t_WPR + 1;
                         end if;
                     end if;
 
                 when ST_CHIP_ERASE => 
                 -- Chip Erase state machine - write six commands similar to write state
-                    if (t_CE > (70/MAIN_CLK_NS)) then       -- Erase cycle time counter
-                        t_CE <= 0;
+                    if (t_EX > (70/MAIN_CLK_NS)) then       -- Erase cycle time counter
+                        t_EX <= 0;
                     elsif (st_chip_erasing = E0_WAIT) then  -- Reset counter during wait phase
-                        t_CE <= 0;
+                        t_EX <= 0;
                     else
-                        t_CE <= t_CE + 1;
+                        t_EX <= t_EX + 1;
                     end if;
 
                     -- Execute each of six writes for the "chip erase" sequence, then wait
                     if (st_chip_erasing /= E0_WAIT) then  -- if state is not waiting, do standard write timing sequence
-                        if (t_CE = 0) then                      -- immediately put command address and data on, and set CE
+                        if (t_EX = 0) then                      -- immediately put command address and data on, and set CE
                             write_enable    <= '0';
                             output_enable   <= '0';
                             chip_enable     <= '1';
@@ -368,11 +345,11 @@ begin
                                 when others =>
                                     null; -- shouldn't happen, but just in case
                             end case;
-                        elsif (t_CE = 35/MAIN_CLK_NS + 1) then  -- after 35 ns of setup time, set WE
+                        elsif (t_EX = 35/MAIN_CLK_NS + 1) then  -- after 35 ns of setup time, set WE
                             write_enable    <= '1';
                             output_enable   <= '0';
                             chip_enable     <= '1';
-                        elsif (t_CE = 70/MAIN_CLK_NS + 1) then  -- after 70 ns of WE time, clear WE and CE, set state for next command
+                        elsif (t_EX = 70/MAIN_CLK_NS + 1) then  -- after 70 ns of WE time, clear WE and CE, set state for next command
                             write_enable    <= '0';
                             output_enable   <= '0';
                             chip_enable     <= '0';
@@ -394,30 +371,29 @@ begin
                             end case;
                         end if;
                     else    -- state is waiting, so wait for the "chip erase" cycle to complete - typical timing is 45 seconds!
-                        if (t_WHWH2 > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
-                            if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
-                             --   programming_complete    <= '1';
+                        if (t_WPR > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
+                            if (BY_n = '1') then                  -- when RY/BY# = 1, write is complete
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
                             end if; 
                         else
-                            t_WHWH2	<= t_WHWH2 + 1;                 -- only increment the timer until RY/BY# is ready
+                            t_WPR	<= t_WPR + 1;                 -- only increment the timer until RY/BY# is ready
                         end if;
                     end if;
 
                 when ST_SECTOR_ERASE => 
                 -- Sector Erase state machine - write six commands similar to write state, address of sixth command is sector to erase
-                    if (t_SE > (70/MAIN_CLK_NS)) then       -- Erase cycle time counter
-                        t_SE <= 0;
+                    if (t_EX > (70/MAIN_CLK_NS)) then       -- Erase cycle time counter
+                        t_EX <= 0;
                     elsif (st_sector_erasing = E1_WAIT) then  -- Reset counter during wait phase
-                        t_SE <= 0;
+                        t_EX <= 0;
                     else
-                        t_SE <= t_SE + 1;
+                        t_EX <= t_EX + 1;
                     end if;
 
                     -- Execute each of six writes for the "sector erase" sequence, then wait
                     if (st_sector_erasing /= E1_WAIT) then    -- if state is not waiting, do standard write timing sequence
-                        if (t_SE = 0) then                      -- immediately put command address and data on, and set CE
+                        if (t_EX = 0) then                      -- immediately put command address and data on, and set CE
                             write_enable    <= '0';
                             output_enable   <= '0';
                             chip_enable     <= '1';
@@ -443,11 +419,11 @@ begin
                                 when others =>
                                     null; -- shouldn't happen, but just in case
                             end case;
-                        elsif (t_SE = 35/MAIN_CLK_NS + 1) then  -- after 35 ns of setup time, set WE
+                        elsif (t_EX = 35/MAIN_CLK_NS + 1) then  -- after 35 ns of setup time, set WE
                             write_enable    <= '1';
                             output_enable   <= '0';
                             chip_enable     <= '1';
-                        elsif (t_SE = 70/MAIN_CLK_NS + 1) then  -- after 70 ns of WE time, clear WE and CE, set state for next command
+                        elsif (t_EX = 70/MAIN_CLK_NS + 1) then  -- after 70 ns of WE time, clear WE and CE, set state for next command
                             write_enable    <= '0';
                             output_enable   <= '0';
                             chip_enable     <= '0';
@@ -469,14 +445,13 @@ begin
                             end case;
                         end if;
                     else    -- state is waiting, so wait for the "sector erase" cycle to complete - typical timing is ~1 second
-                        if (t_WHWH3 > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
-                            if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
-                              --  programming_complete    <= '1';
+                        if (t_WPR > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
+                            if (BY_n = '1') then                  -- when RY/BY# = 1, write is complete
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
                             end if; 
                         else
-                            t_WHWH3	<= t_WHWH3 + 1;                 -- only increment the timer until RY/BY# is ready
+                            t_WPR	<= t_WPR + 1;                 -- only increment the timer until RY/BY# is ready
                         end if;
                     end if;
             end case;
