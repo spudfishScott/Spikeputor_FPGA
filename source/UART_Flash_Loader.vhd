@@ -75,6 +75,7 @@ begin
 
             if RST = '1' then
                 p_state <= WAIT_START;
+                address <= (others => '0');
             else
                 case (p_state) is
 
