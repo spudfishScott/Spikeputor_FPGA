@@ -110,9 +110,11 @@ architecture rtl of FLASH_RAM is
     signal dq_data_out_r        : std_logic_vector(15 downto 0);
     signal dq_data_in_r         : std_logic_vector(15 downto 0);
     signal address_wr_r         : std_logic_vector(21 downto 0);
-    signal address_out          : std_logic_vector(21 downto 0);
+    signal address_out_r        : std_logic_vector(21 downto 0);
     -- internal busy signal
     signal busy_i               : std_logic;
+    -- command signal
+    signal command              : std_logic_vector(3 downto 0);
     -- data polling signals
     signal programming_complete : std_logic; 
     signal programming_error    : std_logic;
@@ -138,7 +140,7 @@ begin
     DQ          <= dq_data_out_r when (output_enable = '0' and st_main /= ST_READ) else (others => 'Z');
     
     -- controller to flash chip address
-    A           <= address_out;
+    A           <= address_out_r;
 
     process(CLK_IN, RST_IN)
     begin
@@ -147,11 +149,11 @@ begin
             chip_enable	            <= '0';
             output_enable           <= '0';
             write_enable            <= '0';
-            address_out             <= (others => '0'); -- reset chip address
             st_main                 <= ST_IDLE; -- reset state machines
             st_writing              <= W_SEQ0;
             st_chip_erasing         <= E0_SEQ0;
             st_sector_erasing       <= E1_SEQ0;
+            address_out_r           <= (others => '0'); -- reset chip address
             address_wr_r            <= (others => '0'); -- reset internal address and data signals
             dq_data_in_r            <= (others => '0');
             dq_data_out_r           <= (others => '0');
@@ -165,9 +167,11 @@ begin
             t_SE                    <= 0;
             programming_complete    <= '0';
             programming_error       <= '0';
+            command                 <= "0000";
 
         elsif (rising_edge(CLK_IN)) then -- handle state machines on rising clock edge
             reset <= '0';
+            programming_complete <= '0' when (busy_i = '1' or programming_error = '1') else '1';
 
             case (st_main) is   -- main state machine
 
@@ -176,7 +180,6 @@ begin
                     chip_enable         <= '0';
                     output_enable       <= '0';
                     write_enable        <= '0';
-                    busy_i              <= '0';
                     t_WHWH1	            <= 0;
                     t_WHWH2	            <= 0;
                     t_WHWH3	            <= 0;
@@ -187,37 +190,56 @@ begin
                     st_writing          <= W_SEQ0;
                     st_chip_erasing     <= E0_SEQ0;
                     st_sector_erasing   <= E1_SEQ0;
+                    busy_i              <= '1';                         -- set busy as default in all scenarios where there's a new command
+                    address_wr_r        <= ADDR_IN;                     -- latch in address write register from ADDR_IN when idle
+                    command             <= RD_IN & WR_IN & ERASE_IN;    -- concatenate the command bits for easier mapping
 
                     if (BY_n = '1' and programming_error = '0') then -- don't enter new state until chip is not busy and no error
-                        if (RD_IN = '1' and WR_IN = '0' and ERASE_IN = "00") then -- enter Read Mode
-                            st_main         <= ST_READ;         -- new state is ST_READ
-                            address_wr_r    <= ADDR_IN;         -- get address to read
-                            busy_i          <= '1';             -- mark controller as busy
-                            programming_complete <= '0';        -- clear programming complete flag
-                        elsif (RD_IN = '0' and WR_IN = '1' and ERASE_IN = "00") then -- enter Write Command
-                            st_main         <= ST_WRITE;        -- new state is ST_WRITE
-                            address_wr_r    <= ADDR_IN;         -- get address to write
-                            busy_i          <= '1';             -- mark controller as busy
-                            programming_complete <= '0';        -- clear programming complete flag
-                        elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "01") then -- enter Chip Erase
-                            st_main         <= ST_CHIP_ERASE;   -- new state is ST_CHIP_ERASE
-                            address_wr_r    <= ADDR_IN;         -- get address to write - not used but common code
-                            busy_i          <= '1';
-                            programming_complete <= '0';        -- clear programming complete flag
-                        elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "10") then -- enter Sector Erase
-                            st_main         <= ST_SECTOR_ERASE; -- new state is ST_SECTOR_ERASE
-                            address_wr_r    <= ADDR_IN;         -- get sector number to erase
-                            busy_i          <= '1';             -- mark controller as busy
-                            programming_complete <= '0';        -- clear programming complete flag
-                        else
-                            st_main         <= ST_IDLE;         -- stay idle if the new command doesn't make sense
-                        end if; 
+                        case(command) is    -- command interpreter - set state to new command
+                            when "1000" =>  -- READ command
+                                st_main <= ST_READ;
+                            when "0100" =>  -- WRITE command
+                                st_main <= ST_WRITE;
+                            when "0001" =>  -- CHIP ERASE command
+                                st_main <= ST_CHIP_ERASE;
+                            when "0010" =>  -- SECTOR ERASE command
+                                st_main <= ST_SECTOR_ERASE;
+                            when others =>  -- invalid command
+                                st_main <= ST_IDLE;         -- stay idle if the new command doesn't make sense
+                                busy_i  <= '0';             -- stay not busy when idle
+                        end case;
+
+                      --  if (RD_IN = '1' and WR_IN = '0' and ERASE_IN = "00") then -- enter Read Mode
+                          --  st_main         <= ST_READ;         -- new state is ST_READ
+                          --  address_wr_r    <= ADDR_IN;         -- get address to read
+                          --  busy_i          <= '1';             -- mark controller as busy
+                          --  programming_complete <= '0';        -- clear programming complete flag
+                      --  elsif (RD_IN = '0' and WR_IN = '1' and ERASE_IN = "00") then -- enter Write Command
+                          --  st_main         <= ST_WRITE;        -- new state is ST_WRITE
+                          --  address_wr_r    <= ADDR_IN;         -- get address to write
+                          --  busy_i          <= '1';             -- mark controller as busy
+                          --  programming_complete <= '0';        -- clear programming complete flag
+                      --  elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "01") then -- enter Chip Erase
+                          --  st_main         <= ST_CHIP_ERASE;   -- new state is ST_CHIP_ERASE
+                          -- address_wr_r    <= ADDR_IN;         -- get address to write - not used but common code
+                          --  busy_i          <= '1';
+                          --  programming_complete <= '0';        -- clear programming complete flag
+                      --  elsif (RD_IN = '0' and WR_IN = '0' and ERASE_IN = "10") then -- enter Sector Erase
+                          --  st_main         <= ST_SECTOR_ERASE; -- new state is ST_SECTOR_ERASE
+                          --  address_wr_r    <= ADDR_IN;         -- get sector number to erase
+                          --  busy_i          <= '1';             -- mark controller as busy
+                          --  programming_complete <= '0';        -- clear programming complete flag
+                      --  else
+                          --  st_main         <= ST_IDLE;         -- stay idle if the new command doesn't make sense
+                          --  busy_i          <= '0';             -- stay not busy when idle
+                      --  end if; 
                     else
-                        st_main <= ST_IDLE;     -- stay idle if state machines or chip is busy or error
+                        st_main <= ST_IDLE;         -- stay idle if state machines or chip is busy or error
+                        busy_i  <= '0';             -- stay not busy when idle
                     end if;
 
                 when ST_READ =>
-                    address_out     <= address_wr_r;    -- set chip address 
+                    address_out_r   <= address_wr_r;    -- set chip address 
                     dq_data_in_r    <= DQ;              -- set data in register to input from chip DQ
 
                     -- Timer for read cycle time
@@ -254,19 +276,18 @@ begin
                             write_enable            <= '0';
                             output_enable           <= '0';
                             chip_enable             <= '1';
-                            programming_complete    <= '0';
                             case (st_writing) is    -- set address and data according to current sequence state
                                 when W_SEQ0 =>
-                                    address_out     <= write_addr_first;
+                                    address_out_r   <= write_addr_first;
                                     dq_data_out_r   <= write_data_first;
                                 when W_SEQ1 =>
-                                    address_out     <= write_addr_second;
+                                    address_out_r   <= write_addr_second;
                                     dq_data_out_r   <= write_data_second;
                                 when W_SEQ2 =>
-                                    address_out     <= write_addr_third;
+                                    address_out_r   <= write_addr_third;
                                     dq_data_out_r   <= write_data_third;
                                 when W_SEQ3 =>
-                                    address_out     <= address_wr_r;
+                                    address_out_r   <= address_wr_r;
                                     dq_data_out_r   <= DATA_IN;
                                 when others =>
                                     null; -- shouldn't happen, but just in case
@@ -294,12 +315,12 @@ begin
                         end if;
                     else    -- state is waiting, so wait for the "program" cycle to complete
                         if (t_WHWH1 > (360100/MAIN_CLK_NS)) then    -- timeout, there was an error writing the data, stop counting
-                                programming_complete    <= '0';
+                              --  programming_complete    <= '0';
                                 programming_error       <= '1';
                                 st_main                 <= ST_IDLE;
                         elsif (t_WHWH1 > (90/MAIN_CLK_NS)) then     -- after 90 ns, poll the BY_n signal
                             if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
-                                programming_complete    <= '1';
+                              --  programming_complete    <= '1';
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
                             end if;
@@ -327,22 +348,22 @@ begin
                             chip_enable     <= '1';
                             case (st_chip_erasing) is   -- set address and data according to current sequence state
                                 when E0_SEQ0 =>
-                                    address_out     <= erase_addr_first;
+                                    address_out_r   <= erase_addr_first;
                                     dq_data_out_r   <= erase_data_first;
                                 when E0_SEQ1 =>
-                                    address_out    <= erase_addr_second;
+                                    address_out_r  <= erase_addr_second;
                                     dq_data_out_r   <= erase_data_second;
                                 when E0_SEQ2 =>
-                                    address_out     <= erase_addr_third;
+                                    address_out_r   <= erase_addr_third;
                                     dq_data_out_r   <= erase_data_third;
                                 when E0_SEQ3 =>
-                                    address_out     <= erase_addr_fourth;
+                                    address_out_r   <= erase_addr_fourth;
                                     dq_data_out_r   <= erase_data_fourth;
                                 when E0_SEQ4 =>
-                                    address_out     <= erase_addr_fifth;
+                                    address_out_r   <= erase_addr_fifth;
                                     dq_data_out_r   <= erase_data_fifth;
                                 when E0_SEQ5 =>
-                                    address_out     <= erase_addr_sixth;
+                                    address_out_r   <= erase_addr_sixth;
                                     dq_data_out_r   <= erase_data_sixth;    -- chip erase command
                                 when others =>
                                     null; -- shouldn't happen, but just in case
@@ -375,7 +396,7 @@ begin
                     else    -- state is waiting, so wait for the "chip erase" cycle to complete - typical timing is 45 seconds!
                         if (t_WHWH2 > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
                             if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
-                                programming_complete    <= '1';
+                             --   programming_complete    <= '1';
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
                             end if; 
@@ -402,22 +423,22 @@ begin
                             chip_enable     <= '1';
                             case (st_sector_erasing) is     -- set address and data according to current sequence state
                                 when E1_SEQ0 =>
-                                    address_out     <= erase_addr_first;
+                                    address_out_r   <= erase_addr_first;
                                     dq_data_out_r   <= erase_data_first;
                                 when E1_SEQ1 =>
-                                    address_out     <= erase_addr_second;
+                                    address_out_r   <= erase_addr_second;
                                     dq_data_out_r   <= erase_data_second;
                                 when E1_SEQ2 =>
-                                    address_out     <= erase_addr_third;
+                                    address_out_r   <= erase_addr_third;
                                     dq_data_out_r   <= erase_data_third;
                                 when E1_SEQ3 =>
-                                    address_out     <= erase_addr_fourth;
+                                    address_out_r   <= erase_addr_fourth;
                                     dq_data_out_r   <= erase_data_fourth;
                                 when E1_SEQ4 =>
-                                    address_out     <= erase_addr_fifth;
+                                    address_out_r   <= erase_addr_fifth;
                                     dq_data_out_r   <= erase_data_fifth;
                                 when E1_SEQ5 =>
-                                    address_out     <= address_wr_r;
+                                    address_out_r   <= address_wr_r;
                                     dq_data_out_r   <= erase_data_sector; -- sector erase command
                                 when others =>
                                     null; -- shouldn't happen, but just in case
@@ -450,7 +471,7 @@ begin
                     else    -- state is waiting, so wait for the "sector erase" cycle to complete - typical timing is ~1 second
                         if (t_WHWH3 > (90/MAIN_CLK_NS)) then        -- after 90 ns, poll the BY_n signal forever until it goes low
                             if (BY_n = '1') then                    -- when RY/BY# = 1, write is complete
-                                programming_complete    <= '1';
+                              --  programming_complete    <= '1';
                                 programming_error       <= '0';
                                 st_main                 <= ST_IDLE;
                             end if; 
