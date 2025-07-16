@@ -65,8 +65,12 @@ begin
         WERF   => NOT BUTTON(1),
         AOUT   => a_out,
         BOUT   => b_out,
-        AZERO  => LEDG(0)
-
+        AZERO  => LEDG(0),
+     SEL_INPUT => open, -- these are LED-only outputs
+        SEL_A  => open,
+        SEL_B  => open,
+        SEL_W  => LEDG(9 downto 2), -- show write selection in the LEDs
+      REG_DATA => open
     );
 
     -- display is either the REGA or REGB (MUX2)
@@ -77,6 +81,6 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-    LEDG(9 downto 1) <= (others => '0');
+    LEDG(1) <= '0';
 
 end Structural;
