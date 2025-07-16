@@ -71,7 +71,7 @@ begin
 
             if RST = '1' then
                 rx_state <= RX_IDLE;                        -- reset state machine
-                tx_shift <= (others => '1');                -- reset shift register
+                rx_shift <= (others => '1');                -- reset shift register
             else
                 case rx_state is
                     when RX_IDLE =>
