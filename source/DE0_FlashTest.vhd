@@ -37,12 +37,12 @@ entity DE0_FlashTest is -- the interface to the DE0 board
 end DE0_FlashTest;
 
 architecture Structural of DE0_FlashTest is
-    -- Signal Declarations
-    signal STARTUP : std_logic := '0';                                  -- start up signal
-    signal ADDR : std_logic_vector(9 downto 0);
-    signal DATA : std_logic_vector(9 downto 0);
+    -- Signal Declarations - do not need to be "registered" because they are all just "wires" in this entity
+    signal STARTUP : std_logic;                                         -- start up signal
+    signal ADDR : std_logic_vector(9 downto 0);                         -- low 10 bits of address (from input switches)
+    signal DATA : std_logic_vector(9 downto 0);                         -- low 10 bits of data
     signal DATA_OUT : std_logic_vector(15 downto 0);                    -- data output from flash chip
-    signal DISPLAY : std_logic_vector(15 downto 0) := (others => '0');  -- display output
+    signal DISPLAY : std_logic_vector(15 downto 0);                     -- display output
     signal CLK_EN : std_logic;                                          -- clock enable signal
 
 begin
@@ -71,7 +71,7 @@ begin
     );
 
     DATA_REG : entity work.REG_LE generic map(10) port map (	-- data register is 10 bits wide - that's how many switches we have
-    RESET => STARTUP,
+      RESET => STARTUP,
         CLK => CLOCK_50,
          EN => CLK_EN,
          LE => NOT BUTTON(1), 	-- data set is button 1, invert it because the reg is active high and the button is active low
@@ -95,7 +95,7 @@ begin
      ERASE_IN   => "00",                    -- no erase operation
         RD_IN   => NOT BUTTON(2),           -- read operation is triggered by button 2
         WR_IN   => NOT BUTTON(1),           -- write operation is triggered by button 1
-      ADDR_IN   => "000010" & "111111" & ADDR,   -- address input is the address register for low 10 bits with high bits prepended (word address == byte address/2)
+      ADDR_IN   => "0000001" & "11111" & ADDR,   -- address input is the address register for low 10 bits of word address with high bits prepended, sector 8
       DATA_IN   => "000000" & DATA,         -- data input is the data register for low 10 bits with high bits prepended
      DATA_OUT   => DATA_OUT,                -- controller output
      READY_OUT  => LEDG(0),                 -- busy signal is output to LED 0
@@ -115,7 +115,7 @@ begin
 
     -- display is either the address register or the data register
     DISPLAY <= DATA_OUT when BUTTON(2) = '0' else   -- if button 2 is pressed, display data from flash chip
-               "111111" & ADDR;                     -- else display address register
+               "011111" & ADDR;                     -- else display address register (word address)
 
     LEDG(9) <= STARTUP;         -- LED 9 is the startup signal
     LEDG(8) <= NOT Button(1);   -- LED 8 is the write signal

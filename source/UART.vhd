@@ -98,19 +98,22 @@ begin
                                 rx_bit <= rx_bit + 1;
                                 rx_cnt <= BIT_PERIOD;       -- reset clock counter for next bit
                             end if;
-                        else rx_cnt <= rx_cnt - 1;          -- decrement counter
+                        else 
+                            rx_cnt <= rx_cnt - 1;          -- decrement counter
                         end if;
 
                     when RX_STOP =>
                         if rx_cnt = 0 then                  -- wait for counter to expire
+                            rx_state <= RX_IDLE;            -- go back to idle state when it does - even if no stop bit detected
                             if rx_serial_s = '1' then       -- check for stop bit (should be high)
                                 RX_READY <= '1';            -- strobe ready flag to indicate byte is ready
                             end if;
-                            rx_state <= RX_IDLE;            -- go back to idle state
                         else 
                             rx_cnt <= rx_cnt - 1;           -- decrement counter
                         end if;
-                        
+
+                    when others => 
+                        null;
                 end case;
             end if;
         end if;
@@ -140,17 +143,20 @@ begin
 
                     when TX_BITS =>
                         TX_BUSY <= '1';                     -- keep busy flag set to indicate transmission is in progress
-                        if tx_cnt = 0 then                  -- wait for counter to expire
+                        if tx_cnt = 0 then                  -- wait for counter to expire to read the bit
                             tx_shift <= '1' & tx_shift(9 downto 1);     -- shift right, backfill with '1'
+                            tx_cnt <= BIT_PERIOD;           -- reset counter to wait until next bit should be read
                             if tx_bit = 9 then              -- if all bits have been sent, go back to idle state
                                 tx_state <= TX_IDLE;
                             else
                                 tx_bit <= tx_bit + 1;       -- otherwise increment bit counter 
                             end if;
-                            tx_cnt <= BIT_PERIOD;           -- reset counter for next bit
                         else
                             tx_cnt <= tx_cnt - 1;           -- decrement counter
                         end if;
+
+                    when others => 
+                        null;
                 end case;
             end if;
         end if;

@@ -36,6 +36,8 @@ begin
                     REG_LOW <= D; -- if SEL is low, update the low portion of the register from input
                 end if;
             end if;
+        else
+            null;
         end if;
     end process P_REG_HILO;
 
@@ -71,6 +73,8 @@ begin
             if (EN = '1' and LE = '1') then
                 DATA <= D;
             end if;
+        else
+            null;
         end if;
     end process P_REG_LE;
 

@@ -10,7 +10,7 @@
 --     Zero detect for Register Channel A 
 
 -- All data is BIT_DEPTH bits wide. (use 16 for Spikeputor)
--- Register controls are 3 bits wide (for 8 registers). Input select is 2 bits wide.
+-- Register controls are 3 bits wide (for 8 registers). Input select is 2 bits wide for 3 inputs.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -21,27 +21,29 @@ entity REG_FILE is
 
     port (
         RESET : in std_logic;
-        IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH downto 0);
+        IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
         CLK, CLK_EN : in std_logic;
         INSEL : in std_logic_vector(1 downto 0);
         OPA, OPB, OPC : in std_logic_vector(2 downto 0);
         WERF, RBSEL : in std_logic;
 
-        AOUT : out std_logic_vector(BIT_DEPTH downto 0);
-        BOUT : out std_logic_vector(BIT_DEPTH downto 0);
+        AOUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
+        BOUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
         AZERO : out std_logic
     );
 end REG_FILE;
 
 architecture RTL of REG_FILE is
+    constant ZEROS : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
+
     type RARRAY is array(1 to 7) of std_logic_vector(15 downto 0); -- define an array type of 7 registers
 
     -- internal signals
-    signal REG_IN : std_logic_vector(BIT_DEPTH downto 0) := (others => '0');
+    signal REG_IN : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
     signal B_DECIN, W_DECIN : std_logic_vector(2 downto 0) := (others => '0');
     signal AOUT_SEL, BOUT_SEL : std_logic_vector(2 downto 0) := (others => '0'); 
     signal WREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
-    signal AOUT_INT : std_logic_vector(BIT_DEPTH downto 0) := (others => '0');
+    signal AOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
     signal REGS_OUT : RARRAY := (others => (others => '0'));
 
 begin   -- architecture begin
@@ -112,6 +114,6 @@ begin   -- architecture begin
     );
 
     AOUT <= AOUT_INT;
-    AZERO <= '1' when AOUT_INT = (others => '0') else '0';   -- zero detect output
+    AZERO <= '1' when AOUT_INT = ZEROS else '0';   -- zero detect output
 
 end RTL;

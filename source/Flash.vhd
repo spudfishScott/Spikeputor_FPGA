@@ -129,7 +129,7 @@ begin
 
     process(CLK_IN, RST_IN)
     begin
-        if (RST_IN = '1') then  -- RESET
+        if (RST_IN = '1') then  -- RESET (asynchronous)
             reset                   <= '1'; -- reset chip settings
             chip_enable	            <= '0';
             output_enable           <= '0';
@@ -326,6 +326,8 @@ begin
                                 when others =>
                                     null; -- shouldn't happen, but just in case
                             end case;
+                        else
+                            null;
                         end if;
                     else    -- state is waiting, so wait for the "program" cycle to complete
                         if (t_WPR > (360100/MAIN_CLK_NS)) then    -- timeout, there was an error writing the data, stop counting
@@ -348,6 +350,9 @@ begin
                 when others =>
                     null;
             end case;
+
+        else
+            null;
 
         end if;
 

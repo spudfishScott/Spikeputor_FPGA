@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 
 entity uart_flash_loader is
     generic (
-        FIXED_ADDR_TOP : std_logic_vector(5 downto 0) := "000000"  -- upper 6 flash-address bits
+        SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000001" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
     );
     port (
         CLK        : in  std_logic;  -- assumes system clock (50 MHz)
@@ -47,7 +47,7 @@ architecture behavioral of uart_flash_loader is
     );
     signal p_state     : proto_fsm := WAIT_START;                           -- start in WAIT_START state
 
-    signal address     : std_logic_vector(15 downto 0) := (others => '0');  -- lower 16 bits of address to write to
+    signal address     : std_logic_vector(14 downto 0) := (others => '0');  -- lower 15 bits of address to write to (as a word address)
     signal write_len   : unsigned(16 downto 0) := (others => '0');          -- number of bytes to recieve (extra bit for xfer of 64 KBytes)
 
     signal bytes_seen  : unsigned(16 downto 0) := (others => '0');          -- number of bytes recieved so far (extra bit for xfer of 64 KBytes)
@@ -61,12 +61,17 @@ begin
     ACTIVITY <= '0' when (activity_flasher < 25_000_000) else '1';
     COMPLETED <= '1' when (p_state = ACK_DONE or p_state = WAIT_START) else '0';
 
-    -- wire ADDR_OUT, DATA_OUT, WR_OUT and ERASE_OUT connections
-    ADDR_OUT  <= FIXED_ADDR_TOP & address;                          -- set address to write to
-    DATA_OUT  <= word_buf;                                          -- set data to write
-   
-    WR_OUT    <= '1' when p_state = WRITE_FLASH else '0';           -- strobe WR_OUT during the WRITE_FLASH state
-    ERASE_OUT <= "01" when p_state = ERASE_FLASH else "00";         -- strobe ERASE_OUT (to chip erase) during the ERASE_FLASH state
+    -- wire ADDR_OUT:
+    ---    ADDR[21] is always 0
+    ---    full sector address is 0 & ADDR[20:15] & 00000000000000
+    ---    full address is 0 & sector address & (byte address/2)
+    ADDR_OUT  <= ("0" & SECTOR_ADDRESS & (others => '0')) when (p_state = ERASE_FLASH or p_state = WAIT_ERASE)
+        else ("0" & SECTOR_ADDRESS & address);                              -- set address to write to or sector to erase (when erase_flash was selected)
+
+    -- wire DATA_OUT, WR_OUT and ERASE_OUT connections
+    DATA_OUT  <= word_buf;                                                  -- set data to write
+    WR_OUT    <= '1' when p_state = WRITE_FLASH else '0';                   -- strobe WR_OUT during the WRITE_FLASH state
+    ERASE_OUT <= "10" when p_state = ERASE_FLASH else "00";                 -- strobe ERASE_OUT (to sector erase) during the ERASE_FLASH state
 
     --  State machine to implement transfer protocol
     process(CLK)
@@ -106,16 +111,16 @@ begin
                             p_state <= ERASE_FLASH;                         -- start erase
                         end if;
 
-    --  HDR_x: Read the 4 byte header (address, length)
+    --  HDR_x: Read the 4 byte header (address, length) - address is byte address, but low bit is ignored
                     when HDR_0 =>
                         if RX_READY = '1' then                              -- wait for RX_ready to get high byte of address
-                            address(15 downto 8) <= RX_DATA;                -- store high byte of address
+                            address(14 downto 7) <= RX_DATA;                -- store high byte of byte address/2 = word address
                             p_state <= HDR_1;                               -- move to next header read state
                         end if;
 
                     when HDR_1 =>
                         if RX_READY = '1' then                              -- wait for RX_ready to get low byte of address
-                            address(7 downto 0) <= RX_DATA;                 -- store low byte of address
+                            address(6 downto 0) <= RX_DATA(7 downto 1);     -- store low byte of byte address/2 = word address
                             p_state <= HDR_2;                               -- move to next header read state
                         end if;
 
