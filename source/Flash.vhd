@@ -147,20 +147,20 @@ begin
 
 
         elsif (rising_edge(CLK_IN)) then -- handle state machines on rising clock edge
-            reset <= '0';           -- put everything in as a default to help with fitter getting stuck
-            chip_enable	            <= chip_enable;
-            output_enable           <= output_enable;
-            write_enable            <= write_enable;
-            st_main                 <= st_main;
-            st_programming          <= st_programming;
-            address_out_r           <= address_out_r;
-            address_wr_r            <= address_wr_r;
-            dq_data_in_r            <= dq_data_in_r;
-            dq_data_out_r           <= dq_data_out_r;
-            busy_i                  <= busy_i;
-            t_WPR                   <= t_WPR;
-            t_EX                    <= t_EX;
-            programming_error       <= programming_error;
+            reset <= '0';
+            -- chip_enable	           <= chip_enable;     -- originally thought needed to prevent fitter from getting stuck, but maybe not!
+            -- output_enable           <= output_enable;
+            -- write_enable            <= write_enable;
+            -- st_main                 <= st_main;
+            -- st_programming          <= st_programming;
+            -- address_out_r           <= address_out_r;
+            -- address_wr_r            <= address_wr_r;
+            -- dq_data_in_r            <= dq_data_in_r;
+            -- dq_data_out_r           <= dq_data_out_r;
+            -- busy_i                  <= busy_i;
+            -- t_WPR                   <= t_WPR;
+            -- t_EX                    <= t_EX;
+            -- programming_error       <= programming_error;
 
             case (st_main) is   -- main state machine
                 when ST_IDLE => -- IDLE handler

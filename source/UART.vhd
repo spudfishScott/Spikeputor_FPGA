@@ -28,27 +28,30 @@ entity UART is
 end UART;
 
 architecture Behavioral of UART is
-    constant BIT_PERIOD : Integer := CLK_SPEED / BAUD_RATE;         -- number of clock cycles per bit
+    constant BIT_PERIOD : Integer := CLK_SPEED / BAUD_RATE;                 -- number of clock cycles per bit
 
+    -- signals - always provide initial values to help fitter not get stuck
     --  UART-RX  (strobes 'rx_ready' when byte is recieved)
-    type RX_FSM is (RX_IDLE, RX_START, RX_BITS, RX_STOP);           -- state definitions for recieving data
+    type RX_FSM is (RX_IDLE, RX_START, RX_BITS, RX_STOP);                   -- state definitions for recieving data
     signal rx_state : RX_FSM := RX_IDLE;
 
-    signal rx_cnt   : integer range 0 to BIT_PERIOD := 0;           -- counter for bit timing
-    signal rx_bit   : integer range 0 to 7 := 0;                    -- bit counter for received data
-    signal rx_shift : std_logic_vector(7 downto 0) := (others => '0');  -- shift register to store received data
+    signal rx_cnt   : integer range 0 to BIT_PERIOD := 0;                   -- counter for bit timing
+    signal rx_bit   : integer range 0 to 7 := 0;                            -- bit counter for received data
+    signal rx_shift : std_logic_vector(7 downto 0) := (others => '0');      -- shift register to store received data
 
-    signal rx_sync  : std_logic_vector(1 downto 0) := (others => '1');  -- "Double Flop" to prevent metastable states with ansynchronous signals
-    signal rx_serial_s : std_logic := '1';                              -- Debounced version of RX_SERIAL
+    signal rx_sync  : std_logic_vector(1 downto 0) := (others => '1');      -- "Double Flop" to prevent metastable states with ansynchronous signals
+    signal rx_serial_s : std_logic := '1';                                  -- Debounced version of RX_SERIAL
 
     --  UART-TX  (driven by 'tx_load')
-    type TX_FSM is (TX_IDLE, TX_BITS);                              -- state definitions for transmitting data
-    signal tx_state : TX_FSM := TX_IDLE; 
-    signal tx_cnt   : integer range 0 to BIT_PERIOD := 0;           -- counter for bit timing
-    signal tx_bit   : integer range 0 to 9 := 0;                    -- bit counter for transmitted data (10 bits: 1 start, 8 data, 1 stop)
-    signal tx_shift : std_logic_vector(9 downto 0) := (others => '1');  -- shift register to store data to be transmitted
+    type TX_FSM is (TX_IDLE, TX_BITS);                                      -- state definitions for transmitting data
+    signal tx_state : TX_FSM := TX_IDLE;
+
+    signal tx_cnt   : integer range 0 to BIT_PERIOD := 0;                   -- counter for bit timing
+    signal tx_bit   : integer range 0 to 9 := 0;                            -- bit counter for transmitted data (10 bits: 1 start, 8 data, 1 stop)
+    signal tx_shift : std_logic_vector(9 downto 0) := (others => '1');      -- shift register to store data to be transmitted
 
 begin
+    RX_DATA  <= rx_shift;       -- output the received byte
 
     -- RX Input Synchronizer
     process(CLK)
@@ -64,10 +67,11 @@ begin
     process(CLK)
     begin
         if rising_edge(CLK) then
-            RX_READY <= '0';
+            RX_READY <= '0';                                -- clear rx_ready each clock cycle
 
             if RST = '1' then
-                rx_state <= RX_IDLE;    -- reset state machine
+                rx_state <= RX_IDLE;                        -- reset state machine
+                tx_shift <= (others => '1');                -- reset shift register
             else
                 case rx_state is
                     when RX_IDLE =>
@@ -98,14 +102,13 @@ begin
                         end if;
 
                     when RX_STOP =>
-                        if rx_cnt = 0 then              -- wait for counter to expire
-                            if rx_serial_s = '1' then             -- check for stop bit (should be high)
-                                RX_DATA  <= rx_shift;       -- output the received byte
+                        if rx_cnt = 0 then                  -- wait for counter to expire
+                            if rx_serial_s = '1' then       -- check for stop bit (should be high)
                                 RX_READY <= '1';            -- strobe ready flag to indicate byte is ready
                             end if;
-                            rx_state <= RX_IDLE;        -- go back to idle state
+                            rx_state <= RX_IDLE;            -- go back to idle state
                         else 
-                            rx_cnt <= rx_cnt - 1;      -- decrement counter
+                            rx_cnt <= rx_cnt - 1;           -- decrement counter
                         end if;
                         
                 end case;
