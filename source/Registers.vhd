@@ -36,8 +36,6 @@ begin
                     REG_LOW <= D; -- if SEL is low, update the low portion of the register from input
                 end if;
             end if;
-        else
-            null;
         end if;
     end process P_REG_HILO;
 
@@ -70,11 +68,10 @@ begin
         if (RESET = '1') then
             DATA <= (others => '0');	-- clear out registers on reset
         elsif (rising_edge(CLK)) then -- changes on rising edge of clock
+				DATA <= DATA;
             if (EN = '1' and LE = '1') then
                 DATA <= D;
             end if;
-        else
-            null;
         end if;
     end process P_REG_LE;
 

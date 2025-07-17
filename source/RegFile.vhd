@@ -16,10 +16,20 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-type RARRAY is array(1 to 7) of std_logic_vector(natural range<>); -- define an array type of 7 registers of variable bit width
+library altera;
+use altera.altera_syn_attributes.all;
+
+package Types is
+	 constant BIT_DEPTH : Integer := 16;
+	 type RARRAY is array(1 to 7) of std_logic_vector(BIT_DEPTH-1 downto 0);
+end package Types;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.Types.all;
 
 entity REG_FILE is
-    generic (BIT_DEPTH : Integer := 16);
 
     port (
         RESET : in std_logic;
@@ -33,26 +43,34 @@ entity REG_FILE is
         BOUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
         AZERO : out std_logic;
 
-        SEL_INPUT : out std_logic_vector(BITDEPTH-1 downto 0);
+        SEL_INPUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
         SEL_A : out std_logic_vector(7 downto 0);
         SEL_B : out std_logic_vector(7 downto 0);
         SEL_W : out std_logic_vector(7 downto 0);
-        REG_DATA : out RARRAY(BIT_DEPTH-1 downto 0)
-
+        REG_DATA : out RARRAY
     );
+	 
 end REG_FILE;
 
 architecture RTL of REG_FILE is
     constant ZEROS : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
-
+	 
     -- internal signals
     signal REG_IN : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
     signal B_DECIN, W_DECIN : std_logic_vector(2 downto 0) := (others => '0');
     signal AOUT_SEL, BOUT_SEL : std_logic_vector(2 downto 0) := (others => '0'); 
-    signal AREG_SEL, BREG_SEL, WREG_SEL : std_logic_vector(7 downto 0) := "00000001";
+    signal AREG_SEL, BREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
+	 signal WREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
     signal AOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
     signal BOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
-    signal REGS_OUT : RARRAY(BIT_DEPTH-1 downto 0) := (others => (others => '0'));
+    signal REGS_OUT : RARRAY := (others => (others => '0'));
+	 
+	 -- required to insure that the inputs would not be optimized away (causing fitter to hang)
+	 -- another solution is to "register" all three inputs in a CLK process here, and also on the top level
+	 attribute keep : boolean;
+	 attribute keep of IN0 : signal is true;
+	 attribute keep of IN1 : signal is true;
+	 attribute keep of IN2 : signal is true;
 
 begin   -- architecture begin
 
@@ -84,8 +102,9 @@ begin   -- architecture begin
     SEL_INPUT <= REG_IN;
     SEL_A     <= AREG_SEL;
     SEL_B     <= BREG_SEL;
+	 SEL_W     <= WREG_SEL;
     REG_DATA  <= REGS_OUT;
-
+    
     WREG_CTRL: entity work.DECODE3_8 port map ( -- Register Write Select
         DECIN => W_DECIN,
         OUTS  => WREG_SEL
@@ -96,7 +115,7 @@ begin   -- architecture begin
         OUTS  => AREG_SEL
     );
 
-        W=BREG_CTRL: entity work.DECODE3_8 port map ( -- Register B Select
+        BREG_CTRL: entity work.DECODE3_8 port map ( -- Register B Select
         DECIN => BOUT_SEL,
         OUTS  => BREG_SEL
     );
@@ -124,7 +143,7 @@ begin   -- architecture begin
         IN1 => REGS_OUT(1),
         IN0 => (others => '0'),     -- Register 0 is always 0
         SEL => BOUT_SEL,
-        MUXOUT => BOUT_INT;
+        MUXOUT => BOUT_INT
     );
 
         -- Register Output A

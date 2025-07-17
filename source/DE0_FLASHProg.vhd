@@ -56,7 +56,7 @@ begin
     -- UART Flash Loader
     uart_loader: entity work.uart_flash_loader
         generic map (
-            SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000001"     -- 000001 is the first 64 KB sector
+            SECTOR_ADDR => "000001"     -- 000001 is the first 64 KB sector
         )
         port map (
             CLK        => CLOCK_50,       -- System clock (50 MHz)

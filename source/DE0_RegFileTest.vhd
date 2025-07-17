@@ -23,16 +23,16 @@ entity DE0_RegFileTest is -- the interface to the DE0 board
         LEDG : out std_logic_vector(9 downto 0);
         -- GPIO
         GPIO0_D : in std_logic_vector(31 downto 0);
-        GPIO1_D : in std_logic_vector(31 downto 0)
+        GPIO1_D : in std_logic_vector(31 downto 14)
 );
 end DE0_RegFileTest;
 
 architecture Structural of DE0_RegFileTest is
     -- wiring signals
-    signal   clk_en : std_logic;
-    signal disp_out : std_logic_vector(15 downto 0);
-    signal    a_out : std_logic_vector(15 downto 0);
-    signal    b_out : std_logic_vector(15 downto 0);
+    signal   clk_en : std_logic := '0';
+    signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
+    signal    a_out : std_logic_vector(15 downto 0) := (others => '0');
+    signal    b_out : std_logic_vector(15 downto 0) := (others => '0');
 
 begin
     -- Structure
@@ -50,7 +50,7 @@ begin
         SEGS3  => HEX3_D
     );
 
-    REGFILE: entity work.REG_FILE generic map (16) port map (
+    REGFILE: entity work.REG_FILE port map (
         RESET  => NOT BUTTON(0),
         IN0    => GPIO0_D(31 downto 16),
         IN1    => GPIO0_D(15 downto 0),
@@ -67,20 +67,20 @@ begin
         BOUT   => b_out,
         AZERO  => LEDG(0),
      SEL_INPUT => open, -- these are LED-only outputs
-        SEL_A  => open,
+        SEL_A  => LEDG(9 downto 2),
         SEL_B  => open,
-        SEL_W  => LEDG(9 downto 2), -- show write selection in the LEDs
-      REG_DATA => open
+        SEL_W  => open,
+        REG_DATA   => open
     );
 
     -- display is either the REGA or REGB (MUX2)
-    disp_out <= a_out when BUTTON(2) = '0' else b_out;  -- if button 2 is pressed, display REG B, else display REG A
-
+    disp_out <= a_out when BUTTON(2) = '0' else b_out;  -- if button 2 is pressed, display REG A, else display REG B
+	 
  -- assign output states for unused 7 segment display decimal point and unused LEDs
     HEX0_DP <= '1';
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-    LEDG(1) <= '0';
+	 LEDG(1) <= '0';
 
 end Structural;

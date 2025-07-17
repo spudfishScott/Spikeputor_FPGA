@@ -65,8 +65,8 @@ begin
     ---    ADDR[21] is always 0
     ---    full sector address is 0 & ADDR[20:15] & 00000000000000
     ---    full address is 0 & sector address & (byte address/2)
-    ADDR_OUT  <= ("0" & SECTOR_ADDRESS & (others => '0')) when (p_state = ERASE_FLASH or p_state = WAIT_ERASE)
-        else ("0" & SECTOR_ADDRESS & address);                              -- set address to write to or sector to erase (when erase_flash was selected)
+    ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH or p_state = WAIT_ERASE)
+        else ("0" & SECTOR_ADDR & address);                              -- set address to write to or sector to erase (when erase_flash was selected)
 
     -- wire DATA_OUT, WR_OUT and ERASE_OUT connections
     DATA_OUT  <= word_buf;                                                  -- set data to write
