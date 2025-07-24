@@ -16,61 +16,71 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-library altera;
-use altera.altera_syn_attributes.all;
-
 package Types is
-	 constant BIT_DEPTH : Integer := 16;
-	 type RARRAY is array(1 to 7) of std_logic_vector(BIT_DEPTH-1 downto 0);
+    constant BIT_DEPTH : Integer := 16;
+    type RARRAY is array(1 to 7) of std_logic_vector(BIT_DEPTH-1 downto 0);
 end package Types;
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+
 use work.Types.all;
+
+-- library altera;
+-- use altera.altera_syn_attributes.all;
 
 entity REG_FILE is
 
     port (
-        RESET : in std_logic;
-        IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
-        CLK, CLK_EN : in std_logic;
-        INSEL : in std_logic_vector(1 downto 0);
-        OPA, OPB, OPC : in std_logic_vector(2 downto 0);
-        WERF, RBSEL : in std_logic;
 
-        AOUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
-        BOUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
+        -- register file inputs
+        RESET         : in std_logic;
+        CLK, CLK_EN   : in std_logic;
+        IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
+        INSEL         : in std_logic_vector(1 downto 0);
+        OPA, OPB, OPC : in std_logic_vector(2 downto 0);
+        WERF, RBSEL   : in std_logic;
+
+        -- register file outputs for CPU (also will drive LEDs)
+        AOUT  : out std_logic_vector(BIT_DEPTH-1 downto 0);
+        BOUT  : out std_logic_vector(BIT_DEPTH-1 downto 0);
         AZERO : out std_logic;
 
+        -- outputs to drive LEDs only
         SEL_INPUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
-        SEL_A : out std_logic_vector(7 downto 0);
-        SEL_B : out std_logic_vector(7 downto 0);
-        SEL_W : out std_logic_vector(7 downto 0);
-        REG_DATA : out RARRAY
+        SEL_A     : out std_logic_vector(7 downto 0);
+        SEL_B     : out std_logic_vector(7 downto 0);
+        SEL_W     : out std_logic_vector(7 downto 0);
+        REG_DATA  : out RARRAY
     );
 	 
 end REG_FILE;
 
 architecture RTL of REG_FILE is
     constant ZEROS : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
-	 
+
     -- internal signals
-    signal REG_IN : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
-    signal B_DECIN, W_DECIN : std_logic_vector(2 downto 0) := (others => '0');
-    signal AOUT_SEL, BOUT_SEL : std_logic_vector(2 downto 0) := (others => '0'); 
-    signal AREG_SEL, BREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
-	 signal WREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
+    signal REG_IN   : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
+
+    signal AOUT_SEL : std_logic_vector(2 downto 0) := (others => '0');
+    signal BOUT_SEL : std_logic_vector(2 downto 0) := (others => '0');
+    signal   WR_SEL : std_logic_vector(2 downto 0) := (others => '0');
     signal AOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
     signal BOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
+
+    -- internal signals only for LEDs
+    signal AREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
+    signal BREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
+    signal WREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
     signal REGS_OUT : RARRAY := (others => (others => '0'));
-	 
-	 -- required to insure that the inputs would not be optimized away (causing fitter to hang)
-	 -- another solution is to "register" all three inputs in a CLK process here, and also on the top level
-	 attribute keep : boolean;
-	 attribute keep of IN0 : signal is true;
-	 attribute keep of IN1 : signal is true;
-	 attribute keep of IN2 : signal is true;
+
+    -- required to insure that the inputs would not be optimized away (causing fitter to hang)
+    -- another solution is to "register" all three inputs in a CLK process here, and also on the top level
+    attribute keep : boolean;
+    attribute keep of IN0 : signal is true;
+    attribute keep of IN1 : signal is true;
+    attribute keep of IN2 : signal is true;
 
 begin   -- architecture begin
 
@@ -83,7 +93,10 @@ begin   -- architecture begin
         MUXOUT => REG_IN
     );
 
-    -- Handle Register Address Controls
+    -------------------------------
+    -- Internal Wiring, Addressing and Zero Detection logic
+
+    -- Register Address Controls
     -- Channel A selection is simply OPA
     AOUT_SEL <= OPA;
 
@@ -91,34 +104,38 @@ begin   -- architecture begin
     BOUT_SEL <= OPB when RBSEL = '0' else OPC;
 
     -- Register Write selection depends on WERF, OPC is WERF is selected, Register 0 if not
-    W_DECIN <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
+    WR_SEL <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
 
-    -- Register File outputs
+    -- Register File Outputs (for CPU)
     AOUT <= AOUT_INT;
     BOUT <= BOUT_INT;
     AZERO <= '1' when AOUT_INT = ZEROS else '0';   -- zero detect output
 
-    -- Direct Outputs (for LEDs)
+    -- Other Outputs (for LEDs)
     SEL_INPUT <= REG_IN;
     SEL_A     <= AREG_SEL;
     SEL_B     <= BREG_SEL;
-	 SEL_W     <= WREG_SEL;
+    SEL_W     <= WREG_SEL;
     REG_DATA  <= REGS_OUT;
     
+    -------------------------------
+    -- Entity Instantiation
+    -- Decoders
     WREG_CTRL: entity work.DECODE3_8 port map ( -- Register Write Select
-        DECIN => W_DECIN,
+        DECIN => WR_SEL,
         OUTS  => WREG_SEL
     );
 
-        AREG_CTRL: entity work.DECODE3_8 port map ( -- Register A Select
+    AREG_CTRL: entity work.DECODE3_8 port map ( -- Register A Select
         DECIN => AOUT_SEL,
         OUTS  => AREG_SEL
     );
 
-        BREG_CTRL: entity work.DECODE3_8 port map ( -- Register B Select
+    BREG_CTRL: entity work.DECODE3_8 port map ( -- Register B Select
         DECIN => BOUT_SEL,
         OUTS  => BREG_SEL
     );
+
     -- Registers
     REGISTERS: for r in 1 to 7 generate   -- generate the 7 registers
     begin

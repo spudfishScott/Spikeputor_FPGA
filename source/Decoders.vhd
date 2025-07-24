@@ -26,3 +26,23 @@ begin
             "00000001" when "000",
             "00000000" when others;
 end Behavior;
+
+-- This is a bit reverser
+library IEEE;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity REVERSE is
+    generic (width: positive); -- width of in/out signals
+    port(
+        D : in std_logic_vector(width-1 downto 0);
+        Q : out std_logic_vector(width-1 downto 0)
+    );
+end REVERSE;
+
+architecture Behavior of REVERSE is
+    begin
+    REVERSER: for bit in width-1 downto 0 generate
+        Q(bit) <= D(width-1-bit);
+    end generate;
+end Behavior;

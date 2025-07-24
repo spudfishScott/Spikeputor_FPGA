@@ -66,3 +66,34 @@ begin
             IN0 when "00",
             IN0 when others;
 end Behavior;
+
+-------------------------------------------------------------------------------------------------------------
+-- This is a four input MUX with a two bit selector.
+-- The high bit of the selector selects input 2 regardless of the low bit value
+library IEEE;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity MUX4 is
+    generic (width: positive); -- width of in/out signals
+
+    port (
+        IN3 : in std_logic_vector(width-1 downto 0); -- input 2
+        IN2 : in std_logic_vector(width-1 downto 0); -- input 2
+        IN1 : in std_logic_vector(width-1 downto 0); -- input 1
+        IN0 : in std_logic_vector(width-1 downto 0); -- input 0
+        SEL : in std_logic_vector(1 downto 0); -- selection
+        MUXOUT : out std_logic_vector(width-1 downto 0) -- output
+    );
+end MUX4;
+
+architecture Behavior of MUX4 is
+begin
+    with (SEL) select
+        MUXOUT <=
+            IN3 when "11",
+            IN2 when "10",
+            IN1 when "01",
+            IN0 when "00",
+            IN0 when others;
+end Behavior;
