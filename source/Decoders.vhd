@@ -1,4 +1,4 @@
--- This module has decoders of various sizes and functionality
+-- This module has decoders and other utility modules of various sizes and functionality
 
 -- This is a 3 bit to 8 bit output one-hot decoder
 library IEEE;
