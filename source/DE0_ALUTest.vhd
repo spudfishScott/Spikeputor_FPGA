@@ -41,15 +41,11 @@ begin
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS port map (
-        WORD   => disp_out,
-        HEX0_D => HEX0_D,
-        HEX0_DP => HEX0_DP,
-        HEX1_D => HEX1_D,
-        HEX1_DP => HEX1_DP,
-        HEX2_D => HEX2_D,
-        HEX2_DP => HEX2_DP,
-        HEX3_D => HEX3_D,
-        HEX3_DP => HEX3_DP
+        WORD  => disp_out,
+        SEGS0 => HEX0_D,
+        SEGS1 => HEX1_D,
+        SEGS2 => HEX2_D,
+        SEGS3 => HEX3_D
     );
 
     -- ALU instance
