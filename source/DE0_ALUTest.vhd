@@ -26,7 +26,7 @@ entity DE0_ALUTest is -- the interface to the DE0 board
 );
 end DE0_ALUTest;
 
-architecture Structural of DE0_RegFileTest is
+architecture Structural of DE0_ALUTest is
     signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
     signal alu_led  : std_logic_vector(12 downto 0) := (others => '0');
 begin
@@ -37,7 +37,7 @@ begin
     HEX3_DP <= '1';
     LEDG(9 downto 4) <= (others => '0'); -- other LEDs off
 
-    LEDG <= alu_led(3 downto 0); -- display BRFN on LEDs 3-0
+    LEDG(3 downto 0) <= alu_led(3 downto 0); -- display BRFN on LEDs 3-0
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS port map (
