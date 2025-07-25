@@ -64,7 +64,7 @@ architecture RTL of ALU is
     signal S_BOOL     : std_logic_vector(15 downto 0) := (others => '0'); -- bool output
     signal CMP_BIT    : std_logic := '0';                                 -- compare output
     signal ADD_COUT   : std_logic := '0';                                 -- final carry out of arithmetic (for compare)
-    signal S_CMP      : std_logic_vector(15 downto 0) := (others => '0'); -- cmp output extended to 16 bits
+	 signal S_CMP      : std_logic_vector(15 downto 0) := (others => '0'); -- cmp output extended to 16 bits
 
 begin
 
@@ -92,7 +92,7 @@ begin
             "0000" when others;
 
     -- LED signals
-    ARITH <= S_ARITH;           -- INV_B signal produced directly from ARITH module
+    ARITH <= S_ARITH;
     BOOL  <= S_BOOL;
     SHIFT <= S_SHIFT;           -- other shift LED signals (SHIFT8, SHIFT4, SHIFT2, SHIFT1, REV_A) produced directly from SHIFT module
     CMP_FLAGS(0) <= CMP_BIT;    -- other CMP_FLAGS produced directly from CMP module
