@@ -29,7 +29,7 @@ end DE0_ALUTest;
 architecture Structural of DE0_ALUTest is
     signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
     signal alu_led  : std_logic_vector(12 downto 0) := (others => '0');
-	 signal cmp_led  : std_logic_vector(3 downto 0) := (others => '0');
+    signal cmp_led  : std_logic_vector(3 downto 0) := (others => '0');
 begin
     -- assign output states for unused 7 segment display decimal point and unused LEDs
     HEX0_DP <= '1';
@@ -37,8 +37,8 @@ begin
     HEX2_DP <= '1';
     HEX3_DP <= '1';
     LEDG(5 downto 4) <= (others => '0'); -- other LEDs off
-	 
-	LEDG(9 downto 6) <= cmp_led;
+
+    LEDG(9 downto 6) <= cmp_led;
     LEDG(3 downto 0) <= alu_led(3 downto 0); -- display BRFN on LEDs 3-0
 
     -- 7 Segment display decoder instance
@@ -53,8 +53,8 @@ begin
     -- ALU instance
    ALU0 : work.ALU port map (
         ALUFN   => SW(4 downto 0),
-        ASEL    => SW(6),
-        BSEL    => SW(5),
+        ASEL    => SW(9),
+        BSEL    => SW(8),
         REGA    => GPIO0_D(31 downto 16),
         PC_INC  => GPIO0_D(15 downto 0),
         REGB    => GPIO1_D(31 downto 16),

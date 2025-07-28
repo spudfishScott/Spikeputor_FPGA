@@ -64,7 +64,7 @@ architecture RTL of ALU is
     signal S_BOOL     : std_logic_vector(15 downto 0) := (others => '0'); -- bool output
     signal CMP_BIT    : std_logic := '0';                                 -- compare output
     signal ADD_COUT   : std_logic := '0';                                 -- final carry out of arithmetic (for compare)
-	 signal S_CMP      : std_logic_vector(15 downto 0) := (others => '0'); -- cmp output extended to 16 bits
+    signal S_CMP      : std_logic_vector(15 downto 0) := (others => '0'); -- cmp output extended to 16 bits
 
 begin
 

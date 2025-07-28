@@ -192,13 +192,13 @@ architecture Behavior of CMP is
 begin
     z_flag <= '1' when (SUM = ZEROS) else '0';
     n_flag <= SUM(15);
-	 -- B15 is inverted version of what it should be for comparison
+    -- B15 is inverted version of what it should be for comparison
     v_flag <= (A15 AND (NOT B15) AND (NOT SUM(15))) OR ((NOT A15) AND B15 AND (SUM(15)));
     lt <= n_flag XOR v_flag;
 
     Z <= z_flag;
     V <= v_flag;
-	 N <= n_flag;
+    N <= n_flag;
 
     with (FN) select
         M_OUT <=
