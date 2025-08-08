@@ -33,7 +33,7 @@ ENTITY PS2_ASCII IS
         clk        : IN  STD_LOGIC;                           -- system clock input
         ps2_clk    : IN  STD_LOGIC;                           -- clock signal from PS2 keyboard
         ps2_data   : IN  STD_LOGIC;                           -- data signal from PS2 keyboard
-        ascii_new  : OUT STD_LOGIC;                           -- output flag indicating new ASCII value
+        ascii_new  : OUT STD_LOGIC;                           -- output flag strobes to indicate new ASCII value
         ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)         -- ASCII value
     );
 END PS2_ASCII;
@@ -286,13 +286,13 @@ BEGIN
                             WHEN x"5A" => ascii <= x"0D"; -- enter (CR control code)
                             WHEN x"76" => ascii <= x"1B"; -- escape (ESC control code)
                             WHEN x"71" => 
-                                IF(e0_code = '1') THEN    -- ps2 code for delete is a multi-key code
+                                IF (e0_code = '1') THEN   -- ps2 code for delete is a multi-key code
                                     ascii <= x"7F";       -- delete
                                 END IF;
                             WHEN OTHERS => NULL;
                         END CASE;
                     END IF;
-                    
+
                 IF (break = '0') THEN       -- the code is a make
                     state <= output;        -- proceed to output state
                 ELSE                        -- code is a break
@@ -302,7 +302,7 @@ BEGIN
                 -- output state: verify the code is valid and output the ASCII value
                 WHEN output =>
                     IF (ascii(7) = '0') THEN                -- the PS2 code has an ASCII output
-                        ascii_new <= '1';                   -- set flag indicating new ASCII output
+                        ascii_new <= '1';                   -- strobe flag indicating new ASCII output
                         ascii_code <= ascii(6 DOWNTO 0);    -- output the ASCII value
                     END IF;
                     state <= ready;                         -- return to ready state to await next PS2 code
