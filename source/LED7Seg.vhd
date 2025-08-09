@@ -5,7 +5,7 @@ use IEEE.numeric_std.all;
 -- 7 Segment LED Display Decoder
 entity WORDTO7SEGS is
 	port (
-		 WORD : std_logic_vector(15 downto 0);
+		 WORD : in std_logic_vector(15 downto 0);
 		SEGS0, SEGS1, SEGS2, SEGS3 : out std_logic_vector(6 downto 0)
 	);
 end WORDTO7SEGS;
@@ -36,8 +36,8 @@ architecture Behavior of WORDTO7SEGS is
 		end function;
 		
 begin
-	SEGS3 <= hexToLEDs(WORD(15 downto 12));
-	SEGS2 <= hexToLEDs(WORD(11 downto 8));
-	SEGS1 <= hexToLEDs(WORD(7 downto 4));
-	SEGS0 <= hexToLEDs(WORD(3 downto 0));
+    SEGS3 <= hexToLEDs(WORD(15 downto 12));
+    SEGS2 <= hexToLEDs(WORD(11 downto 8));
+    SEGS1 <= hexToLEDs(WORD(7 downto 4));
+    SEGS0 <= hexToLEDs(WORD(3 downto 0));
 end Behavior;

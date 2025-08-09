@@ -77,10 +77,10 @@ architecture RTL of REG_FILE is
 
     -- required to insure that the inputs would not be optimized away (causing fitter to hang)
     -- another solution is to "register" all three inputs in a CLK process here, and also on the top level
-    attribute keep : boolean;
-    attribute keep of IN0 : signal is true;
-    attribute keep of IN1 : signal is true;
-    attribute keep of IN2 : signal is true;
+--    attribute keep : boolean;
+--    attribute keep of IN0 : signal is true;
+--    attribute keep of IN1 : signal is true;
+--    attribute keep of IN2 : signal is true;
 
 begin   -- architecture begin
 

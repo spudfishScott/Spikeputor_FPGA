@@ -25,8 +25,8 @@ USE ieee.std_logic_1164.all;
 
 ENTITY PS2_KEYBOARD IS
   GENERIC(
-    clk_freq              : INTEGER := 50_000_000;      -- system clock frequency in Hz
-    debounce_counter_size : INTEGER := 8                -- set such that (2^size)/clk_freq = 5us (size = 8 for 50MHz)
+    clk_freq              : INTEGER := 50_000_000       -- system clock frequency in Hz
+--    debounce_counter_size : INTEGER := 8                -- set such that (2^size)/clk_freq = 5us (size = 8 for 50MHz)
   );
 
   PORT(
@@ -39,55 +39,39 @@ ENTITY PS2_KEYBOARD IS
 END PS2_KEYBOARD;
 
 ARCHITECTURE logic OF PS2_KEYBOARD IS
-  SIGNAL sync_ffs     : STD_LOGIC_VECTOR(1 DOWNTO 0);       -- synchronizer flip-flops for PS/2 signals
-  SIGNAL ps2_clk_int  : STD_LOGIC;                          -- debounced clock signal from PS/2 keyboard
-  SIGNAL ps2_data_int : STD_LOGIC;                          -- debounced data signal from PS/2 keyboard
+ -- SIGNAL ps2_clk_int  : STD_LOGIC;                   -- debounced clock signal from PS/2 keyboard
+ -- SIGNAL ps2_data_int : STD_LOGIC;                   -- debounced data signal from PS/2 keyboard
+  
+  SIGNAL ps2_prev_clk : STD_LOGIC;                   -- previous PS/2 clock signal for synchronous edge detection
   SIGNAL ps2_word     : STD_LOGIC_VECTOR(10 DOWNTO 0);      -- stores the ps2 data word
   SIGNAL error        : STD_LOGIC;                          -- validate parity, start, and stop bits
   SIGNAL count_idle   : INTEGER RANGE 0 TO clk_freq/18_000; -- counter to determine PS/2 is idle - 55 uSec
-  
+	 
 BEGIN
 
-    --synchronizer flip-flops
-    PROCESS(clk)
-    BEGIN
-        IF (rising_edge(clk)) THEN        -- rising edge of system clock
-            sync_ffs(0) <= ps2_clk;       -- synchronize PS/2 clock signal
-            sync_ffs(1) <= ps2_data;      -- synchronize PS/2 data signal
-        END IF;
-    END PROCESS;
-
     --debounce PS2 input signals - apparently, these are required to screen out noisy PS2 signals
-    debounce_ps2_clk: entity work.DEBOUNCE 
-        GENERIC MAP (
-            counter_size => debounce_counter_size
-        ) 
-        
-        PORT MAP (
-            clk    => clk,
-            button => sync_ffs(0),
-            result => ps2_clk_int
-        );
-
-    debounce_ps2_data: entity work.DEBOUNCE
-        GENERIC MAP (
-            counter_size => debounce_counter_size
-        )
-
-        PORT MAP ( 
-            clk    => clk,
-            button => sync_ffs(1),
-            result => ps2_data_int
-        );
-
-    -- input PS2 data with debounced clock signal
-    PROCESS(ps2_clk_int)
-    BEGIN
-        IF (falling_edge(ps2_clk_int)) THEN                     -- falling edge of PS2 clock
-            ps2_word <= ps2_data_int & ps2_word(10 DOWNTO 1);   -- shift in PS2 data bit
-        END IF;
-    END PROCESS;
-        
+--    debounce_ps2_clk: entity work.DEBOUNCE 
+--        GENERIC MAP (
+--            counter_size => debounce_counter_size
+--        ) 
+--        
+--        PORT MAP (
+--            clk    => clk,
+--            button => ps2_clk,
+--            result => ps2_clk_int
+--        );
+--
+--    debounce_ps2_data: entity work.DEBOUNCE
+--        GENERIC MAP (
+--            counter_size => debounce_counter_size
+--        )
+--
+--        PORT MAP ( 
+--            clk    => clk,
+--            button => ps2_data,
+--            result => ps2_data_int
+--        );
+	
     -- verify that parity, start, and stop bits are all correct
     error <= NOT (NOT ps2_word(0) AND ps2_word(10) AND (ps2_word(9) XOR ps2_word(8) XOR
             ps2_word(7) XOR ps2_word(6) XOR ps2_word(5) XOR ps2_word(4) XOR ps2_word(3) XOR 
@@ -97,7 +81,14 @@ BEGIN
     PROCESS(clk)
     BEGIN
         IF (rising_edge(clk)) THEN              -- rising edge of system clock
-            IF (ps2_clk_int = '0') THEN                     -- low PS2 clock, PS/2 is active
+				
+		      ps2_prev_clk <= ps2_clk;			-- capture previous ps2 clock value every system clock tick
+				
+		      IF (ps2_clk = '0' and ps2_prev_clk = '1') THEN      -- detect falling edge of PS2 clock
+                ps2_word <= ps2_data & ps2_word(10 DOWNTO 1);   -- shift in PS2 data bit
+				END IF;
+				                                                -- keep track of how long ps2 clock is high
+            IF (ps2_clk = '0') THEN                     -- low PS2 clock, PS/2 is active
                 count_idle <= 0;                            -- reset idle counter
             ELSIF (count_idle /= clk_freq/18_000) THEN      -- PS2 clock has been high less than a half clock period (<55us)
                 count_idle <= count_idle + 1;               -- continue counting
@@ -105,7 +96,7 @@ BEGIN
             
             IF (count_idle = clk_freq/18_000 AND error = '0') THEN  -- idle threshold reached and no errors detected
                 ps2_code_new <= '1';                                -- set flag that new PS/2 code is available
-                ps2_code <= ps2_word(8 DOWNTO 1);                   -- output new PS/2 code
+					 ps2_code <= ps2_word(8 DOWNTO 1);                   -- output new PS/2 code
             ELSE                                                    -- PS/2 port active or error detected
                 ps2_code_new <= '0';                                -- set flag that PS/2 transaction is in progress
             END IF;

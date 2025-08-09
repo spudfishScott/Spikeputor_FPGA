@@ -22,7 +22,7 @@
 
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
-USE ieee.std_logic_unsigned.all;
+USE ieee.numeric_std.all;
 
 ENTITY DEBOUNCE IS
   GENERIC (
@@ -39,7 +39,8 @@ END DEBOUNCE;
 ARCHITECTURE logic OF DEBOUNCE IS
   SIGNAL flipflops   : STD_LOGIC_VECTOR(1 DOWNTO 0); --input flip flops
   SIGNAL counter_set : STD_LOGIC;                    --sync reset to zero
-  SIGNAL counter_out : STD_LOGIC_VECTOR(counter_size DOWNTO 0) := (OTHERS => '0'); --counter output
+  SIGNAL counter_out : Integer range 0 to (2**counter_size) := 0; --counter
+
 BEGIN
 
   counter_set <= flipflops(0) xor flipflops(1);     --determine when to start/reset counter (when input changes)
@@ -50,8 +51,8 @@ BEGIN
       flipflops(0) <= button;                       -- double flop to sample input signal
       flipflops(1) <= flipflops(0);
       IF (counter_set = '1') THEN                   -- reset counter because input is changing
-        counter_out <= (OTHERS => '0');
-      ELSIF(counter_out(counter_size) = '0') THEN   -- stable input time is not yet met
+        counter_out <= 0;
+      ELSIF(counter_out = (2**counter_size)) THEN   -- stable input time is not yet met
         counter_out <= counter_out + 1;
       ELSE                                          -- stable input time is met
         result <= flipflops(1);

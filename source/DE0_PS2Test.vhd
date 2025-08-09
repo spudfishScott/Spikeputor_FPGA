@@ -8,8 +8,8 @@ entity DE0_PS2Test is -- the interface to the DE0 board
         -- CLOCK
         CLOCK_50 : in std_logic; -- 20 ns clock
         -- PS/2 Keyboard
-        PS2_CLK  : in std_logic; -- PS/2 clock signal
-        PS2_DATA : in std_logic; -- PS/2 data signal
+        PS2_KBCLK : in std_logic; -- PS/2 clock signal
+        PS2_KBDAT : in std_logic; -- PS/2 data signal
 
         --OUTPUTS
         -- 7-SEG Display
@@ -21,8 +21,10 @@ entity DE0_PS2Test is -- the interface to the DE0 board
         HEX2_DP  : out std_logic;
         HEX3_D   : out std_logic_vector(6 downto 0);
         HEX3_DP  : out std_logic;
+		  
+		  LEDG     : out std_logic_vector(9 downto 0)
+    );
 
-);
 end DE0_PS2Test;
 
 architecture Structural of DE0_PS2Test is
@@ -34,6 +36,7 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
+	 LEDG(9 downto 1) <= (others => '0');
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS port map (
@@ -44,12 +47,12 @@ begin
         SEGS3 => HEX3_D
     );
 
-    -- PS2_ASCII instance instance
-   PS2 : work.PS2_ASCII port map (
+    -- PS2_ASCII instance
+   PS2 : entity work.PS2_ASCII port map (
         clk        => CLOCK_50,
-        ps2_clk    => PS2_CLK,
-        ps2_data   => PS2_DATA,
-        ascii_new  => open, -- not used in this test
+        ps2_clk    => PS2_KBCLK,
+        ps2_data   => PS2_KBDAT,
+        ascii_new  => LEDG(0),
         ascii_code => disp_out(6 downto 0) -- output ASCII code to display
     );
 
