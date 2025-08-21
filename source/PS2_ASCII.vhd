@@ -24,12 +24,12 @@ LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 
 ENTITY PS2_ASCII IS
-    GENERIC(
+    GENERIC (
         clk_freq                  : INTEGER := 50_000_000    -- system clock frequency in Hz
  --       ps2_debounce_counter_size : INTEGER := 8              -- set such that 2^size/clk_freq = 5us (size = 8 for 50MHz)
     );
 
-    PORT(
+    PORT (
         clk        : IN  STD_LOGIC;                           -- system clock input
         ps2_clk    : IN  STD_LOGIC;                           -- clock signal from PS2 keyboard
         ps2_data   : IN  STD_LOGIC;                           -- data signal from PS2 keyboard
@@ -45,7 +45,7 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL ps2_code_new      : STD_LOGIC := '0';                      -- new PS2 code flag from ps2_keyboard component
     SIGNAL ps2_code          : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"00"; -- PS2 code input form ps2_keyboard component
 
-	 SIGNAL prev_ps2_code_new : STD_LOGIC := '1';                      -- value of ps2_code_new flag on previous clock
+    SIGNAL prev_ps2_code_new : STD_LOGIC := '1';                      -- value of ps2_code_new flag on previous clock
     SIGNAL break             : STD_LOGIC := '0';                      -- '1' for break code, '0' for make code
     SIGNAL e0_code           : STD_LOGIC := '0';                      -- '1' for multi-code commands, '0' for single code commands
     SIGNAL caps_lock         : STD_LOGIC := '0';                      -- '1' if caps lock is active, '0' if caps lock is inactive
@@ -54,61 +54,57 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL shift_r           : STD_LOGIC := '0';                      -- '1' if right shift is held down, else '0'
     SIGNAL shift_l           : STD_LOGIC := '0';                      -- '1' if left shift is held down, else '0'
     SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; -- internal value of ASCII translation
---	 SIGNAL ascii_out         : STD_LOGIC_VECTOR(6 DOWNTO 0) := (others => '0'); -- valid ascii to send out
-	 
-	 SIGNAL ps2_clk_sync      : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
-	 SIGNAL ps2_data_sync     : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
-  
+
+    SIGNAL ps2_clk_sync      : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
+    SIGNAL ps2_data_sync     : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
+
 BEGIN
 
     --instantiate PS2 keyboard interface logic
     ps2_keyboard_0 : entity work.PS2_KEYBOARD 
         GENERIC MAP (
-            clk_freq              => clk_freq 
+            clk_freq              => clk_freq
   --          debounce_counter_size => ps2_debounce_counter_size
         )
 
         PORT MAP (
             clk          => clk,
-            ps2_clk      => ps2_clk_sync(1), -- synchronize the ps2 clock and data signals
+            ps2_clk      => ps2_clk_sync(1),        -- send synchronized ps2 clock and data signals to keyboard interface
             ps2_data     => ps2_data_sync(1),
             ps2_code_new => ps2_code_new,
             ps2_code     => ps2_code
         );
-		  
-	 -- synchronize incoming PS/2 signals
+
+    -- synchronize incoming PS/2 signals
     PROCESS(clk)
     BEGIN
-        IF (rising_edge(clk)) THEN        -- rising edge of system clock
-            ps2_clk_sync(0)  <= ps2_clk;           -- synchronize PS/2 clock signal
-		      ps2_clk_sync(1)  <= ps2_clk_sync(0);
-				
-            ps2_data_sync(0) <= ps2_data;          -- synchronize PS/2 data signal
-				ps2_data_sync(1) <= ps2_data_sync(0);
+        IF (rising_edge(clk)) THEN                  -- rising edge of system clock
+            ps2_clk_sync(0)  <= ps2_clk;            -- synchronize PS/2 clock signal
+            ps2_clk_sync(1)  <= ps2_clk_sync(0);
+
+            ps2_data_sync(0) <= ps2_data;           -- synchronize PS/2 data signal
+            ps2_data_sync(1) <= ps2_data_sync(0);
         END IF;
     END PROCESS;
-		  
-	 -- set outputs
---	 ascii_code <= ascii_out;    -- output the ASCII value
---	 ascii_new <= '1' when (state = output and ascii(7) = '0') else '0'; -- strobe ascii_new when output is valid
-	 
+
+    -- state machine to process PS2 codes and output ASCII values
     PROCESS(clk)
     BEGIN
         IF (rising_edge(clk)) THEN
-		  
+
             prev_ps2_code_new <= ps2_code_new;  -- keep track of previous ps2_code_new values to determine low-to-high transitions
             
-				CASE state IS
+            CASE state IS
                 -- ready state: wait for a new PS2 code to be received
                 WHEN ready =>
-					 -- ascii_new <= '0';   -- uncomment this and delete the one below if you want a one-clock strobe
+                     -- ascii_new <= '0';   -- uncomment this and delete the one below if you want a one-clock strobe
                     IF (prev_ps2_code_new = '0' AND ps2_code_new = '1') THEN    -- new PS2 code received
-						      ascii_new <= '0';                                       -- reset new ASCII code indicator
+                        ascii_new <= '0';                                       -- reset new ASCII code indicator
                         state <= new_code;                                      -- proceed to new_code state
                     ELSE                                                        -- no new PS2 code received yet
                         state <= ready;                                         -- remain in ready state
                     END IF;
-                
+
                 -- new_code state: determine what to do with the new PS2 code  
                 WHEN new_code =>
                     IF (ps2_code = x"F0") THEN      -- code indicates that next command is break
@@ -248,7 +244,7 @@ BEGIN
                             WHEN x"3D" => ascii <= x"37"; -- 7
                             WHEN x"3E" => ascii <= x"38"; -- 8
                             WHEN x"46" => ascii <= x"39"; -- 9
-									 WHEN x"70" => ascii <= x"30"; -- KP 0
+                            WHEN x"70" => ascii <= x"30"; -- KP 0
                             WHEN x"69" => ascii <= x"31"; -- KP 1
                             WHEN x"72" => ascii <= x"32"; -- KP 2
                             WHEN x"7A" => ascii <= x"33"; -- KP 3
@@ -258,7 +254,7 @@ BEGIN
                             WHEN x"6C" => ascii <= x"37"; -- KP 7
                             WHEN x"75" => ascii <= x"38"; -- KP 8
                             WHEN x"7D" => ascii <= x"39"; -- KP 9
-									 WHEN x"71" => ascii <= x"2E"; -- KP .  ('.')
+                            WHEN x"71" => ascii <= x"2E"; -- KP .  ('.')
                             WHEN x"79" => ascii <= x"2B"; -- KP +
                             WHEN x"7B" => ascii <= x"2D"; -- KP -
                             WHEN x"7C" => ascii <= x"2A"; -- KP *
@@ -339,12 +335,10 @@ BEGIN
                 
                 -- output state: verify the code is valid and output the ASCII value
                 WHEN output =>
-					     IF (ascii(7) = '0') THEN
-						      ascii_new <= '1';						    -- strobe flag indicating new ASCII output
-						      ascii_code <= ascii(6 DOWNTO 0);     -- output the ASCII value
---						  ELSE 
---						      ascii_out <= ascii_out;
-						  END IF;
+                    IF (ascii(7) = '0') THEN                -- if it's still '1', the keycode was not valid, so ignore
+                        ascii_new <= '1';                   -- strobe flag indicating new ASCII output
+                        ascii_code <= ascii(6 DOWNTO 0);    -- output the ASCII value
+                    END IF;
                     state <= ready;                         -- return to ready state to await next PS2 code
             END CASE;
         END IF;

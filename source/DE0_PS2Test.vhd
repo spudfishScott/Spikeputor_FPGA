@@ -21,8 +21,8 @@ entity DE0_PS2Test is -- the interface to the DE0 board
         HEX2_DP  : out std_logic;
         HEX3_D   : out std_logic_vector(6 downto 0);
         HEX3_DP  : out std_logic;
-		  
-		  LEDG     : out std_logic_vector(9 downto 0)
+
+        LEDG     : out std_logic_vector(9 downto 0)
     );
 
 end DE0_PS2Test;
@@ -36,7 +36,7 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-	 LEDG(9 downto 1) <= (others => '0');
+    LEDG(9 downto 1) <= (others => '0');
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS port map (

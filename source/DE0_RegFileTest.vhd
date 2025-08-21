@@ -32,7 +32,7 @@ end DE0_RegFileTest;
 
 architecture Structural of DE0_RegFileTest is
     -- wiring signals
-    signal   clk_en : std_logic := '0';
+    signal  cpu_clk : std_logic := '0';
     signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
     signal    a_out : std_logic_vector(15 downto 0) := (others => '0');
     signal    b_out : std_logic_vector(15 downto 0) := (others => '0');
@@ -53,7 +53,7 @@ begin
     -- CPU Clock Enable
     CLOCK_EN : entity work.CLK_ENABLE generic map(5, 1) port map ( -- 100 ns clock enable for "cpu"
         CLK_IN => CLOCK_50,
-        CLK_EN => clk_en
+        CLK_EN => cpu_clk
     );
 
     DISPLAY : entity work.WORDTO7SEGS port map (
@@ -71,7 +71,7 @@ begin
         IN2     => GPIO1_D(31 downto 16),
         INSEL   => GPIO1_D(15 downto 14),
         CLK     => CLOCK_50,
-        CLK_EN  => clk_en,
+        CLK_EN  => cpu_clk,
         OPA     => SW(9 downto 7),
         OPB     => SW(6 downto 4),
         OPC     => SW(3 downto 1),
