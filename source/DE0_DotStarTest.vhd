@@ -28,14 +28,19 @@ begin
     LEDG(8 downto 0) <= (others => '0'); -- other LEDs off
 
     -- PS2_ASCII instance
-   PS2 : entity work.DotStar generic map (NUM_LEDs => 10) port map (
-        CLK        => CLOCK_50,
-        RESET      => BUTTON(2),
-        START      => BUTTON(0),
-        COLOR      => GPIO_D(29 downto 0),
-        DATA_OUT   => GPIO1_D(6),
-        CLK_OUT    => GPIO1_D(7),
-        BUSY       => LEDG(9)
-    );
+   PS2 : entity work.dotstar_driver 
+	    generic map (
+	        NUM_LEDs    => 30,
+		     XMIT_QUANTA => 1 -- this works well with 30 LEDs, maybe will need to slow it down for hundreds?
+	    ) 
+		 
+		 port map (
+           CLK         => CLOCK_50,
+           START       => NOT BUTTON(0),
+           COLOR       => GPIO0_D(29 downto 0) & GPIO0_D(29 downto 0) & GPIO0_D(29 downto 0),
+           DATA_OUT    => GPIO1_D(6),
+           CLK_OUT     => GPIO1_D(7),
+           BUSY        => LEDG(9)
+       );
 
 end Structural;

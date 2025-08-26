@@ -5,11 +5,11 @@ use ieee.numeric_std.all;
 entity dotstar_driver is
     generic (
         NUM_LEDS     : integer := 10;
+		  BRIGHTNESS_MASK : std_logic_vector(7 downto 0) := "00011111";
         XMIT_QUANTA  : integer := 5  -- number of system clock cycles per half SPI clock (50 Mhz clock = 5 MHz SPI)
     );
     port (
         CLK        : in  std_logic;
-        RESET      : in  std_logic;
         START      : in  std_logic;
         COLOR      : in  std_logic_vector(3 * NUM_LEDS - 1 downto 0); -- RGB 1-bit each, first LED is LSB
 
@@ -34,7 +34,7 @@ architecture rtl of dotstar_driver is
     signal data_out_int : std_logic := '0';
     signal active     : std_logic := '0';
 
-    type state_type is (IDLE, LOAD, SEND);
+    type state_type is (IDLE, SEND);
     signal state : state_type := IDLE;
 
 begin
@@ -43,22 +43,14 @@ begin
     DATA_OUT <= data_out_int;
     BUSY     <= active;
 
-    process(CLK, RESET)
+    process(CLK)
         variable temp_shift : std_logic_vector(TOTAL_BITS - 1 downto 0);
         variable color_bits : std_logic_vector(2 downto 0);
         variable r, g, b : std_logic_vector(7 downto 0);
         variable led_frame : std_logic_vector(31 downto 0);
 
     begin
-        if RESET = '1' then
-            state <= IDLE;
-            bit_index <= 0;
-            clk_out_int <= '0';
-            data_out_int <= '0';
-            clk_div <= 0;
-            phase <= '0';
-            active <= '0';
-        elsif rising_edge(CLK) then
+        if rising_edge(CLK) then
             case state is
                 when IDLE =>
                     clk_out_int <= '0';
@@ -77,7 +69,10 @@ begin
                             g := (others => color_bits(1));
                             b := (others => color_bits(0));
 
-                            led_frame := "11111111" & b & g & r; -- Brightness + B/G/R from msb to lsb
+                            led_frame := "11111111" -- Brightness + B/G/R from msb to lsb, masked to control brightness
+									     & (b AND BRIGHTNESS_MASK)
+										  & (g AND BRIGHTNESS_MASK)
+										  & (r AND BRIGHTNESS_MASK);
                             -- start the data bits after the start frame (START_BITS), head down for each LED
                             temp_shift(TOTAL_BITS - BITS_PER_LED*i - START_BITS - 1 
                                         downto TOTAL_BITS - BITS_PER_LED*(i+1) - START_BITS) := led_frame;
