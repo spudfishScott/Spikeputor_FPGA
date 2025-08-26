@@ -79,7 +79,7 @@ begin
 
                             led_frame := "11111111" & b & g & r; -- Brightness + B/G/R from msb to lsb
                             -- start the data bits after the start frame (START_BITS), head down for each LED
-                            temp_shift(TOTAL_BITS - 1 - BITS_PER_LED*i - START_BITS 
+                            temp_shift(TOTAL_BITS - BITS_PER_LED*i - START_BITS - 1 
                                         downto TOTAL_BITS - BITS_PER_LED*(i+1) - START_BITS) := led_frame;
                         end loop;
 
