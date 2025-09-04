@@ -120,10 +120,10 @@ begin
                     when LOAD_LED =>                                -- get next LED in the current set
                         if led_index /= LEDS_PER_SET then
                             if set_reg(led_index) = '1' then        -- if this LED is on, load its color data
-                                if set_index = 1 then           -- if this is the first set, make it red for testing, otherwise blue    
-                                    led_reg <= "11111111" & x"FF0000";      -- color data for current LED, prepended with brightness byte (0xff)
+                                if set_index mod 2 = 1 then           -- if this is the first set, make it red for testing, otherwise blue    
+                                    led_reg <= "11111111" & x"001133";      -- color data for current LED, prepended with brightness byte (0xff)
                                 else
-                                    led_reg <= "11111111" & x"0000FF";      -- color data for current LED, prepended with brightness byte (0xff)
+                                    led_reg <= "11111111" & x"440000";      -- color data for current LED, prepended with brightness byte (0xff)
                                 end if;
                             else
                                 led_reg <= "11111111" & NO_COLOR;  -- if this LED is off, load all zeros, prepended with brightness byte (0xff)
