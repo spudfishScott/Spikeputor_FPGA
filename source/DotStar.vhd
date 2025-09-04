@@ -1,17 +1,17 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.Types.all;
 
 entity dotstar_driver is
     generic (
-        NUM_LEDS     : integer := 10;
-		  BRIGHTNESS_MASK : std_logic_vector(7 downto 0) := "00011111";
         XMIT_QUANTA  : integer := 5  -- number of system clock cycles per half SPI clock (50 Mhz clock = 5 MHz SPI)
     );
     port (
         CLK        : in  std_logic;
         START      : in  std_logic;
-        COLOR      : in  std_logic_vector(3 * NUM_LEDS - 1 downto 0); -- RGB 1-bit each, first LED is LSB
+        DISPLAY    : in BIGRARRAY;  -- array of 20 register values (16 bits each)
+        COLOR      : in  std_logic_vector(23 downto 0); -- RGB for LED on color
 
         DATA_OUT   : out std_logic;
         CLK_OUT    : out std_logic;
@@ -21,20 +21,34 @@ end dotstar_driver;
 
 architecture rtl of dotstar_driver is
 
-    constant START_BITS     : integer := 32;
-    constant BITS_PER_LED   : integer := 32;
-    constant END_BITS       : integer := ((NUM_LEDS + 15) / 16) * 8;
-    constant TOTAL_BITS     : integer := START_BITS + NUM_LEDS * BITS_PER_LED + END_BITS;
+    constant NUM_SETS       : integer := 20;                             -- number of LED sets in the display array (or input arrays)
+    constant LEDS_PER_SET   : integer := 16;                            -- number of LEDs per set
+    constant NUM_LEDS       : integer := NUM_SETS * LEDS_PER_SET;       -- number of LEDs in the display data
+    constant START_BITS     : integer := 32;                            -- number of bits in start frame (all '0's)
+    constant BITS_PER_LED   : integer := 32;                            -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
+    constant END_BITS       : integer := ((NUM_LEDS + 15) / 16) * 8;    -- number of bits in end frame (at least (n/2) bits, rounded up to next byte, all '1's)
+    constant NO_COLOR       : std_logic_vector(23 downto 0) := (others => '0'); -- color data for LED off
 
-    signal shift_reg  : std_logic_vector(TOTAL_BITS - 1 downto 0) := (others => '0');
-    signal bit_index  : integer range 0 to TOTAL_BITS := 0;
-    signal phase      : std_logic := '0';  -- 0 = setup, 1 = toggle clock
-    signal clk_div    : integer range 0 to XMIT_QUANTA - 1 := 0;
-    signal clk_out_int: std_logic := '0';
-    signal data_out_int : std_logic := '0';
-    signal active     : std_logic := '0';
+    signal int_start : std_logic := '0';                                                    -- internal start signal, latched when not busy
+    signal start_bit_index : integer range 0 to START_BITS := 0;                            -- bit index within start frame
+    signal end_bit_index   : integer range 0 to END_BITS := 0;                              -- bit index within end frame
 
-    type state_type is (IDLE, SEND);
+    signal set_index : integer range 1 to NUM_SETS+1 := 1;                                    -- index of current LED set being transmitted
+    signal set_reg  : std_logic_vector(LEDS_PER_SET - 1 downto 0) := (others => '0');       -- stores the on/off values for the current LED set
+
+    signal led_index  : integer range 0 to LEDS_PER_SET+1 := 0;                               -- LED index within current LED set
+    signal led_reg : std_logic_vector(BITS_PER_LED - 1 downto 0) := (others => '0');        -- register for current LED color
+    signal color_data_index : integer range 0 to BITS_PER_LED := 0;                         -- index of current color data bit being transmitted
+    
+    signal phase      : std_logic := '0';                                                   -- 0 = setup, 1 = toggle clock
+    signal clk_div    : integer range 0 to XMIT_QUANTA - 1 := 0;                            -- clock divider counter
+
+    signal clk_out_int: std_logic := '0';                                                   -- internal SPI clock signal
+    signal data_out_int : std_logic := '0';                                                 -- internal SPI data signal
+
+    signal active     : std_logic := '0';                                                   -- indicates transmission in progress
+
+    type state_type is (IDLE, SEND_START, LOAD_SET, LOAD_LED, SEND_DATA, SEND_END);
     signal state : state_type := IDLE;
 
 begin
@@ -43,87 +57,126 @@ begin
     DATA_OUT <= data_out_int;
     BUSY     <= active;
 
-    process(CLK)
-        variable temp_shift : std_logic_vector(TOTAL_BITS - 1 downto 0);
-        variable color_bits : std_logic_vector(2 downto 0);
-        variable r, g, b : std_logic_vector(7 downto 0);
-        variable led_frame : std_logic_vector(31 downto 0);
-
+    process(CLK) is
     begin
         if rising_edge(CLK) then
-            case state is
-                when IDLE =>
-                    clk_out_int <= '0';
-                    data_out_int <= '0';
-                    active <= '0';
-                    if START = '1' then
-                        -- Load the shift register with full frame
-                        temp_shift := (others => '0');
 
-                        -- Start Frame is placed at MSB side moving downward, then LED frames
-                        for i in 0 to NUM_LEDS - 1 loop
-                            -- Insert LED frames
-                            color_bits := COLOR(3*i + 2 downto 3*i);
-                            -- one byte for each color, brightness is fixed at 0xFF
-                            r := (others => color_bits(2));
-                            g := (others => color_bits(1));
-                            b := (others => color_bits(0));
+            if active = '0' then            -- start a new transaction only if not already active
+                int_start <= START;         -- latch in start signal
+                if START = '1' then         -- if starting, initialize clockdivider and set active
+                    active <= '1';
+                    clk_div <= 0;
+                    phase <= '0';
+                end if;
+            end if;
 
-                            led_frame := "11111111" -- Brightness + B/G/R from msb to lsb, masked to control brightness
-									     & (b AND BRIGHTNESS_MASK)
-										  & (g AND BRIGHTNESS_MASK)
-										  & (r AND BRIGHTNESS_MASK);
-                            -- start the data bits after the start frame (START_BITS), head down for each LED
-                            temp_shift(TOTAL_BITS - BITS_PER_LED*i - START_BITS - 1 
-                                        downto TOTAL_BITS - BITS_PER_LED*(i+1) - START_BITS) := led_frame;
-                        end loop;
+            -- clock divider for SPI clock
+            if clk_div < XMIT_QUANTA - 1 then
+                clk_div <= clk_div + 1;
+            else
+                clk_div <= 0;
+                phase <= not phase;
 
-                        -- Insert END frame padding on lsb side of stream: 0xFF per byte
-                        for j in 0 to END_BITS/8 - 1 loop   -- number of bytes for end frame
-                            temp_shift(END_BITS - 8*j - 1 downto END_BITS - 8*(j+1)) := x"FF";
-                        end loop;
+                case state is
+                    when IDLE =>
+                        clk_out_int <= '0';
+                        data_out_int <= '0';
 
-                        shift_reg <= temp_shift;
-                        bit_index <= 0;
-                        clk_div <= 0;
-                        phase <= '0';
-                        state <= SEND;
-                        active <= '1';
-                    end if;
+                        if int_start = '1' then                     -- on start, send the start frame, otherwise, state remains idle
+                            start_bit_index <= START_BITS-1;      -- set up to send bits of start frame (all '0')
+                            state <= SEND_START;                -- go to send_start state
+                        else 
+                            state <= IDLE;
+                        end if;
 
-                when SEND =>
-                    -- Clock divider
-                    if clk_div < XMIT_QUANTA - 1 then
-                        clk_div <= clk_div + 1;
-                    else
-                        clk_div <= 0;
-                        phase <= not phase;
-
+                    when SEND_START =>
                         if phase = '0' then
-                            -- Data setup phase - output msb of shift register
-                            data_out_int <= shift_reg(TOTAL_BITS - 1);
+                            -- Data setup phase - output data
+                            data_out_int <= '0';  -- start frame is all zeros
                         else
-                            -- Rising clock edge
+                            -- Rising clock edge - toggle clock
                             clk_out_int <= not clk_out_int;
 
-                            if clk_out_int = '1' then
-                                -- Falling clock edge: shift out from msb
-                                if bit_index < TOTAL_BITS - 1 then
-                                    shift_reg <= shift_reg(TOTAL_BITS - 2 downto 0) & '0';
-                                    bit_index <= bit_index + 1;
-                                else
-                                    state <= IDLE;
-                                    active <= '0';
-                                    clk_out_int <= '0';
-                                    data_out_int <= '0';
+                            if clk_out_int = '1' then 
+                                if start_bit_index /= 0 then        -- Falling spi clock edge: check bit index and send or change state if complete
+                                    start_bit_index <= start_bit_index - 1; -- decrement bit index
+                                    state <= SEND_START;                    -- remain in send_start state
+                                else                                        -- finished sending start frame
+                                    set_index <= 1;                         -- set up counter for LED data sets (will likely end up 0 but right now DISPLAY starts at 1)
+                                    state <= LOAD_SET;                      -- go to load_LED state to get next LED to send
                                 end if;
                             end if;
                         end if;
-                    end if;
 
-                when others =>
-                    state <= IDLE;
-            end case;
+                    when LOAD_SET =>                                -- get next set of LEDs to send
+                        if set_index /= NUM_SETS+1 then             -- if not finished all LED sets (change to NUM_SETS for zero-indexed set)
+                            set_reg <= DISPLAY(set_index);          -- load the LED on/off data for the current set
+                            led_index <= 0;                         -- start with first LED in the set
+                            state <= LOAD_LED;                      -- go to load_led state
+                        else                                        -- finished all LED sets, go to end frame
+                            end_bit_index <= END_BITS;              -- set up counter to send end frame (all '1's)
+                            state <= SEND_END;                      -- go to send_end state
+                        end if;
+
+                    when LOAD_LED =>                                -- get next LED in the current set
+                        if led_index /= LEDS_PER_SET then
+                            if set_reg(led_index) = '1' then        -- if this LED is on, load its color data
+                                led_reg <= "11111111" & COLOR;      -- color data for current LED, prepended with brightness byte (0xff)
+                                                                    -- this can later be a color lookup based on set number
+                            else
+                                led_reg <= "11111111" & NO_COLOR;  -- if this LED is off, load all zeros, prepended with brightness byte (0xff)
+                            end if;
+                            color_data_index <= BITS_PER_LED-1;       -- set up to send bits of current LED color data
+                            clk_div <= 0;
+                            phase <= '0';
+                            state <= SEND_DATA;                     -- go to send_data state
+                        else                                        -- finished all LEDs in this set, go to next set
+                            set_index <= set_index + 1;             -- increment to next LED set
+                            state <= LOAD_SET;                      -- go to load_set state
+                        end if;
+
+                    when SEND_DATA =>
+                        if phase = '0' then                          -- Data setup phase - output data
+                            data_out_int <= led_reg(BITS_PER_LED - 1);      -- output msb of led color data shift register
+                        else
+                            clk_out_int <= not clk_out_int;                 -- Rising clock divider edge - toggle SPI clock
+
+                            if clk_out_int = '1' then                       -- Falling spi clock edge: check bit index and send or change state if complete
+                                if color_data_index /= 0 then                               -- not finished sending all bits of this LED
+                                    led_reg <= led_reg(BITS_PER_LED - 2 downto 0) & '0';    -- shift left the led color data register
+                                    color_data_index <= color_data_index - 1;               -- decrement color data bit counter
+                                    state <= SEND_DATA;
+                                else                                                        -- finished sending all bits of this LED
+                                    led_index <= led_index + 1;                             -- increment to next LED in set
+                                    state <= LOAD_LED;                                      -- go to load_led state
+                                end if;
+                            end if;
+                        end if;
+
+                    when SEND_END =>
+                        if phase = '0' then                         -- Data setup phase - output data
+                            data_out_int <= '1';                        -- end frame is all ones
+                        else
+                            clk_out_int <= not clk_out_int;             -- Rising clock divider edge - toggle clock
+
+                            if clk_out_int = '1' then                   -- Falling spi clock edge: check bit index and send or change state if complete
+                                if end_bit_index /= 0 then                  -- not finished sending all bits of end frame
+                                    end_bit_index <= end_bit_index - 1;     -- decrement bit index
+                                    clk_div <= 0;
+                                    phase <= '0';
+                                    state <= SEND_END;
+                                else                                        -- finished sending end frame
+                                    state <= IDLE;                          -- go to idle state
+                                    active <= '0';                          -- clear active flag
+                                    int_start <= '0';                       -- clear latched start signal
+                                end if;
+                            end if;
+                        end if;
+
+                    when others =>                                          -- should never happen
+                        state <= IDLE;
+                end case;
+            end if;
         end if;
     end process;
 
