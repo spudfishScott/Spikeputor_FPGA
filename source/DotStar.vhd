@@ -11,7 +11,6 @@ entity dotstar_driver is
         CLK        : in  std_logic;
         START      : in  std_logic;
         DISPLAY    : in BIGRARRAY;  -- array of 20 register values (16 bits each)
-        COLOR      : in  std_logic_vector(23 downto 0); -- RGB for LED on color
 
         DATA_OUT   : out std_logic;
         CLK_OUT    : out std_logic;
@@ -121,8 +120,11 @@ begin
                     when LOAD_LED =>                                -- get next LED in the current set
                         if led_index /= LEDS_PER_SET then
                             if set_reg(led_index) = '1' then        -- if this LED is on, load its color data
-                                led_reg <= "11111111" & COLOR;      -- color data for current LED, prepended with brightness byte (0xff)
-                                                                    -- this can later be a color lookup based on set number
+                                if set_index = 1 then           -- if this is the first set, make it red for testing, otherwise blue    
+                                    led_reg <= "11111111" & x"FF0000";      -- color data for current LED, prepended with brightness byte (0xff)
+                                else
+                                    led_reg <= "11111111" & x"0000FF";      -- color data for current LED, prepended with brightness byte (0xff)
+                                end if;
                             else
                                 led_reg <= "11111111" & NO_COLOR;  -- if this LED is off, load all zeros, prepended with brightness byte (0xff)
                             end if;

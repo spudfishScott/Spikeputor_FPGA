@@ -31,26 +31,26 @@ begin
 
     REGARRAY(1) <= GPIO0_D(15 downto 0); -- set up data in
     REGARRAY(2) <= GPIO0_D(31 downto 16);
-    REGARRAY(3) <= GPIO0_D(15 downto 0);
-    REGARRAY(4) <= GPIO0_D(31 downto 16);
-    REGARRAY(5) <= GPIO0_D(15 downto 0);
-    REGARRAY(6) <= GPIO0_D(31 downto 16);
-    REGARRAY(7) <= GPIO0_D(15 downto 0);
-    REGARRAY(8) <= GPIO0_D(31 downto 16);
-    REGARRAY(7) <= GPIO0_D(15 downto 0);
-    REGARRAY(8) <= GPIO0_D(31 downto 16);
-    REGARRAY(9) <= GPIO0_D(15 downto 0);
-    REGARRAY(10) <= GPIO0_D(31 downto 16);
-    REGARRAY(11) <= GPIO0_D(15 downto 0);
-    REGARRAY(12) <= GPIO0_D(31 downto 16);
-    REGARRAY(13) <= GPIO0_D(15 downto 0);
-    REGARRAY(14) <= GPIO0_D(31 downto 16);
-    REGARRAY(15) <= GPIO0_D(15 downto 0);
-    REGARRAY(16) <= GPIO0_D(31 downto 16);
-    REGARRAY(17) <= GPIO0_D(15 downto 0);
-    REGARRAY(18) <= GPIO0_D(31 downto 16);
-    REGARRAY(19) <= GPIO0_D(15 downto 0);
-    REGARRAY(20) <= GPIO0_D(31 downto 16);
+    REGARRAY(3) <= "1011010101101101";
+    REGARRAY(4) <= "0101010101011101";
+    REGARRAY(5) <= "1010001001100010";
+    REGARRAY(6) <= "0001000100010001";
+    REGARRAY(7) <= "1100110101100101";
+    REGARRAY(8) <= "1111101111101101";
+    REGARRAY(7) <= "0000100100100100";
+    REGARRAY(8) <= "1010101010101111";
+    REGARRAY(9) <= "1100111000111100";
+    REGARRAY(10) <= "0110110011101101";
+    REGARRAY(11) <= "0000000001000000";
+    REGARRAY(12) <= "1111110111110111";
+    REGARRAY(13) <= "0110110110110100";
+    REGARRAY(14) <= "1111110000001111";
+    REGARRAY(15) <= "0000111111110000";
+    REGARRAY(16) <= "1000000001000000";
+    REGARRAY(17) <= "0010010010000011";
+    REGARRAY(18) <= "1110111011111100";
+    REGARRAY(19) <= "0110110110111110";
+    REGARRAY(20) <= "1111111111111110";
 
 
     -- PS2_ASCII instance
@@ -63,7 +63,6 @@ begin
            CLK         => CLOCK_50,
            START       => NOT BUTTON(0),
            DISPLAY     => REGARRAY,
-           COLOR       => x"00FF00", -- green
            DATA_OUT    => GPIO1_D(6),
            CLK_OUT     => GPIO1_D(7),
            BUSY        => LEDG(9)

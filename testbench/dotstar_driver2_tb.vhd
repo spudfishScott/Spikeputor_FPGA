@@ -29,7 +29,6 @@ architecture behavior of dotstar_driver2_tb is
             CLK      : in  std_logic;
             START    : in  std_logic;
             DISPLAY  : in  BIGRARRAY;  -- Changed to match RegFile.vhd definition
-            COLOR    : in  std_logic_vector(23 downto 0);
             DATA_OUT : out std_logic;
             CLK_OUT  : out std_logic;
             BUSY     : out std_logic
@@ -40,7 +39,6 @@ architecture behavior of dotstar_driver2_tb is
     signal clk      : std_logic := '0';
     signal start    : std_logic := '0';
     signal display  : BIGRARRAY;
-    signal color    : std_logic_vector(23 downto 0) := x"FF0000";  -- Red
     signal data_out : std_logic;
     signal clk_out  : std_logic;
     signal busy     : std_logic;
@@ -58,7 +56,6 @@ begin
             CLK      => clk,
             START    => start,
             DISPLAY  => display,
-            COLOR    => color,
             DATA_OUT => data_out,
             CLK_OUT  => clk_out,
             BUSY     => busy
@@ -105,7 +102,7 @@ begin
         
         -- Test 2: Change color to green and retransmit
         report "Starting Test 2: Green LED transmission";
-        color <= x"00FF00";  -- Green
+        -- color <= x"00FF00";  -- Green
         wait for CLK_PERIOD * 10;
         
         start <= '1';
@@ -122,7 +119,7 @@ begin
             display(i) <= (others => '1');
         end loop;
         
-        color <= x"0000FF";  -- Blue
+        -- color <= x"0000FF";  -- Blue
         wait for CLK_PERIOD * 10;
         
         start <= '1';
@@ -135,7 +132,7 @@ begin
         
         -- Test 4: Quick Start/Stop test
         report "Starting Test 4: Quick Start/Stop test";
-        color <= x"FF00FF";  -- Purple
+        -- color <= x"FF00FF";  -- Purple
         start <= '1';
         wait for CLK_PERIOD;
         start <= '0';
