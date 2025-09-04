@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.Types.all;
 
 entity DE0_DotStarTest is -- the interface to the DE0 board
     port (
@@ -28,28 +29,28 @@ architecture Structural of DE0_DotStarTest is
 begin
     LEDG(8 downto 0) <= (others => '0'); -- other LEDs off
 
-    REGARRAY(1) <= GPIO_D(15 downto 0); -- set up data in
-    REGARRAY(2) <= GPIO_D(31 downto 16);
-    REGARRAY(3) <= GPIO_D(15 downto 0);
-    REGARRAY(4) <= GPIO_D(31 downto 16);
-    REGARRAY(5) <= GPIO_D(15 downto 0);
-    REGARRAY(6) <= GPIO_D(31 downto 16);
-    REGARRAY(7) <= GPIO_D(15 downto 0);
-    REGARRAY(8) <= GPIO_D(31 downto 16);
-    REGARRAY(7) <= GPIO_D(15 downto 0);
-    REGARRAY(8) <= GPIO_D(31 downto 16);
-    REGARRAY(9) <= GPIO_D(15 downto 0);
-    REGARRAY(10) <= GPIO_D(31 downto 16);
-    REGARRAY(11) <= GPIO_D(15 downto 0);
-    REGARRAY(12) <= GPIO_D(31 downto 16);
-    REGARRAY(13) <= GPIO_D(15 downto 0);
-    REGARRAY(14) <= GPIO_D(31 downto 16);
-    REGARRAY(15) <= GPIO_D(15 downto 0);
-    REGARRAY(16) <= GPIO_D(31 downto 16);
-    REGARRAY(17) <= GPIO_D(15 downto 0);
-    REGARRAY(18) <= GPIO_D(31 downto 16);
-    REGARRAY(19) <= GPIO_D(15 downto 0);
-    REGARRAY(20) <= GPIO_D(31 downto 16);
+    REGARRAY(1) <= GPIO0_D(15 downto 0); -- set up data in
+    REGARRAY(2) <= GPIO0_D(31 downto 16);
+    REGARRAY(3) <= GPIO0_D(15 downto 0);
+    REGARRAY(4) <= GPIO0_D(31 downto 16);
+    REGARRAY(5) <= GPIO0_D(15 downto 0);
+    REGARRAY(6) <= GPIO0_D(31 downto 16);
+    REGARRAY(7) <= GPIO0_D(15 downto 0);
+    REGARRAY(8) <= GPIO0_D(31 downto 16);
+    REGARRAY(7) <= GPIO0_D(15 downto 0);
+    REGARRAY(8) <= GPIO0_D(31 downto 16);
+    REGARRAY(9) <= GPIO0_D(15 downto 0);
+    REGARRAY(10) <= GPIO0_D(31 downto 16);
+    REGARRAY(11) <= GPIO0_D(15 downto 0);
+    REGARRAY(12) <= GPIO0_D(31 downto 16);
+    REGARRAY(13) <= GPIO0_D(15 downto 0);
+    REGARRAY(14) <= GPIO0_D(31 downto 16);
+    REGARRAY(15) <= GPIO0_D(15 downto 0);
+    REGARRAY(16) <= GPIO0_D(31 downto 16);
+    REGARRAY(17) <= GPIO0_D(15 downto 0);
+    REGARRAY(18) <= GPIO0_D(31 downto 16);
+    REGARRAY(19) <= GPIO0_D(15 downto 0);
+    REGARRAY(20) <= GPIO0_D(31 downto 16);
 
 
     -- PS2_ASCII instance

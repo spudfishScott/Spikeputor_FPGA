@@ -10,17 +10,7 @@
 --     Zero detect for Register Channel A 
 
 -- All data is BIT_DEPTH bits wide. (use 16 for Spikeputor)
--- Register controls are 3 bits wide (for 8 registers). Input select is 2 bits wide for 3 inputs.
-
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-
-package Types is
-    constant BIT_DEPTH : Integer := 16;
-    type RARRAY is array(1 to 7) of std_logic_vector(BIT_DEPTH-1 downto 0);
-    type BIGRARRAY is array(1 to 20) of std_logic_vector(BIT_DEPTH-1 downto 0);
-end package Types;
+-- Register controls are 3 bits wide (for 8 registers). Input select is 2 bits wide for 3 inputs => 
 
 library ieee;
 use ieee.std_logic_1164.all;
