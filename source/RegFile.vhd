@@ -21,7 +21,6 @@ use work.Types.all;
 entity REG_FILE is
 
     port (
-
         -- register file inputs
         RESET         : in std_logic;
         CLK, CLK_EN   : in std_logic;

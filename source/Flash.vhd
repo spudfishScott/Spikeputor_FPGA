@@ -127,6 +127,9 @@ begin
     -- controller to flash chip address
     A           <= address_out_r;
 
+    -- command input
+    command <= RD_IN & WR_IN & ERASE_IN;
+
     process(CLK_IN, RST_IN)
     begin
         if (RST_IN = '1') then  -- RESET (asynchronous)
@@ -161,7 +164,7 @@ begin
                     address_wr_r        <= ADDR_IN;                     -- latch in address write register from ADDR_IN when idle
 
                     if (BY_n = '1' and programming_error = '0') then    -- don't enter new state until chip is not busy and no error
-                        case(RD_IN & WR_IN & ERASE_IN) is    -- command interpreter - set state to new command
+                        case(command) is    -- command interpreter - set state to new command
                             when "1000" =>  -- READ command
                                 st_main <= ST_READ;
                             when "0100" =>  -- WRITE command
@@ -330,6 +333,115 @@ begin
                             end if;
                         else
                             t_WPR <= t_WPR + 1;
+                        end if;
+                    end if;
+
+                when others =>
+                    null;
+            end case;
+
+        else
+            null;
+
+        end if;
+
+    end process;
+
+end architecture;
+
+
+-- Flash ROM - a stripped down, read-only ROM version of the controller above
+
+library IEEE;
+    use IEEE.std_logic_1164.all;
+
+entity FLASH_ROM is
+    generic (MAIN_CLK_NS : integer := 20 ); -- 50 MHz = 20 ns
+    port (
+        -- controller signals
+        CLK_IN      : in  std_logic;
+        RST_IN      : in  std_logic;
+        RD_IN       : in  std_logic;
+        ADDR_IN     : in  std_logic_vector(21 downto 0);
+        DATA_OUT    : out std_logic_vector(15 downto 0);
+        READY_OUT   : out std_logic; -- High when controller ready for a new read
+
+        -- flash chip signals
+        WP_n        : out std_logic; -- write protection
+        BYTE_n      : out std_logic; -- byte mode/~word mode
+        RST_n       : out std_logic; -- chip reset
+        CE_n        : out std_logic; -- chip enable
+        OE_n        : out std_logic; -- output enable
+        WE_n        : out std_logic; -- write enable
+        BY_n        :  in std_logic; -- chip ready/~busy
+        A	        : out std_logic_vector(21 downto 0); -- chip Address
+        Q           :  in std_logic_vector(15 downto 0)  -- chip data output
+	);
+end entity;
+
+architecture rtl of FLASH_ROM is
+    -- internal signals
+    signal busy_i   : std_logic := '0';
+    signal t_EX     : integer range 0 to (100/MAIN_CLK_NS) := 0; -- Execution counter - tACC is 70 ns max
+    
+    -- state machine
+    type fsm_main is (ST_IDLE, ST_READ);
+    signal st_main : fsm_main := ST_IDLE;
+
+begin
+    -- reset and control signals to chip input pins
+    RST_n       <= not(RST_IN);
+
+    WP_n        <= '1'; -- not write protected
+    BYTE_n      <= '1'; -- word mode, not byte mode
+    CE_n        <= '0'; -- chip always enabled
+    OE_n        <= '0'; -- output always enabled for read mode
+    WE_n        <= '1'; -- write never enabled for ROM
+
+    -- controller output signals
+    READY_OUT   <= (not busy_i) and BY_n; -- not ready if either state machines or chip is busy - probably don't need this for Reading
+    DATA_OUT    <= Q;
+    
+    -- controller to flash chip address
+    A           <= ADDR_IN;
+
+    process(CLK_IN, RST_IN)
+    begin
+        if (RST_IN = '1') then  -- RESET (asynchronous)
+            st_main                 <= ST_IDLE;     -- reset state machine
+            busy_i                  <= '0';         -- reset busy flag
+            t_EX                    <= 0;           -- reset timer
+
+
+        elsif (rising_edge(CLK_IN)) then -- handle state machines on rising clock edge
+            case (st_main) is   -- main state machine
+                when ST_IDLE => -- IDLE handler
+                    if (BY_n = '1') then    -- don't enter new state until chip is not busy and no error
+                        if (RD_IN = '1') then   -- check for read command
+                            st_main <= ST_READ;         -- set state to read
+                            busy_i  <= '1';             -- set busy flag
+                        else
+                            st_main <= ST_IDLE;         -- stay idle if the new command doesn't make sense
+                            busy_i  <= '0';             -- stay not busy when idle
+                        end if;
+                    else
+                        st_main <= ST_IDLE;         -- stay idle if state machines or chip is busy or error
+                        busy_i  <= '0';             -- stay not busy when idle
+                    end if;
+
+                when ST_READ =>
+                    -- Timer for read cycle time
+                    if (t_EX < 70/MAIN_CLK_NS) then   -- Read cycle time counter - count up to 70 ns
+                        if (RD_IN = '1') then         -- if RD_IN goes high again, reset the timer because address may have changed
+                            t_EX <= 0;
+                        else
+                            t_EX <= t_EX + 1;         -- otherwise, increment the timer
+                        end if;
+                    else                              -- after 70 ns, data is ready to read
+                        busy_i <= '0';                -- set busy signal low so client knows it can use the data
+                        if (RD_IN = '0') then
+                            st_main <= ST_IDLE;       -- but don't go back to idle until the client clears RD_IN
+                            t_EX    <= 0;             -- reset read timer so it is ready for next time
                         end if;
                     end if;
 
