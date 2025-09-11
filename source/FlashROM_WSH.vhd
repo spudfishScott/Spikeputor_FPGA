@@ -7,7 +7,7 @@ use work.Types.all;
 
 entity FlashROM_WSH is
     generic (
-        SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000001" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
+        SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000010" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
     );
 
     port (
@@ -18,7 +18,7 @@ entity FlashROM_WSH is
         -- Wishbone inputs
         WBS_CYC_I   : in std_logic;
         WBS_STB_I   : in std_logic;
-        WBS_ADDR_I  : in std_logic_vector(15 downto 0);
+        WBS_ADDR_I  : in std_logic_vector(15 downto 0); -- lsb is ignored, but it is still part of the address bus
         WBS_DATA_O  : out std_logic_vector(15 downto 0);
         WBS_ACK_O   : out std_logic;
 
@@ -30,7 +30,7 @@ entity FlashROM_WSH is
         OE_n        : out std_logic; -- output enable
         WE_n        : out std_logic; -- write enable
         BY_n        :  in std_logic; -- chip ready/~busy
-        A           : out std_logic_vector(21 downto 0); -- chip Address
+        A           : out std_logic_vector(21 downto 0); -- chip Address - msb is ignored in word mode
         Q           :  in std_logic_vector(15 downto 0)  -- chip data output (output only for ROM)
     );
 end FlashROM_WSH;
@@ -97,7 +97,7 @@ begin
                 case (st_main) is
                     when ST_IDLE =>
                         if (WBS_CYC_I = '1' and WBS_STB_I = '1') then   -- a valid Wishbone cycle and strobe
-                            flash_addr <= SECTOR_ADDR & WBS_ADDR_I;     -- form full 22 bit address from sector and requested address
+                            flash_addr <= "0" & SECTOR_ADDR & WBS_ADDR_I(15 downto 1);     -- form full 22 bit word address from sector and requested address (msb is ignored)
                             flash_read <= '1';                          -- pulse read after one clock
                             st_main    <= ST_READ;                      -- go to read state
                         else

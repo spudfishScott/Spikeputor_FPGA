@@ -23,7 +23,7 @@ entity FLASH_RAM is
         ERASE_IN    : in  std_logic_vector(1 downto 0);
         RD_IN       : in  std_logic;
         WR_IN       : in  std_logic; 
-        ADDR_IN     : in  std_logic_vector(21 downto 0);
+        ADDR_IN     : in  std_logic_vector(21 downto 0);    -- full 22 bit address bus, msb is ignored in word mode, so "0" & 6 bit sector & 15 bit word address
         DATA_IN     : in  std_logic_vector(15 downto 0);
         DATA_OUT    : out std_logic_vector(15 downto 0);
         READY_OUT   : out std_logic; -- High when controller ready for a new operation
@@ -362,7 +362,7 @@ entity FLASH_ROM is
         CLK_IN      : in  std_logic;
         RST_IN      : in  std_logic;
         RD_IN       : in  std_logic;
-        ADDR_IN     : in  std_logic_vector(21 downto 0);
+        ADDR_IN     : in  std_logic_vector(21 downto 0); -- full 22 bit address bus, msb is ignored in word mode, so "0" & 6 bit sector & 15 bit word address
         DATA_OUT    : out std_logic_vector(15 downto 0);
         READY_OUT   : out std_logic; -- High when controller ready for a new read
 
