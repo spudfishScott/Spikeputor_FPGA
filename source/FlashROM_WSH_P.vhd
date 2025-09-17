@@ -5,7 +5,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.Types.all;
 
-entity FlashROM_WSH is
+entity FlashROM_WSH_P is
     generic (
         SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000010" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
     );
@@ -33,9 +33,9 @@ entity FlashROM_WSH is
         A           : out std_logic_vector(21 downto 0); -- chip Address - msb is ignored in word mode
         Q           :  in std_logic_vector(15 downto 0)  -- chip data output (output only for ROM)
     );
-end FlashROM_WSH;
+end FlashROM_WSH_P;
 
-architecture rtl of FlashROM_WSH is
+architecture rtl of FlashROM_WSH_P is
 
     -- internal signals
     signal flash_addr   : std_logic_vector(21 downto 0) := (others => '0');

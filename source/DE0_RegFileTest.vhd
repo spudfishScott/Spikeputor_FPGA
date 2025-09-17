@@ -69,7 +69,7 @@ begin
         IN0     => GPIO0_D(31 downto 16),
         IN1     => GPIO0_D(15 downto 0),
         IN2     => GPIO1_D(31 downto 16),
-        INSEL   => GPIO1_D(15 downto 14),
+        WDSEL   => GPIO1_D(15 downto 14),
         CLK     => CLOCK_50,
         CLK_EN  => cpu_clk,
         OPA     => SW(9 downto 7),

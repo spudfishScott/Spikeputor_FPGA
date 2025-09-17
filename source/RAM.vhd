@@ -1,4 +1,4 @@
--- megafunction wizard: %RAM: 2-PORT%
+-- megafunction wizard: %RAM: 1-PORT%
 -- GENERATION: STANDARD
 -- VERSION: WM1.0
 -- MODULE: altsyncram 
@@ -33,68 +33,59 @@
 --applicable agreement for further details.
 
 
--- RAM module - outputs words of 16 bits each - dual port, NUM_WORDS must be powers of 2
+-- RAM module - outputs words of 16 bits each - single port, NUM_WORDS must be powers of 2
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
-USE ieee.math_real.all;
 
 LIBRARY altera_mf;
 USE altera_mf.altera_mf_components.all;
 
-ENTITY RAM32K IS
+ENTITY RAM IS
     GENERIC (
-        NUM_WORDS : INTEGER := 16384;       -- 32K bytes = 16K words of 16 bits each
+        NUM_WORDS  : INTEGER := 16384;          -- 32K bytes = 16K words of 16 bits each
+        ADDR_WIDTH : INTEGER := 14              -- 14 bits to address 16K words
     );
 
     PORT (
         clock       : IN STD_LOGIC  := '1';
 
-        wraddress   : IN STD_LOGIC_VECTOR (13 DOWNTO 0);
+        address     : IN STD_LOGIC_VECTOR (ADDR_WIDTH-1 DOWNTO 0);
         data        : IN STD_LOGIC_VECTOR (15 DOWNTO 0);
         wren        : IN STD_LOGIC  := '0';
 
-        rdaddress   : IN STD_LOGIC_VECTOR (13 DOWNTO 0);
         q           : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
     );
-END RAM32K;
+END RAM;
 
-ARCHITECTURE SYN OF RAM32K IS
+ARCHITECTURE SYN OF RAM IS
     SIGNAL sub_wire0    : STD_LOGIC_VECTOR (15 DOWNTO 0);                   -- output is latched
-    CONSTANT ADDR_WIDTH : Integer := Integer(ceil(log2(real(NUM_WORDS))));  -- number of address bits required for NUM_WORDS
 
 BEGIN
     q    <= sub_wire0(15 DOWNTO 0);
 
     altsyncram_component : altsyncram
     GENERIC MAP (
-        address_aclr_b => "NONE",
-        address_reg_b => "CLOCK0",
-        clock_enable_input_a => "BYPASS",
-        clock_enable_input_b => "BYPASS",
-        clock_enable_output_b => "BYPASS",
-        intended_device_family => "Cyclone III",
-        lpm_type => "altsyncram",
-        numwords_a => NUM_WORDS,
-        numwords_b => NUM_WORDS,
-        operation_mode => "DUAL_PORT",
-        outdata_aclr_b => "NONE",
-        outdata_reg_b => "CLOCK0",
-        power_up_uninitialized => "FALSE",
-        ram_block_type => "M9K",
-        read_during_write_mode_mixed_ports => "OLD_DATA",
-        widthad_a => ADDR_WIDTH,
-        widthad_b => ADDR_WIDTH,
-        width_a => 16,
-        width_b => 16,
-        width_byteena_a => 1
-    )
-    PORT MAP (
-        address_a => wraddress,
-        clock0    => clock,
-        data_a    => data,
-        wren_a    => wren,
-        address_b => rdaddress,
-        q_b       => sub_wire0
-    );
+		clock_enable_input_a => "BYPASS",
+		clock_enable_output_a => "BYPASS",
+		intended_device_family => "Cyclone III",
+		lpm_hint => "ENABLE_RUNTIME_MOD=NO",
+		lpm_type => "altsyncram",
+		numwords_a => NUM_WORDS,
+		operation_mode => "SINGLE_PORT",
+		outdata_aclr_a => "NONE",
+		outdata_reg_a => "CLOCK0",
+		power_up_uninitialized => "FALSE",
+		read_during_write_mode_port_a => "NEW_DATA_NO_NBE_READ",
+		widthad_a => ADDR_WIDTH,
+		width_a => 16,
+		width_byteena_a => 1
+	)
+	PORT MAP (
+		address_a => address,
+		clock0 => clock,
+		data_a => data,
+		wren_a => wren,
+		q_a => sub_wire0
+	);
 
 END SYN;

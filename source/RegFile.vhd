@@ -25,7 +25,7 @@ entity REG_FILE is
         RESET         : in std_logic;
         CLK, CLK_EN   : in std_logic;
         IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
-        INSEL         : in std_logic_vector(1 downto 0);
+        WDSEL         : in std_logic_vector(1 downto 0);
         OPA, OPB, OPC : in std_logic_vector(2 downto 0);
         WERF, RBSEL   : in std_logic;
 
