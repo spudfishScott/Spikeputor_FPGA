@@ -58,9 +58,9 @@ entity CTRL_WSH_M is
             -- Inputs to Control Logic from other modules
         ALU_OUT : in std_logic_vector(15 downto 0) := (others => '0');    -- ALU output
         MWDATA  : in std_logic_vector(15 downto 0) := (others => '0');    -- memory write data - Register Channel B output
-        Z       : in std_logic := '0';                                     -- Zero flag from RegFile Channel A
-		  
-		  PHASE   : out std_logic_vector(1 downto 0) := (others => '0')
+        Z       : in std_logic := '0';                                    -- Zero flag from RegFile Channel A
+
+        PHASE   : out std_logic_vector(1 downto 0) := (others => '0')     -- current phase of instruction cycle
     );
 end CTRL_WSH_M;
 
@@ -75,8 +75,8 @@ architecture rtl of CTRL_WSH_M is
     signal PC_reg      : std_logic_vector(15 downto 0) := (others => '0');   -- program counter
     signal PC_INC_calc : std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
     signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- memory read data
-	 signal RBSEL_sig   : std_logic := '0';
-	 signal MWDATA_sig  : std_logic_vector(15 downto 0) := (others => '0');   -- MWData
+    signal RBSEL_sig   : std_logic := '0';
+    signal MWDATA_sig  : std_logic_vector(15 downto 0) := (others => '0');
 
     -- internal signals for control logic
     signal MASEL  : std_logic := '0';                                   -- Address select - '0' for PC, '1' for ALU Output
@@ -84,7 +84,7 @@ architecture rtl of CTRL_WSH_M is
     signal PC_JT  : std_logic := '0';                                   -- Program Counter Jump - '1' to jump to address in ALU output, otherwise increment by 2
 
     -- state machine
-    type fsm_main is (ST_FETCH_I, ST_FETCH_C, ST_EXECUTE);
+    type fsm_main is (ST_FETCH_I, ST_FETCH_C, ST_EXECUTE, ST_EXECUTE_RW);
     signal st_main : fsm_main := ST_FETCH_I;
 
 begin
@@ -107,18 +107,19 @@ begin
     INST        <= INST_reg;                                                -- instruction fetched from memory
     CONST       <= CONST_reg;                                               -- constant fetched from memory
     MRDATA      <= MRDATA_reg;                                              -- memory read data
-	 RBSEL       <= RBSEL_sig;
-	 
-	 PHASE       <= "00" when st_main = ST_FETCH_I else
-	                "01" when st_main = ST_FETCH_C else
-						 "10" when st_main = ST_EXECUTE else
-						 "11";
+    RBSEL       <= RBSEL_sig;
 
-    RBSEL_sig <= '1' when INST_reg(8 downto 6) = "011" else '0';                    -- select register Channel B output (Rb or Rc) - (Only Rc for ST instruction)
-    WERF  <= NOT RBSEL_sig when st_main = ST_EXECUTE else '0';                 -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
-    WDSEL <= "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10")          -- Register Write Data Select - use Memory Read Data as Register Input for LD and LDR instructions
-             else "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0')               -- use PC+2 as Register Input for Branch Instructions
-             else "01";                                                     -- use ALU Output as Register Input for all other instructions
+    PHASE       <=  "00" when st_main = ST_FETCH_I else                     -- current phase of instruction cycle
+                    "01" when st_main = ST_FETCH_C else
+                    "10" when st_main = ST_EXECUTE else
+                    "11" when st_main = ST_EXECUTE_RW else
+                    "00";  -- should never occur, default to fetch instruction phase
+
+    RBSEL_sig <= '1' when INST_reg(8 downto 6) = "011" else '0';                -- select register Channel B output (Rb or Rc) - (Only Rc for ST instruction)
+    WERF  <= NOT RBSEL_sig when st_main = ST_EXECUTE else '0';                  -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
+    WDSEL <= "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10")      -- Register Write Data Select - use Memory Read Data as Register Input for LD and LDR instructions
+             else "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0')           -- use PC+2 as Register Input for Branch Instructions
+             else "01";                                                         -- use ALU Output as Register Input for all other instructions
 
     process(clk)
     begin
@@ -138,7 +139,7 @@ begin
                         -- fetch instruction from memory at address PC
                         WBS_ADDR_O <= PC_reg;           -- set address to PC
                         WBS_CYC_O <= '1';               -- initiate wishbone cycle
-                        WBS_STB_O <= '1';               -- strobe to indicate valid address
+                        WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                         WBS_WE_O <= '0';                -- read operation
                         if WBS_ACK_I = '1' then     -- wait for acknowledge from memory
                             INST_reg <= WBS_DATA_I;     -- latch instruction
@@ -147,7 +148,7 @@ begin
                                 st_main <= ST_FETCH_C;          -- instruction has constant
                                 PC_reg <= PC_INC_calc;          -- increment PC for constant
                             else
-										  PC_reg <= PC_reg;
+                                PC_reg <= PC_reg;
                                 st_main <= ST_EXECUTE;          -- no constant, execute directly (keeping PC unchanged)
                             end if;
                         else                        -- stall until ack received
@@ -157,7 +158,7 @@ begin
                     when ST_FETCH_C =>
                         -- fetch constant from memory at now incremented PC
                         WBS_ADDR_O <= PC_reg;           -- set address to PC
-                        WBS_STB_O <= '1';               -- strobe to indicate valid address
+                        WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                         WBS_WE_O <= '0';                -- read operation
                         if WBS_ACK_I = '1' then
                             CONST_reg <= WBS_DATA_I;    -- latch constant
@@ -169,41 +170,44 @@ begin
 
                     when ST_EXECUTE =>
                         -- execute instruction
-                        if MASEL = '1' then -- get address from ALU output and read or write based on MWR signal
-									 if WBS_ACK_I = '0' then
-										WBS_ADDR_O <= ALU_OUT;          -- address is ALU output
-										WBS_STB_O <= '1';               -- strobe to indicate valid address
-										if MWR = '1' then               -- write to memory when MWR is high, otherwise read
-											WBS_WE_O <= '1';
-											WBS_DATA_O <= MWDATA_sig;
-										else
-											WBS_WE_O <= '0';
-										end if;
-										st_main <= ST_EXECUTE;          -- stay in execute state until ack received
-									 end if;
-									 
-									 if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
-										if MWR = '0' then
-											MRDATA_reg <= WBS_DATA_I;   -- latch memory read data for read operation
-										else 
-											WBS_WE_O <= '0';            -- deassert write enable after write operation
-										end if;
-										WBS_STB_O <= '0';           -- deassert strobe
-										WBS_CYC_O <= '0';           -- end wishbone cycle
-										st_main <= ST_FETCH_I;      -- go back to fetch next instruction
-									else
-										st_main <= ST_EXECUTE;  -- stall until ack received
-									end if;
-									 
+                        if MASEL = '1' then             -- get address from ALU output and read or write based on MWR signal
+                            WBS_ADDR_O <= ALU_OUT;          -- address is ALU output
+                            WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read/write
+                            if MWR = '1' then               -- write to memory when MWR is high, otherwise read
+                                WBS_WE_O <= '1';
+                                WBS_DATA_O <= MWDATA_sig;
+                            else
+                                WBS_WE_O <= '0';
+                            end if;
+                            st_main <= ST_EXECUTE_RW;       -- wait in execute_rw state until ack received
                         else                            -- other instructions - do not need to read or write to memory
                             if PC_JT = '0' then
                                 PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                             else
                                 PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
                             end if;
-                            WBS_CYC_O <= '0';           -- end wishbone cycle
-                            st_main <= ST_FETCH_I;      -- go back to fetch next instruction, no wishbone cycle needed
+                            WBS_CYC_O <= '0';               -- end wishbone cycle
+                            st_main <= ST_FETCH_I;          -- go back to fetch next instruction, no wishbone cycle needed
                         end if;
+
+                    when ST_EXECUTE_RW =>
+                        -- wait state for memory read or write operation to complete
+                        if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
+                            if MWR = '0' then
+                                MRDATA_reg <= WBS_DATA_I;   -- latch memory read data for read operation
+                            else 
+                                WBS_WE_O <= '0';            -- deassert write enable after write operation
+                            end if;
+
+                            WBS_STB_O <= '0';           -- deassert strobe
+                            WBS_CYC_O <= '0';           -- end wishbone cycle
+                            st_main <= ST_FETCH_I;      -- go back to fetch next instruction
+                        else
+                            st_main <= ST_EXECUTE_RW;   -- stall until ack received
+                        end if;
+
+                    when others =>                  -- should never occur
+                        st_main <= ST_FETCH_I;          -- default to fetch instruction state
                 end case;
             end if;
         end if;
