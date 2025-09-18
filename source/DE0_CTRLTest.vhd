@@ -38,7 +38,7 @@ architecture Structural of DE0_CTRLTest is
     signal data_i : std_logic_vector(15 downto 0) := (others => '0');
     signal we     : std_logic := '0';
 
-    signal disp_out : std_logic_vector(15 downto 0);
+    signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
 
     begin
     -- Control Logic Instance
@@ -62,7 +62,8 @@ architecture Structural of DE0_CTRLTest is
         -- Spikeputor Signals
         -- Data outputs from Control Logic to other modules
         INST        => GPIO1_D(31 downto 16),   -- output current instruction for testing
-        CONST       => open
+        CONST       => open,
+        PC          => disp_out,                -- output current PC for testing
         PC_INC      => open,
         MRDATA      => GPIO1_D(15 downto 0),    -- output memory read data for testing
         -- Control signals from Control Logic to other modules
