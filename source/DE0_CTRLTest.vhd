@@ -39,12 +39,24 @@ architecture Structural of DE0_CTRLTest is
     signal we     : std_logic := '0';
 
     signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
-
+	 
+    -- Clock selection signal
+    signal system_clk : std_logic;
+    
+    -- Clock selection attribute
+    attribute keep : string;
+    attribute keep of system_clk : signal is "true";
+    attribute preserve : string;
+    attribute preserve of system_clk : signal is "true";
+    
     begin
+	 -- Select between automatic and manual clock based on SW(0)
+    system_clk <= CLOCK_50 when SW(0) = '1' else NOT Button(1);
+	 
     -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (
         -- SYSCON inputs
-        CLK         => NOT Button(1),
+        CLK         => system_clk, --NOT Button(1),
         RST_I       => NOT Button(0), -- Button 0 is reset button
 
         -- Wishbone signals for memory interface
@@ -81,7 +93,7 @@ architecture Structural of DE0_CTRLTest is
     -- RAM Instance
     RAM : entity work.RAMTest_WSH_P port map (  -- use test RAM to execute a simple program
         -- SYSCON inputs
-        CLK         => NOT Button(1), -- Button 1 is clock input
+        CLK         => system_clk, --NOT Button(1), -- Button 1 is clock input
         RST_I       => NOT Button(0), -- Button 0 is reset button
 
         -- Wishbone signals

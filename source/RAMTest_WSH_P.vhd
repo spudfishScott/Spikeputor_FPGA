@@ -29,7 +29,7 @@ end RAMTest_WSH_P;
 architecture rtl of RAMTest_WSH_P is
     type MEMARRAY is array(0 to 31) of std_logic_vector(15 downto 0);
     -- internal signals
-    signal memory : MEMARRAY;
+    signal memory : MEMARRAY := (others => (others => '0'));
     signal memIndex : integer := 0;
 
 begin
@@ -61,10 +61,10 @@ begin
             end if;
         end if;
     end process;
-    memIndex <= to_integer(unsigned(WBS_ADDR_I(4 downto 0)));   -- use address bits A4 to A0 to index 32 locations
+    memIndex <= to_integer(unsigned(WBS_ADDR_I(5 downto 1)));   -- use address bits A5 to A1 to index 32 locations
 
     -- output to wishbone interface
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;                     -- always acknowledge when CYC and STB are asserted
 
-    WBS_DATA_O  <= memory(memIndex);                            -- return array location based on address bits A4 to A0
+    WBS_DATA_O  <= memory(memIndex);                            -- return array location based on address bits A5 to A1
 end rtl;
