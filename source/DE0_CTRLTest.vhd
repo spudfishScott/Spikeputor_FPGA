@@ -39,6 +39,9 @@ architecture Structural of DE0_CTRLTest is
     signal we     : std_logic := '0';
 
     signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
+
+    signal pc_out    : std_logic_vector(15 downto 0) := (others => '0');
+    signal pcinc_out : std_logic_vector(15 downto 0) := (others => '0');
     signal inst_out  : std_logic_vector(15 downto 0) := (others => '0');
     signal const_out : std_logic_vector(15 downto 0) := (others => '0');
 	 
@@ -57,6 +60,9 @@ architecture Structural of DE0_CTRLTest is
 
     -- connect INST or CONST output to GPIO1 for testing based on SW(1)
     GPIO1_D(31 downto 16) <= inst_out when SW(1) = '1' else const_out;
+
+    -- display PC or PC_INC on 7-seg based on Button(2)
+    disp_out <= pc_out when Button(2) = '1' else pcinc_out;
 	 
     -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (
@@ -78,10 +84,10 @@ architecture Structural of DE0_CTRLTest is
 
         -- Spikeputor Signals
         -- Data outputs from Control Logic to other modules
-        INST        => inst_out,
+        INST        => inst_out,                -- output instruction for testing - switch 1 = 1 displays INST, else CONST
         CONST       => const_out,
-        PC          => disp_out,                -- output current PC for testing
-        PC_INC      => open,
+        PC          => pc_out,                  -- output PC for testing - button 2 = 1 displays PC, else PC_INC
+        PC_INC      => pcinc_out,
         MRDATA      => GPIO1_D(15 downto 0),    -- output memory read data for testing
         -- Control signals from Control Logic to other modules
         WERF        => LEDG(9),
