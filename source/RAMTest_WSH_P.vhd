@@ -41,15 +41,15 @@ begin
                 -- Initialize memory array with test data
                 memory(0) <= x"4408";  -- code to write to memory for testing
                 memory(1) <= x"001E";
-                memory(2) <= x"46C8";
+                memory(2) <= x"4691";
                 memory(3) <= x"0020";
-                memory(4) <= x"4C09";
-                memory(5) <= x"0002";
-                memory(6) <= x"4011";
-                memory(7) <= x"4741";
-                memory(8) <= x"FFF2";
-                memory(9) <= x"4690";
-                memory(10) <= x"0018";
+                memory(4) <= x"4091";
+                memory(5) <= x"46D1";
+                memory(6) <= x"0020";
+                memory(7) <= x"4C09";
+                memory(8) <= x"0002";
+                memory(9) <= x"4741";
+                memory(10) <= x"FFEE";
                 memory(11) <= x"4700";
                 memory(12) <= x"FFFC";
                 -- Initialize remaining memory locations to 0
@@ -61,7 +61,7 @@ begin
             end if;
         end if;
     end process;
-    memIndex <= to_integer(unsigned(WBS_ADDR_I(5 downto 1)));   -- use address bits A5 to A1 to index 32 locations
+    memIndex <= to_integer(unsigned(WBS_ADDR_I(5 downto 1)));   -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
 
     -- output to wishbone interface
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;                     -- always acknowledge when CYC and STB are asserted

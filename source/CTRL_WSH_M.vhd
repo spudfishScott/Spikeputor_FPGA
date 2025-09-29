@@ -35,7 +35,7 @@
 -- Register File Control signals:
     -- WERF:  '1' to write to register file, '0' otherwise
     -- RBSEL: '0' to select OPB, '1' to select OPC for Channel B output
-    -- WDSEL: "00" to select ALU output, "01" to select PC+2, "10" to select Memory Read Data
+    -- WDSEL: "01" to select ALU output, "00" to select PC+2, "10" to select Memory Read Data
     -- OPA:   INST(2 downto 0)
     -- OPB:   INST(8 downto 6)
     -- OPC:   INST(5 downto 3)

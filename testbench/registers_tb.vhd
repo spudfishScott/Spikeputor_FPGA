@@ -14,7 +14,7 @@ architecture testbench of registers_tb is
             RESET : in std_logic;
             IN0, IN1, IN2 : in std_logic_vector(15 downto 0);
             CLK, CLK_EN : in std_logic;
-            INSEL : in std_logic_vector(1 downto 0);
+            WDSEL : in std_logic_vector(1 downto 0);
             OPA, OPB, OPC : in std_logic_vector(2 downto 0);
             WERF, RBSEL : in std_logic;
 
@@ -64,7 +64,7 @@ begin
       IN2 => in2_stim, 
 	  CLK => clock,
 	  CLK_EN => clk_en,
-	  INSEL => insel_stim,
+	  WDSEL => insel_stim,
       OPA => operand_stim(8 downto 6),
       OPB => operand_stim(5 downto 3),
       OPC => operand_stim(2 downto 0),

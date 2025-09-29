@@ -76,7 +76,7 @@ begin   -- architecture begin
            IN2 => IN2,
            IN1 => IN1,
            IN0 => IN0,
-           SEL => INSEL,
+           SEL => WDSEL,
         MUXOUT => REG_IN
     );
 
