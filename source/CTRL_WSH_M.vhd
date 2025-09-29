@@ -76,7 +76,6 @@ architecture rtl of CTRL_WSH_M is
     signal PC_INC_calc : std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
     signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- memory read data
     signal RBSEL_sig   : std_logic := '0';
-    signal MWDATA_sig  : std_logic_vector(15 downto 0) := (others => '0');
 
     -- internal signals for control logic
     signal MASEL  : std_logic := '0';                                   -- Address select - '0' for PC, '1' for ALU Output
@@ -97,7 +96,7 @@ begin
                          (INST_reg(8 downto 6) = "101" AND Z = '0') )               -- BNE command and Zero flag = 0
              else '0';
 
-    MWDATA_sig <= MWDATA;                                                   -- wire memory write data directly from Register File Channel B output
+    WBS_DATA_O <= MWDATA;                                                   -- wire memory write data directly from Register File Channel B output
 
     -- Spikeputor control outputs, including control signals for ALU and Register File
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);                  -- PC incremented by 2 for next instruction
@@ -175,7 +174,6 @@ begin
                             WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read/write
                             if MWR = '1' then               -- write to memory when MWR is high, otherwise read
                                 WBS_WE_O <= '1';
-                                WBS_DATA_O <= MWDATA_sig;
                             else
                                 WBS_WE_O <= '0';
                             end if;

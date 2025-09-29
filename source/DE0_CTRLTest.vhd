@@ -38,12 +38,14 @@ architecture Structural of DE0_CTRLTest is
     signal data_i : std_logic_vector(15 downto 0) := (others => '0');
     signal we     : std_logic := '0';
 
-    signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
+    signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
+    signal inst_out  : std_logic_vector(15 downto 0) := (others => '0');
+    signal const_out : std_logic_vector(15 downto 0) := (others => '0');
 	 
     -- Clock selection signal
     signal system_clk : std_logic;
     
-    -- Clock selection attribute
+    -- Clock selection attribute - to aid in synthesis
     attribute keep : string;
     attribute keep of system_clk : signal is "true";
     attribute preserve : string;
@@ -52,11 +54,14 @@ architecture Structural of DE0_CTRLTest is
     begin
 	 -- Select between automatic and manual clock based on SW(0)
     system_clk <= CLOCK_50 when SW(0) = '1' else NOT Button(1);
+
+    -- connect INST or CONST output to GPIO1 for testing based on SW(1)
+    GPIO1_D(31 downto 16) <= inst_out when SW(1) = '1' else const_out;
 	 
     -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (
         -- SYSCON inputs
-        CLK         => system_clk, --NOT Button(1),
+        CLK         => system_clk,
         RST_I       => NOT Button(0), -- Button 0 is reset button
 
         -- Wishbone signals for memory interface
@@ -73,8 +78,8 @@ architecture Structural of DE0_CTRLTest is
 
         -- Spikeputor Signals
         -- Data outputs from Control Logic to other modules
-        INST        => GPIO1_D(31 downto 16),   -- output current instruction for testing
-        CONST       => open,
+        INST        => inst_out,
+        CONST       => const_out,
         PC          => disp_out,                -- output current PC for testing
         PC_INC      => open,
         MRDATA      => GPIO1_D(15 downto 0),    -- output memory read data for testing
@@ -93,7 +98,7 @@ architecture Structural of DE0_CTRLTest is
     -- RAM Instance
     RAM : entity work.RAMTest_WSH_P port map (  -- use test RAM to execute a simple program
         -- SYSCON inputs
-        CLK         => system_clk, --NOT Button(1), -- Button 1 is clock input
+        CLK         => system_clk,
         RST_I       => NOT Button(0), -- Button 0 is reset button
 
         -- Wishbone signals
