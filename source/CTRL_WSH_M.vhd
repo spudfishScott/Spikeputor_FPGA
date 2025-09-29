@@ -215,6 +215,7 @@ begin
                                 WBS_WE_O <= '0';            -- deassert write enable after write operation
                             end if;
 
+                            PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                             WBS_STB_O <= '0';           -- deassert strobe
                             WBS_CYC_O <= '0';           -- end wishbone cycle
                             st_main <= ST_FETCH_I;      -- go back to fetch next instruction
