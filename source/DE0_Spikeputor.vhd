@@ -1,7 +1,6 @@
 library ieee;
   use ieee.std_logic_1164.all;
-  use ieee.std_logic_arith.all;
-  use ieee.std_logic_unsigned.all;
+  use ieee.numeric_std.all;
   use work.Types.all;
 
 entity DE0_Spikeputor is
@@ -22,9 +21,9 @@ entity DE0_Spikeputor is
         HEX3_D : out std_logic_vector(6 downto 0);
         HEX3_DP : out std_logic;
         -- LED
-        LEDG : out std_logic_vector(9 downto 0);
+        LEDG : out std_logic_vector(9 downto 0)
         -- GPIO
-        GPIO1_D : out std_logic_vector(31 downto 0)
+   --     GPIO1_D : out std_logic_vector(31 downto 0)
     );
 end DE0_Spikeputor;
 
@@ -81,21 +80,22 @@ architecture Structural of DE0_Spikeputor is
     signal alu_ctrl   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU controls
     signal wd_input   : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected write data input
     signal reg_addr   : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses
-    signal reg_index  : integer range 1 to 7 := 1;                          -- to select which register to display
+	 signal reg_waddr  : std_logic_vector(15 downto 0) := (others => '0');
+ --   signal reg_index  : integer range 1 to 7 := 1;                          -- to select which register to display
     signal all_regs   : RARRAY := (others => (others => '0'));              -- to display all register contents
-    signal alu_a      : std_logic_vector(15 downto 0);                      -- to display ALU A input
-    signal alu_b      : std_logic_vector(15 downto 0);                      -- to display ALU B input
-    signal alu_reva   : std_logic_vector(15 downto 0);                      -- to display ALU A input reversed
-    signal alu_invb   : std_logic_vector(15 downto 0);                      -- to display ALU B input inverted
-    signal alu_shift  : std_logic_vector(15 downto 0);                      -- to display ALU shift output
-    signal alu_arith  : std_logic_vector(15 downto 0);                      -- to display ALU arithmetic output
-    signal alu_bool   : std_logic_vector(15 downto 0);                      -- to display ALU boolean output
-    signal alu_cmpf   : std_logic_vector(15 downto 0);                      -- to display ALU compare flags - 4 bits: Z, V, N, CMP result
-    signal alu_shift8 : std_logic_vector(15 downto 0);                      -- to display ALU shift by 8 output
-    signal alu_shift4 : std_logic_vector(15 downto 0);                      -- to display ALU shift by 4 output
-    signal alu_shift2 : std_logic_vector(15 downto 0);                      -- to display ALU shift by 2 output
-    signal alu_shift1 : std_logic_vector(15 downto 0);                      -- to display ALU shift by 1 output
-    signal alu_fnleds : std_logic_vector(15 downto 0);                      -- to display ALU function control signals - 13 bits
+    signal alu_a      : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input
+    signal alu_b      : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input
+    signal alu_reva   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input reversed
+    signal alu_invb   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input inverted
+    signal alu_shift  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift output
+    signal alu_arith  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU arithmetic output
+    signal alu_bool   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU boolean output
+    signal alu_cmpf   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU compare flags - 4 bits: Z, V, N, CMP result
+    signal alu_shift8 : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 8 output
+    signal alu_shift4 : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 4 output
+    signal alu_shift2 : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 2 output
+    signal alu_shift1 : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 1 output
+    signal alu_fnleds : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU function control signals - 13 bits
 
     -- signal to display on 7-seg display
     signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
@@ -104,49 +104,49 @@ architecture Structural of DE0_Spikeputor is
 	 -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
     system_clk <= CLOCK_50 when SW(0) = '1' else NOT Button(1);
 
-    process(Button(2)) -- increment register index on each press of Button(2)
-    begin
-        if Button(2) = '0' then
-            if reg_index = 7 then
-                reg_index <= 1;
-            else
-                reg_index <= reg_index + 1;
-            end if;
-        end if;
-    end process;
+--    process(Button(2), reg_index) -- increment register index on each press of Button(2)
+--    begin
+--        if Button(2) = '0' then
+--            if reg_index = 7 then
+--                reg_index <= 1;
+--            else
+--                reg_index <= reg_index + 1;
+--            end if;
+--        end if;
+--    end process;
 
-    LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
+--    LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
 
     -- display PC or PC_INC on 7-seg based on Button(2) - this will change to select other signals later
     disp_out <= pc_out when Button(2) = '1' else pcinc_out;
-
-    WITH (SW(9 downto 7)) SELECT
-        GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
-                                 const_out  WHEN "001",        -- CONST output
-                                 rega_out   WHEN "010",        -- RegFile Channel A
-                                 regb_out   WHEN "011",        -- RegFile Channel B
-                                 mrdata_out WHEN "100",        -- MRDATA output
-                                 reg_stat   WHEN "101",        -- RegFile control signals and Zero flag
-                                 wd_input   WHEN "110",        -- RegFile selected write data
-                                 allregs(reg_index) WHEN "111",   -- register at current index (1 to 7)
-                                 inst_out   WHEN others;       -- INST output (should never happen)
-
-    WITH (SW(4 downto 2)) SELECT
-        GPIO1_D(15 downto 0)  <= s_alu_out  WHEN "000",        -- ALU Output
-                                 alu_shift  WHEN "001",        -- ALU shift by 8 output
-                                 alu_arith  WHEN "010",        -- ALU arithmetic output
-                                 alu_bool   WHEN "011",        -- ALU boolean output
-                                 alu_cmpf   WHEN "100",        -- ALU compare flags
-                                 alu_reva   WHEN "101",        -- ALU A input reversed
-                                 alu_invb   WHEN "110",        -- ALU B input inverted
-                                 alu_ctrl WHEN "111",        -- ALU function control signals
-                                 s_alu_out  WHEN others;       -- ALU output (should never happen)
+--
+--    WITH (SW(9 downto 7)) SELECT
+--        GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
+--                                 const_out  WHEN "001",        -- CONST output
+--                                 rega_out   WHEN "010",        -- RegFile Channel A
+--                                 regb_out   WHEN "011",        -- RegFile Channel B
+--                                 mrdata_out WHEN "100",        -- MRDATA output
+--                                 reg_stat   WHEN "101",        -- RegFile control signals and Zero flag
+--                                 wd_input   WHEN "110",        -- RegFile selected write data
+--                                 all_regs(1) WHEN "111",   -- register at current index (1 to 7)
+--                                 inst_out   WHEN others;       -- INST output (should never happen)
+--
+--    WITH (SW(4 downto 2)) SELECT
+--        GPIO1_D(15 downto 0)  <= s_alu_out  WHEN "000",        -- ALU Output
+--                                 alu_shift  WHEN "001",        -- ALU shift by 8 output
+--                                 alu_arith  WHEN "010",        -- ALU arithmetic output
+--                                 alu_bool   WHEN "011",        -- ALU boolean output
+--                                 alu_cmpf   WHEN "100",        -- ALU compare flags
+--                                 alu_a   WHEN "101",           -- ALU A input
+--                                 alu_b   WHEN "110",           -- ALU B input
+--                                 alu_ctrl WHEN "111",          -- ALU function control signals
+--                                 s_alu_out  WHEN others;       -- ALU output (should never happen)
 
     -- set up internal signal paths
     opa_out   <= inst_out(2 downto 0);           -- RegFile operand A
     opb_out   <= inst_out(5 downto 3);           -- RegFile operand B
     opc_out   <= inst_out(8 downto 6);           -- RegFile operand C
-    alufn_out <= inst_out(4 downto 0);           -- ALU function select (described in ALU.vhd)
+    alufn_out <= inst_out(15 downto 11);         -- ALU function select (described in ALU.vhd)
     asel_out  <= inst_out(8) AND inst_out(9);    -- ALU A input select - 0 = RegFile Channel A, 1 = PC_INC
     bsel_out  <= inst_out(10);                   -- ALU B input select - 0 = RegFile Channel B, 1 = CONST
 
@@ -214,7 +214,7 @@ architecture Structural of DE0_Spikeputor is
         -- register file inputs
         RESET       => NOT Button(0),   -- Button 0 is reset button
         CLK         => system_clk,      -- system clock
-        CLK_EN      => '1',             -- always enabled (this may go away completely)
+        CLK_EN      => system_clk,             -- always enabled (this may go away completely)
         IN0         => pcinc_out,       -- PC + 2
         IN1         => s_alu_out,       -- ALU output
         IN2         => mrdata_out,      -- Memory Read Data
@@ -232,9 +232,9 @@ architecture Structural of DE0_Spikeputor is
 
         -- outputs to drive LEDs only
         SEL_INPUT   => wd_input,                -- selected input
-        SEL_A       => reg_addr(15 downto 13),  -- selected register to output to Channel A
-        SEL_B       => reg_addr(8 downto 6),    -- selected register to output to Channel B
-        SEL_W       => reg_addr(2 downto 0),    -- selected register Channel to write
+        SEL_A       => reg_addr(15 downto 8),   -- selected register to output to Channel A
+        SEL_B       => reg_addr(7 downto 0),    -- selected register to output to Channel B
+        SEL_W       => reg_waddr(7 downto 0),   -- selected register Channel to write
         REG_DATA    => all_regs                 -- all 7 RegFile registers
     );
 
