@@ -6,7 +6,8 @@
 -- Contains the INST, CONST, and PC registers
 -- Also contains the state machine for fetching instructions and constants from memory
 -- and executing instructions, including memory read and write operations.
--- Uses a simple 3-state FSM to manage instruction fetch, constant fetch, and execution phases
+-- Uses a simple 4-state FSM to manage instruction fetch, constant fetch, and execution phases (with out without memory r/w command)
+-- Includes a PHASE output to indicate current phase of instruction cycle for display purposes
 -- Memory interface is a Wishbone Master interface
 -- Inputs from ALU and Register File, outputs to Register File and ALU control signals
 -- Memory write data is directly from Register File Channel B output (MWDATA)
@@ -65,21 +66,21 @@ entity CTRL_WSH_M is
 
         -- Spikeputor Signals
             -- Data outputs from Control Logic to other modules
-        INST    : out std_logic_vector(15 downto 0) := (others => '0');   -- instruction fetched from memory
-        CONST   : out std_logic_vector(15 downto 0) := (others => '0');   -- constant fetched from memory
-        PC      : out std_logic_vector(15 downto 0) := (others => '0');   -- program counter
-        PC_INC  : out std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
-        MRDATA  : out std_logic_vector(15 downto 0) := (others => '0');   -- memory read data
+        INST    : out std_logic_vector(15 downto 0);                      -- instruction fetched from memory
+        CONST   : out std_logic_vector(15 downto 0);                      -- constant fetched from memory
+        PC      : out std_logic_vector(15 downto 0);                      -- program counter
+        PC_INC  : out std_logic_vector(15 downto 0);                      -- incremented program counter
+        MRDATA  : out std_logic_vector(15 downto 0);                      -- memory read data
             -- Control signals from Control Logic to other modules
-        WERF    : out std_logic := '0';                                   -- Write Enable Register File - '1' to write to register file
-        RBSEL   : out std_logic := '0';                                   -- Register Channel B Select - '0' for Rb, '1' for Rc
-        WDSEL   : out std_logic_vector(1 downto 0) := (others => '0');    -- Write Data Select - "00" for ALU, "01" for PC+2, "10" for Memory Read Data
+        WERF    : out std_logic;                                          -- Write Enable Register File - '1' to write to register file
+        RBSEL   : out std_logic;                                          -- Register Channel B Select - '0' for OPB, '1' for OPC
+        WDSEL   : out std_logic_vector(1 downto 0);                       -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
             -- Inputs to Control Logic from other modules
-        ALU_OUT : in std_logic_vector(15 downto 0) := (others => '0');    -- ALU output
-        MWDATA  : in std_logic_vector(15 downto 0) := (others => '0');    -- memory write data - Register Channel B output
-        Z       : in std_logic := '0';                                    -- Zero flag from RegFile Channel A
+        ALU_OUT : in std_logic_vector(15 downto 0);                       -- ALU output
+        MWDATA  : in std_logic_vector(15 downto 0);                       -- memory write data - Register Channel B output
+        Z       : in std_logic;                                           -- Zero flag from RegFile Channel A
 
-        PHASE   : out std_logic_vector(1 downto 0) := (others => '0')     -- current phase of instruction cycle
+        PHASE   : out std_logic_vector(1 downto 0)                        -- current phase of instruction cycle
     );
 end CTRL_WSH_M;
 
