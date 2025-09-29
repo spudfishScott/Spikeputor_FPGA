@@ -9,13 +9,32 @@
 -- Uses a simple 3-state FSM to manage instruction fetch, constant fetch, and execution phases
 -- Memory interface is a Wishbone Master interface
 -- Inputs from ALU and Register File, outputs to Register File and ALU control signals
+-- Memory write data is directly from Register File Channel B output (MWDATA)
+-- Memory Read Data is output to MRDATA signal
+-- Program Counter (PC) is incremented by 2 for each instruction, unless a branch or jump occurs
+-- On reset, PC is set to the RESET_VECTOR address (xF000)
+-- Instruction format:
+--     Bits 15-11: ALU Opcode
+--     Bit 10:    '1' if instruction has a constant (CONST), '0' if no constant
+--     Bit 9:     '1' if instruction is a memory (LD, LDR, ST) or branch (JMP, BEQ, BNE) operation, '0' for other instructions
+--     Bits 8-6:  Register Operand B or Memory/Branch opcode
+--                For memory operations:
+--                  "010" for LD and LDC instructions
+--                  "110" for LDR instruction
+--                  "011" for ST and STC instructions
+--                For branch instructions:
+--                  "000" = JMP (unconditional)
+--                  "100" = BEQ (branch if zero)
+--                  "101" = BNE (branch if not zero)
+--     Bits 5-3:  Register Operand C
+--     Bits 2-0:  Register Operand A - directly to Channel A of Register File
 -- ALU Control signals:
     -- ALUFN: INST(15 downto 11)
     -- ASEL:  INST(8) AND INST(9)
     -- BSEL:  INST(10)
 -- Register File Control signals:
     -- WERF:  '1' to write to register file, '0' otherwise
-    -- RBSEL: '0' to select Rb, '1' to select Rc
+    -- RBSEL: '0' to select OPB, '1' to select OPC for Channel B output
     -- WDSEL: "00" to select ALU output, "01" to select PC+2, "10" to select Memory Read Data
     -- OPA:   INST(2 downto 0)
     -- OPB:   INST(8 downto 6)
@@ -96,8 +115,6 @@ begin
                          (INST_reg(8 downto 6) = "101" AND Z = '0') )               -- BNE command and Zero flag = 0
              else '0';
 
-    WBS_DATA_O <= MWDATA;                                                   -- wire memory write data directly from Register File Channel B output
-
     -- Spikeputor control outputs, including control signals for ALU and Register File
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);                  -- PC incremented by 2 for next instruction
 
@@ -106,7 +123,7 @@ begin
     INST        <= INST_reg;                                                -- instruction fetched from memory
     CONST       <= CONST_reg;                                               -- constant fetched from memory
     MRDATA      <= MRDATA_reg;                                              -- memory read data
-    RBSEL       <= RBSEL_sig;
+    RBSEL       <= RBSEL_sig;                                               -- Register Channel B Select - '0' for OPB, '1' for OPC
 
     PHASE       <=  "00" when st_main = ST_FETCH_I else                     -- current phase of instruction cycle
                     "01" when st_main = ST_FETCH_C else
@@ -114,7 +131,7 @@ begin
                     "11" when st_main = ST_EXECUTE_RW else
                     "00";  -- should never occur, default to fetch instruction phase
 
-    RBSEL_sig <= '1' when INST_reg(8 downto 6) = "011" else '0';                -- select register Channel B output (Rb or Rc) - (Only Rc for ST instruction)
+    RBSEL_sig <= '1' when INST_reg(8 downto 6) = "011" else '0';                -- select register Channel B output (OPB or OPC) - (Only OPC for ST instruction)
     WERF  <= NOT RBSEL_sig when st_main = ST_EXECUTE else '0';                  -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
     WDSEL <= "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10")      -- Register Write Data Select - use Memory Read Data as Register Input for LD and LDR instructions
              else "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0')           -- use PC+2 as Register Input for Branch Instructions
@@ -133,6 +150,7 @@ begin
                 WBS_ADDR_O <= RESET_VECTOR;     -- set address to reset vector
                 WBS_DATA_O <= (others => '0');  -- clear data output
             else
+                WBS_DATA_O <= MWDATA;           -- data output is directly from Register File Channel B output when reset = '0'
                 case st_main is
                     when ST_FETCH_I =>
                         -- fetch instruction from memory at address PC
