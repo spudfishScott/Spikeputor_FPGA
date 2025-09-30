@@ -117,6 +117,8 @@ architecture rtl of CTRL_WSH_M is
     signal ASEL_sig    : std_logic := '0';                                   -- ALU A input select - '0' for REGFile Channel A, '1' for PC+2
     signal BSEL_sig    : std_logic := '0';                                   -- ALU B input select - '0' for REGFile Channel B, '1' for CONST
 
+	 signal alu_sig     : std_logic_vector(15 downto 0) := (others => '0');
+	 
     -- state machine
     type fsm_main is (ST_FETCH_I, ST_FETCH_C, ST_EXECUTE, ST_EXECUTE_RW);
     signal st_main : fsm_main := ST_FETCH_I;
@@ -164,6 +166,8 @@ begin
                 ALUFN_sig <= (others => '0');   -- clear ALU function select
                 ASEL_sig <= '0';                -- clear ALU A input select
                 BSEL_sig <= '0';                -- clear ALU B input select 
+					 
+					 alu_sig <= (others => '0');
 
                  -- clear wishbone signals
                 WBS_CYC_O <= '0';               -- clear wishbone handshake signals
@@ -176,7 +180,8 @@ begin
                 WBS_DATA_O <= MWDATA;           -- data output is directly from Register File Channel B output when reset = '0'
                 WERF_sig <= '0';                -- clear write enable signal until we reach execute state
                 PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);   -- PC incremented by 2 for next instruction
-
+					 alu_sig <= alu_OUT;
+					 
                 case st_main is
                     when ST_FETCH_I =>
                         -- fetch instruction from memory at address PC
@@ -236,8 +241,8 @@ begin
                     when ST_EXECUTE =>
                         -- execute instruction
                         WERF_sig <= NOT RBSEL_sig;                      -- set WERF flag on execute - write to register file if not a store (ST command)
-                        if (INST_reg(9) AND INST_reg(7) = '1') then     -- operation requires memory read or write (LD, LDR, or ST - formerly MASEL = 1)
-                            WBS_ADDR_O <= ALU_OUT;                          -- address is ALU output
+                        if (INST_reg(9) AND INST_reg(7)) = '1' then     -- operation requires memory read or write (LD, LDR, or ST - formerly MASEL = 1)
+                            WBS_ADDR_O <= ALU_sig;                          -- address is ALU output
                             WBS_STB_O <= '1';                               -- strobe to indicate valid address and start memory read/write
                             if (INST_reg(9) AND RBSEL_sig) = '1' then       -- write to memory on ST command (formerly MWR = 1), otherwise read
                                 WBS_WE_O <= '1';
@@ -250,7 +255,7 @@ begin
                                     ((WBS_DATA_I(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
                                     (WBS_DATA_I(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
                                     (WBS_DATA_I(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
-                                        PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
+                                        PC_reg <= ALU_sig;          -- set PC to address in ALU output to jump
                             else
                                         PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                             end if;

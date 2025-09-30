@@ -146,7 +146,8 @@ architecture Structural of DE0_Spikeputor is
     -- set up internal display signals
     reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;   -- to display regfile controls/Z
     alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                       -- to display ALU controls
-
+		
+		
     -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (
         -- SYSCON inputs
@@ -184,7 +185,7 @@ architecture Structural of DE0_Spikeputor is
         BSEL        => bsel_out,                -- BSEL output to ALU
         -- Inputs to Control Logic from other modules
         ALU_OUT     => s_alu_out,               -- ALU output to Control Logic
-        MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing
+        MWDATA      => rega_out,                 -- RegFile Channel A input to Control Logic for memory writing
         Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
         PHASE       => LEDG(1 downto 0)         -- PHASE output to LEDG(1:0) for display only
@@ -215,9 +216,9 @@ architecture Structural of DE0_Spikeputor is
         RESET       => NOT Button(0),   -- Button 0 is reset button
         CLK         => system_clk,      -- system clock
         CLK_EN      => '1',             -- always enabled for now
-        IN0         => pcinc_out,       -- PC + 2
-        IN1         => s_alu_out,       -- ALU output
-        IN2         => mrdata_out,      -- Memory Read Data
+        IN0         => X"F00D", --pcinc_out,       -- PC + 2
+        IN1         => X"DEAD",--s_alu_out,       -- ALU output
+        IN2         => X"B0D1", --mrdata_out,      -- Memory Read Data
         WDSEL       => wdsel_out,       -- WDSEL from Control Logic
         OPA         => opa_out,         -- OPA from INST
         OPB         => opb_out,         -- OPB from INST
