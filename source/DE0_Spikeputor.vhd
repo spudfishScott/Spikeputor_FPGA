@@ -214,7 +214,7 @@ architecture Structural of DE0_Spikeputor is
         -- register file inputs
         RESET       => NOT Button(0),   -- Button 0 is reset button
         CLK         => system_clk,      -- system clock
-        CLK_EN      => system_clk,             -- always enabled (this may go away completely)
+        CLK_EN      => '1',             -- always enabled for now
         IN0         => pcinc_out,       -- PC + 2
         IN1         => s_alu_out,       -- ALU output
         IN2         => mrdata_out,      -- Memory Read Data
