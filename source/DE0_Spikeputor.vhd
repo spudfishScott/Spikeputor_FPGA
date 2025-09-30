@@ -79,8 +79,8 @@ architecture Structural of DE0_Spikeputor is
     signal reg_stat   : std_logic_vector(15 downto 0) := (others => '0');   -- to display regfile controls/Zero flag
     signal alu_ctrl   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU controls
     signal wd_input   : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected write data input
-    signal reg_addr   : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses
-	 signal reg_waddr  : std_logic_vector(15 downto 0) := (others => '0');
+    signal reg_addr   : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan A and Chan B)
+    signal reg_waddr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write
  --   signal reg_index  : integer range 1 to 7 := 1;                          -- to select which register to display
     signal all_regs   : RARRAY := (others => (others => '0'));              -- to display all register contents
     signal alu_a      : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input
@@ -104,6 +104,9 @@ architecture Structural of DE0_Spikeputor is
 	 -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
     system_clk <= CLOCK_50 when SW(0) = '1' else NOT Button(1);
 
+    -- display PC or PC_INC on 7-seg based on Button(2) - this will change to select other signals later
+    disp_out <= pc_out when Button(2) = '1' else pcinc_out;
+
 --    process(Button(2), reg_index) -- increment register index on each press of Button(2)
 --    begin
 --        if Button(2) = '0' then
@@ -117,8 +120,6 @@ architecture Structural of DE0_Spikeputor is
 
 --    LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
 
-    -- display PC or PC_INC on 7-seg based on Button(2) - this will change to select other signals later
-    disp_out <= pc_out when Button(2) = '1' else pcinc_out;
 --
 --    WITH (SW(9 downto 7)) SELECT
 --        GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
@@ -142,14 +143,7 @@ architecture Structural of DE0_Spikeputor is
 --                                 alu_ctrl WHEN "111",          -- ALU function control signals
 --                                 s_alu_out  WHEN others;       -- ALU output (should never happen)
 
-    -- set up internal signal paths
-    opa_out   <= inst_out(2 downto 0);           -- RegFile operand A
-    opb_out   <= inst_out(5 downto 3);           -- RegFile operand B
-    opc_out   <= inst_out(8 downto 6);           -- RegFile operand C
-    alufn_out <= inst_out(15 downto 11);         -- ALU function select (described in ALU.vhd)
-    asel_out  <= inst_out(8) AND inst_out(9);    -- ALU A input select - 0 = RegFile Channel A, 1 = PC_INC
-    bsel_out  <= inst_out(10);                   -- ALU B input select - 0 = RegFile Channel B, 1 = CONST
-
+    -- set up internal display signals
     reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;   -- to display regfile controls/Z
     alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                       -- to display ALU controls
 
@@ -173,7 +167,7 @@ architecture Structural of DE0_Spikeputor is
 
         -- Spikeputor Signals
         -- Data outputs from Control Logic to other modules
-        INST        => inst_out,                -- INST output to ALU and REG_FILE
+        INST        => inst_out,                -- INST output for display only
         CONST       => const_out,               -- CONST output to ALU
         PC          => pc_out,                  -- PC output for display only
         PC_INC      => pcinc_out,               -- PC+2 output to ALU and REG_FILE
@@ -182,6 +176,12 @@ architecture Structural of DE0_Spikeputor is
         WERF        => werf_out,                -- WERF output to REG_FILE
         RBSEL       => rbsel_out,               -- RBSEL output to REG_FILE
         WDSEL       => wdsel_out,               -- WDSEL output to REG_FILE
+        OPA         => opa_out,                 -- OPA output to REG_FILE
+        OPB         => opb_out,                 -- OPB output to REG_FILE
+        OPC         => opc_out,                 -- OPC output to REG_FILE
+        ALUFN       => alufn_out,               -- ALUFN output to ALU
+        ASEL        => asel_out,                -- ASEL output to ALU
+        BSEL        => bsel_out,                -- BSEL output to ALU
         -- Inputs to Control Logic from other modules
         ALU_OUT     => s_alu_out,               -- ALU output to Control Logic
         MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing

@@ -71,10 +71,20 @@ entity CTRL_WSH_M is
         PC      : out std_logic_vector(15 downto 0);                      -- program counter
         PC_INC  : out std_logic_vector(15 downto 0);                      -- incremented program counter
         MRDATA  : out std_logic_vector(15 downto 0);                      -- memory read data
-            -- Control signals from Control Logic to other modules
+
+            -- Control signals from Control Logic to RegFile
         WERF    : out std_logic;                                          -- Write Enable Register File - '1' to write to register file
         RBSEL   : out std_logic;                                          -- Register Channel B Select - '0' for OPB, '1' for OPC
         WDSEL   : out std_logic_vector(1 downto 0);                       -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
+        OPA     : out std_logic_vector(2 downto 0);                       -- Register Operand A
+        OPB     : out std_logic_vector(2 downto 0);                       -- Register Operand B
+        OPC     : out std_logic_vector(2 downto 0);                       -- Register Operand C
+
+            -- Control signals from Control Logic to ALU
+        ALUFN   : out std_logic_vector(4 downto 0);                       -- ALU Function select - opcode from instruction
+        ASEL    : out std_logic;                                          -- ALU A input select - '0' for REGFile Channel A, '1' for PC+2
+        BSEL    : out std_logic;                                          -- ALU B input select - '0' for REGFile Channel B, '1' for CONST
+
             -- Inputs to Control Logic from other modules
         ALU_OUT : in std_logic_vector(15 downto 0);                       -- ALU output
         MWDATA  : in std_logic_vector(15 downto 0);                       -- memory write data - Register Channel B output
@@ -95,48 +105,44 @@ architecture rtl of CTRL_WSH_M is
     signal PC_reg      : std_logic_vector(15 downto 0) := (others => '0');   -- program counter
     signal PC_INC_calc : std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
     signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- memory read data
-    signal RBSEL_sig   : std_logic := '0';
+    
+    signal RBSEL_sig   : std_logic := '0';                                   -- Register Channel B Select - '0' for OPB, '1' for OPC
+    signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
+    signal WDSEL_sig   : std_logic_vector(1 downto 0) := (others => '0');    -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
+    signal OPA_sig     : std_logic_vector(2 downto 0) := (others => '0');    -- Register Operand A
+    signal OPB_sig     : std_logic_vector(2 downto 0) := (others => '0');    -- Register Operand B
+    signal OPC_sig     : std_logic_vector(2 downto 0) := (others => '0');    -- Register Operand C
 
-    -- internal signals for control logic
-    signal MASEL  : std_logic := '0';                                   -- Address select - '0' for PC, '1' for ALU Output
-    signal MWR    : std_logic := '0';                                   -- Memory Write - '1' for write, '0' for read
-    signal PC_JT  : std_logic := '0';                                   -- Program Counter Jump - '1' to jump to address in ALU output, otherwise increment by 2
+    signal ALUFN_sig   : std_logic_vector(4 downto 0) := (others => '0');    -- ALU Function select - opcode from instruction
+    signal ASEL_sig    : std_logic := '0';                                   -- ALU A input select - '0' for REGFile Channel A, '1' for PC+2
+    signal BSEL_sig    : std_logic := '0';                                   -- ALU B input select - '0' for REGFile Channel B, '1' for CONST
 
     -- state machine
     type fsm_main is (ST_FETCH_I, ST_FETCH_C, ST_EXECUTE, ST_EXECUTE_RW);
     signal st_main : fsm_main := ST_FETCH_I;
 
 begin
-    -- combinational logic for internal control signals
-    MASEL <= (INST_reg(9) AND INST_reg(7)) when st_main = ST_EXECUTE else '0';     -- high if execution requires memory read or write (LD, LDR or ST commands)
-    MWR   <= (INST_reg(9) AND RBSEL_sig) when st_main = ST_EXECUTE else '0';       -- Set write signal only during execute phase if instruction is a store (ST command)
-    PC_JT <= '1' when (INST_reg(9) = '1') AND                                   -- Program Counter Jump - jump to ALU output address for Branch Instructions
-                       ( (INST_reg(8 downto 6) = "000") OR                          -- unconditional JMP
-                         (INST_reg(8 downto 6) = "100" AND Z = '1') OR              -- BEQ command and Zero flag = 1
-                         (INST_reg(8 downto 6) = "101" AND Z = '0') )               -- BNE command and Zero flag = 0
-             else '0';
-
     -- Spikeputor control outputs, including control signals for ALU and Register File
-    PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);                  -- PC incremented by 2 for next instruction
-
     PC          <= PC_reg;                                                  -- program counter
     PC_INC      <= PC_INC_calc;                                             -- incremented program counter
     INST        <= INST_reg;                                                -- instruction fetched from memory
     CONST       <= CONST_reg;                                               -- constant fetched from memory
     MRDATA      <= MRDATA_reg;                                              -- memory read data
     RBSEL       <= RBSEL_sig;                                               -- Register Channel B Select - '0' for OPB, '1' for OPC
+    WERF        <= WERF_sig;                                                -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
+    WDSEL       <= WDSEL_sig;                                               -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
+    OPA         <= OPA_sig;                                                 -- Register Operand A
+    OPB         <= OPB_sig;                                                 -- Register Operand B
+    OPC         <= OPC_sig;                                                 -- Register Operand C
+    ALUFN       <= ALUFN_sig;                                               -- ALU Function select - opcode from instruction
+    ASEL        <= ASEL_sig;                                                -- ALU A input select - '0' for REGFile Channel A, '1' for PC+2
+    BSEL        <= BSEL_sig;                                                -- ALU B input select - '0' for REGFile Channel B
 
-    PHASE       <=  "00" when st_main = ST_FETCH_I else                     -- current phase of instruction cycle
+    PHASE       <=  "00" when st_main = ST_FETCH_I else                     -- current phase of instruction cycle for display purposes
                     "01" when st_main = ST_FETCH_C else
                     "10" when st_main = ST_EXECUTE else
                     "11" when st_main = ST_EXECUTE_RW else
                     "00";  -- should never occur, default to fetch instruction phase
-
-    RBSEL_sig <= '1' when INST_reg(8 downto 6) = "011" else '0';                -- select register Channel B output (OPB or OPC) - (Only OPC for ST instruction)
-    WERF  <= NOT RBSEL_sig when st_main = ST_EXECUTE else '0';                  -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
-    WDSEL <= "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10")      -- Register Write Data Select - use Memory Read Data as Register Input for LD and LDR instructions
-             else "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0')           -- use PC+2 as Register Input for Branch Instructions
-             else "01";                                                         -- use ALU Output as Register Input for all other instructions
 
     process(clk)
     begin
@@ -145,13 +151,32 @@ begin
                 -- reset state
                 st_main <= ST_FETCH_I;          -- start by fetching instruction
                 PC_reg <= RESET_VECTOR;         -- set PC to reset vector
+                PC_INC_calc <= std_logic_vector(unsigned(RESET_VECTOR) + 2);  -- incremented PC is reset vector + 2
+                INST_reg <= (others => '0');    -- clear instruction register
+                CONST_reg <= (others => '0');   -- clear constant register
+                MRDATA_reg <= (others => '0');  -- clear memory read data register
+                RBSEL_sig <= '0';               -- clear register select signal
+                WERF_sig <= '0';                -- clear write enable signal
+                WDSEL_sig <= (others => '0');   -- clear write data select signal
+                OPA_sig <= (others => '0');     -- clear register operand A
+                OPB_sig <= (others => '0');     -- clear register operand B
+                OPC_sig <= (others => '0');     -- clear register operand C
+                ALUFN_sig <= (others => '0');   -- clear ALU function select
+                ASEL_sig <= '0';                -- clear ALU A input select
+                BSEL_sig <= '0';                -- clear ALU B input select 
+
+                 -- clear wishbone signals
                 WBS_CYC_O <= '0';               -- clear wishbone handshake signals
                 WBS_STB_O <= '0';
                 WBS_WE_O <= '0';
                 WBS_ADDR_O <= RESET_VECTOR;     -- set address to reset vector
                 WBS_DATA_O <= (others => '0');  -- clear data output
             else
+                -- normal operation
                 WBS_DATA_O <= MWDATA;           -- data output is directly from Register File Channel B output when reset = '0'
+                WERF_sig <= '0';                -- clear write enable signal until we reach execute state
+                PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);   -- PC incremented by 2 for next instruction
+
                 case st_main is
                     when ST_FETCH_I =>
                         -- fetch instruction from memory at address PC
@@ -161,6 +186,28 @@ begin
                         WBS_WE_O <= '0';                -- read operation
                         if WBS_ACK_I = '1' then     -- wait for acknowledge from memory
                             INST_reg <= WBS_DATA_I;     -- latch instruction
+                            -- decode instruction to set control signals for ALU and Register File
+                            ALUFN_sig <= WBS_DATA_I(15 downto 11);
+                            ASEL_sig <= WBS_DATA_I(8) AND WBS_DATA_I(9);  -- ASEL = 1 for PC+2 (for memory and branching instructions), else 0 for RegFile Channel A
+                            BSEL_sig <= WBS_DATA_I(10);                   -- BSEL = 1 for CONST (for instructions that get a constant), else 0 for RegFile Channel B
+                            OPA_sig <= WBS_DATA_I(2 downto 0);            -- OPA is always bits 2-0
+                            OPB_sig <= WBS_DATA_I(8 downto 6);            -- OPB is always bits 8-6
+                            OPC_sig <= WBS_DATA_I(5 downto 3);            -- OPC is always bits 5-3
+                            
+                            if WBS_DATA_I(8 downto 6) = "011" then        -- if ST instruction, select OPC for RegFile Channel B output
+                                RBSEL_sig <= '1';
+                            else
+                                RBSEL_sig <= '0';
+                            end if;
+
+                            if (WBS_DATA_I(9) = '1' AND WBS_DATA_I(7 downto 6) = "10") then
+                                WDSEL_sig <= "10";                         -- use Memory Read Data as Register Input for LD and LDR instructions
+                            elsif (WBS_DATA_I(9) = '1' AND WBS_DATA_I(7) = '0') then
+                                WDSEL_sig <= "00";                         -- use PC+2 as Register Input for Branch Instructions
+                            else
+                                WDSEL_sig <= "01";                         -- use ALU Output as Register Input for all other instructions
+                            end if;
+
                             WBS_STB_O <= '0';           -- deassert strobe - end read phase
                             if WBS_DATA_I(10) = '1' then    -- instruction bit 10 indicates if there is a constant to fetch
                                 st_main <= ST_FETCH_C;          -- instruction has constant
@@ -188,20 +235,24 @@ begin
 
                     when ST_EXECUTE =>
                         -- execute instruction
-                        if MASEL = '1' then             -- get address from ALU output and read or write based on MWR signal
-                            WBS_ADDR_O <= ALU_OUT;          -- address is ALU output
-                            WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read/write
-                            if MWR = '1' then               -- write to memory when MWR is high, otherwise read
+                        WERF_sig <= NOT RBSEL_sig;                      -- set WERF flag on execute - write to register file if not a store (ST command)
+                        if (INST_reg(9) AND INST_reg(7) = '1') then     -- operation requires memory read or write (LD, LDR, or ST - formerly MASEL = 1)
+                            WBS_ADDR_O <= ALU_OUT;                          -- address is ALU output
+                            WBS_STB_O <= '1';                               -- strobe to indicate valid address and start memory read/write
+                            if (INST_reg(9) AND RBSEL_sig) = '1' then       -- write to memory on ST command (formerly MWR = 1), otherwise read
                                 WBS_WE_O <= '1';
                             else
                                 WBS_WE_O <= '0';
                             end if;
                             st_main <= ST_EXECUTE_RW;       -- wait in execute_rw state until ack received
                         else                            -- other instructions - do not need to read or write to memory
-                            if PC_JT = '0' then
-                                PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
+                            if ((WBS_DATA_I(9) = '1') AND                   -- check to see if the branch should be taken (formerly JT = 1)
+                                    ((WBS_DATA_I(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
+                                    (WBS_DATA_I(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
+                                    (WBS_DATA_I(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
+                                        PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
                             else
-                                PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
+                                        PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                             end if;
                             WBS_CYC_O <= '0';               -- end wishbone cycle
                             st_main <= ST_FETCH_I;          -- go back to fetch next instruction, no wishbone cycle needed
@@ -210,7 +261,7 @@ begin
                     when ST_EXECUTE_RW =>
                         -- wait state for memory read or write operation to complete
                         if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
-                            if MWR = '0' then
+                            if (INST_reg(9) AND RBSEL_sig) = '0' then   -- if not a store command (formerly MRW = 0), it is a memory read operation
                                 MRDATA_reg <= WBS_DATA_I;   -- latch memory read data for read operation
                             else 
                                 WBS_WE_O <= '0';            -- deassert write enable after write operation

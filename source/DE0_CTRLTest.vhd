@@ -93,6 +93,13 @@ architecture Structural of DE0_CTRLTest is
         WERF        => LEDG(9),
         RBSEL       => LEDG(8),
         WDSEL       => LEDG(7 downto 6),
+        OPA         => open,
+        OPB         => open,
+        OPC         => open,
+        ALUFN       => open,
+        ASEL        => open,
+        BSEL        => open <= 
+
         -- Inputs to Control Logic from other modules
         ALU_OUT     => GPIO0_D(31 downto 16),
         MWDATA      => GPIO0_D(15 downto 0),
