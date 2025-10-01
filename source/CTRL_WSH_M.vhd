@@ -237,8 +237,8 @@ begin
                         else                            -- other instructions - do not need to read or write to memory
                             if ((INST_reg(9) = '1') AND                   -- check to see if the branch should be taken (formerly JT = 1)
                                     ((INST_reg(8 downto 6) = "000") OR                        -- unconditional jump (JMP)
-                                    (INST_reg(8 downto 6) = "100" AND Z_sig = '1') OR         -- branch if equal to zero (BEQ)
-                                    (INST_reg(8 downto 6) = "101" AND Z_sig = '0'))) then     -- branch if not equal to zero (BNE)
+                                    (INST_reg(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
+                                    (INST_reg(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
                                         PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
                             else
                                         PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction

@@ -21,9 +21,9 @@ entity DE0_Spikeputor is
         HEX3_D : out std_logic_vector(6 downto 0);
         HEX3_DP : out std_logic;
         -- LED
-        LEDG : out std_logic_vector(9 downto 0)
+        LEDG : out std_logic_vector(9 downto 0);
         -- GPIO
-   --     GPIO1_D : out std_logic_vector(31 downto 0)
+        GPIO1_D : out std_logic_vector(31 downto 0)
     );
 end DE0_Spikeputor;
 
@@ -76,7 +76,7 @@ architecture Structural of DE0_Spikeputor is
     signal reg_a_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan A)
     signal reg_b_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan B)
     signal reg_w_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write
- --   signal reg_index  : integer range 1 to 7 := 1;                          -- to select which register to display
+    signal reg_index  : integer range 1 to 7 := 1;                          -- to select which register to display
     signal all_regs    : RARRAY := (others => (others => '0'));              -- to display all register contents
     signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input
     signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input
@@ -102,9 +102,9 @@ architecture Structural of DE0_Spikeputor is
         begin
             if rising_edge(CLOCK_50) then
                 if SW(0) = '1' then
-                    system_clk = CLOCK_50;
+                    system_clk <= NOT system_clk;
                 else
-                    system_clk = NOT Button(1);
+                    system_clk <= NOT Button(1);
                 end if;
             end if;
         end process;
@@ -248,50 +248,50 @@ architecture Structural of DE0_Spikeputor is
     HEX3_DP <= '1';
 
     -- LED
-    LEDG(9 downto 2) <= (others => '0');
+    LEDG(6 downto 2) <= (others => '0');
 
 -- display PC or PC_INC on 7-seg based on Button(2) - this will change to select other signals later
---    disp_out <= pc_out when Button(2) = '1' else pcinc_out;
+    disp_out <= pc_out when Button(2) = '1' else pcinc_out;
 
---    process(Button(2), reg_index) -- increment register index on each press of Button(2)
---    begin
---        if Button(2) = '0' then
---            if reg_index = 7 then
---                reg_index <= 1;
---            else
---                reg_index <= reg_index + 1;
---            end if;
---        end if;
---    end process;
+    process(Button(2), reg_index) -- increment register index on each press of Button(2)
+    begin
+        if Button(2) = '0' then
+            if reg_index = 7 then
+                reg_index <= 1;
+            else
+                reg_index <= reg_index + 1;
+            end if;
+        end if;
+    end process;
 
---    LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
+    LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
 
---
---    WITH (SW(9 downto 7)) SELECT
---        GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
---                                 const_out  WHEN "001",        -- CONST output
---                                 rega_out   WHEN "010",        -- RegFile Channel A
---                                 regb_out   WHEN "011",        -- RegFile Channel B
---                                 mrdata_out WHEN "100",        -- MRDATA output
---                                 reg_stat   WHEN "101",        -- RegFile control signals and Zero flag
---                                 wd_input   WHEN "110",        -- RegFile selected write data
---                                 all_regs(1) WHEN "111",   -- register at current index (1 to 7)
---                                 inst_out   WHEN others;       -- INST output (should never happen)
---
---    WITH (SW(4 downto 2)) SELECT
---        GPIO1_D(15 downto 0)  <= s_alu_out  WHEN "000",        -- ALU Output
---                                 alu_shift  WHEN "001",        -- ALU shift by 8 output
---                                 alu_arith  WHEN "010",        -- ALU arithmetic output
---                                 alu_bool   WHEN "011",        -- ALU boolean output
---                                 alu_cmpf   WHEN "100",        -- ALU compare flags
---                                 alu_a   WHEN "101",           -- ALU A input
---                                 alu_b   WHEN "110",           -- ALU B input
---                                 alu_ctrl WHEN "111",          -- ALU function control signals
---                                 s_alu_out  WHEN others;       -- ALU output (should never happen)
 
-    -- set up internal display signals
-    -- reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;   -- to display regfile controls/Z
-    -- alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                       -- to display ALU controls
+    WITH (SW(9 downto 7)) SELECT
+        GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
+                                 const_out  WHEN "001",        -- CONST output
+                                 rega_out   WHEN "010",        -- RegFile Channel A
+                                 regb_out   WHEN "011",        -- RegFile Channel B
+                                 mrdata_out WHEN "100",        -- MRDATA output
+                                 reg_stat   WHEN "101",        -- RegFile control signals and Zero flag
+                                 wd_input   WHEN "110",        -- RegFile selected write data
+                                 all_regs(reg_index) WHEN "111",   -- register at current index (1 to 7)
+                                 inst_out   WHEN others;       -- INST output (should never happen)
+
+    WITH (SW(4 downto 2)) SELECT
+        GPIO1_D(15 downto 0)  <= s_alu_out  WHEN "000",        -- ALU Output
+                                 alu_shift  WHEN "001",        -- ALU shift by 8 output
+                                 alu_arith  WHEN "010",        -- ALU arithmetic output
+                                 alu_bool   WHEN "011",        -- ALU boolean output
+                                 alu_cmpf   WHEN "100",        -- ALU compare flags
+                                 alu_a   WHEN "101",           -- ALU A input
+                                 alu_b   WHEN "110",           -- ALU B input
+                                 alu_ctrl WHEN "111",          -- ALU function control signals
+                                 s_alu_out  WHEN others;       -- ALU output (should never happen)
+
+ -- set up internal display signals
+ reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;   -- to display regfile controls/Z
+ alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                       -- to display ALU controls
 
 
 end Structural;

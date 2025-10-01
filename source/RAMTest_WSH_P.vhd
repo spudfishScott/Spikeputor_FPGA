@@ -31,6 +31,9 @@ architecture rtl of RAMTest_WSH_P is
     -- internal signals
     signal memory : MEMARRAY := (others => (others => '0'));
     signal memIndex : integer := 0;
+	 signal MEM_OUT : std_logic_vector(15 downto 0) := (others => '0');
+	 signal MEM_CE : std_logic := '0';
+	 signal MEM_WE : std_logic := '0';
 
 begin
     -- Initialize RAM contents on reset
@@ -56,15 +59,26 @@ begin
                 for i in 13 to 31 loop
                     memory(i) <= x"0000";
                 end loop;
-            elsif WBS_WE_I = '1' and WBS_CYC_I = '1' and WBS_STB_I = '1' then
-                memory(memIndex) <= WBS_DATA_I;
+					 
+					 MEM_OUT <= (others => '0');
+            else
+					if MEM_CE = '1' then
+						if MEM_WE = '1' then
+							memory(memIndex) <= WBS_DATA_I;
+						else
+							MEM_OUT <= memory(memIndex);           -- return array location based on address bits A5 to A1
+						end if;
+					end if;
             end if;
         end if;
     end process;
-    memIndex <= to_integer(unsigned(WBS_ADDR_I(5 downto 1)));   -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
-
+	 
+	memIndex <= to_integer(unsigned(WBS_ADDR_I(5 downto 1)));   -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
+					 -- internal control signals
+	MEM_CE <= (WBS_CYC_I AND WBS_STB_I);
+	MEM_WE <= WBS_WE_I;
+				
     -- output to wishbone interface
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;                     -- always acknowledge when CYC and STB are asserted
-
-    WBS_DATA_O  <= memory(memIndex);                            -- return array location based on address bits A5 to A1
+    WBS_DATA_O  <= MEM_OUT;                            
 end rtl;
