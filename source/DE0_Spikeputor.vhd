@@ -31,7 +31,7 @@ architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
     -- Clock selection signal
     signal system_clk : std_logic;
-    
+
     -- Clock selection attribute - to aid in synthesis
     attribute keep : string;
     attribute keep of system_clk : signal is "true";
@@ -101,7 +101,7 @@ architecture Structural of DE0_Spikeputor is
     signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
     
     begin
-	 -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
+    -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
     system_clk <= CLOCK_50 when SW(0) = '1' else NOT Button(1);
 
     -- display PC or PC_INC on 7-seg based on Button(2) - this will change to select other signals later
@@ -146,8 +146,7 @@ architecture Structural of DE0_Spikeputor is
     -- set up internal display signals
     reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;   -- to display regfile controls/Z
     alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                       -- to display ALU controls
-		
-		
+
     -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (
         -- SYSCON inputs
@@ -185,7 +184,7 @@ architecture Structural of DE0_Spikeputor is
         BSEL        => bsel_out,                -- BSEL output to ALU
         -- Inputs to Control Logic from other modules
         ALU_OUT     => s_alu_out,               -- ALU output to Control Logic
-        MWDATA      => rega_out,                 -- RegFile Channel A input to Control Logic for memory writing
+        MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing
         Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
         PHASE       => LEDG(1 downto 0)         -- PHASE output to LEDG(1:0) for display only

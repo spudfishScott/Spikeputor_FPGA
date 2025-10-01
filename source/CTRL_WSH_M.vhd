@@ -117,8 +117,8 @@ architecture rtl of CTRL_WSH_M is
     signal ASEL_sig    : std_logic := '0';                                   -- ALU A input select - '0' for REGFile Channel A, '1' for PC+2
     signal BSEL_sig    : std_logic := '0';                                   -- ALU B input select - '0' for REGFile Channel B, '1' for CONST
 
-	 signal alu_sig     : std_logic_vector(15 downto 0) := (others => '0');
-	 
+    signal alu_sig     : std_logic_vector(15 downto 0) := (others => '0');
+
     -- state machine
     type fsm_main is (ST_FETCH_I, ST_FETCH_C, ST_EXECUTE, ST_EXECUTE_RW);
     signal st_main : fsm_main := ST_FETCH_I;
@@ -154,6 +154,8 @@ begin
                 st_main <= ST_FETCH_I;          -- start by fetching instruction
                 PC_reg <= RESET_VECTOR;         -- set PC to reset vector
                 PC_INC_calc <= std_logic_vector(unsigned(RESET_VECTOR) + 2);  -- incremented PC is reset vector + 2
+
+                 -- clear outputs
                 INST_reg <= (others => '0');    -- clear instruction register
                 CONST_reg <= (others => '0');   -- clear constant register
                 MRDATA_reg <= (others => '0');  -- clear memory read data register
@@ -166,8 +168,8 @@ begin
                 ALUFN_sig <= (others => '0');   -- clear ALU function select
                 ASEL_sig <= '0';                -- clear ALU A input select
                 BSEL_sig <= '0';                -- clear ALU B input select 
-					 
-					 alu_sig <= (others => '0');
+
+                alu_sig <= (others => '0');
 
                  -- clear wishbone signals
                 WBS_CYC_O <= '0';               -- clear wishbone handshake signals
@@ -180,8 +182,9 @@ begin
                 WBS_DATA_O <= MWDATA;           -- data output is directly from Register File Channel B output when reset = '0'
                 WERF_sig <= '0';                -- clear write enable signal until we reach execute state
                 PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);   -- PC incremented by 2 for next instruction
-					 alu_sig <= alu_OUT;
-					 
+                
+                alu_sig <= ALU_OUT; -- required to latch ALU output to avoid timing issues
+
                 case st_main is
                     when ST_FETCH_I =>
                         -- fetch instruction from memory at address PC
