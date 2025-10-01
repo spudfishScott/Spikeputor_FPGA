@@ -217,7 +217,7 @@ architecture Structural of DE0_Spikeputor is
         CLK_EN      => '1',             -- always enabled for now
         IN0         => X"DEAD", --pcinc_out,       -- PC + 2
         IN1         => X"B0D1",--s_alu_out,       -- ALU output
-        IN2         => X"000C", --mrdata_out,      -- Memory Read Data
+        IN2         => X"000C", --mrdata_out,      -- Memory Read Data (change this number to X"000D" and fitter doesn't work! WTF!)
         WDSEL       => wdsel_out,       -- WDSEL from Control Logic
         OPA         => opa_out,         -- OPA from INST
         OPB         => opb_out,         -- OPB from INST

@@ -118,6 +118,8 @@ architecture rtl of CTRL_WSH_M is
     signal BSEL_sig    : std_logic := '0';                                   -- ALU B input select - '0' for REGFile Channel B, '1' for CONST
 
     signal alu_sig     : std_logic_vector(15 downto 0) := (others => '0');
+    signal Z_sig       : std_logic := '0';
+    signal MWDATA_sig  : std_logic_vector(15 downto 0) := (others => '0');
 
     -- state machine
     type fsm_main is (ST_FETCH_I, ST_FETCH_C, ST_EXECUTE, ST_EXECUTE_RW);
@@ -170,6 +172,8 @@ begin
                 BSEL_sig <= '0';                -- clear ALU B input select 
 
                 alu_sig <= (others => '0');
+                Z_sig <= '0';
+                MWDATA_sig <= '0';
 
                  -- clear wishbone signals
                 WBS_CYC_O <= '0';               -- clear wishbone handshake signals
@@ -179,11 +183,13 @@ begin
                 WBS_DATA_O <= (others => '0');  -- clear data output
             else
                 -- normal operation
-                WBS_DATA_O <= MWDATA;           -- data output is directly from Register File Channel B output when reset = '0'
+                WBS_DATA_O <= MWDATA_sig;       -- data output is directly from Register File Channel B output when reset = '0'
                 WERF_sig <= '0';                -- clear write enable signal until we reach execute state
                 PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);   -- PC incremented by 2 for next instruction
                 
                 alu_sig <= ALU_OUT; -- required to latch ALU output to avoid timing issues
+                Z_sig  <= Z;
+                MWDATA_sig <= MWDATA;
 
                 case st_main is
                     when ST_FETCH_I =>
@@ -256,8 +262,8 @@ begin
                         else                            -- other instructions - do not need to read or write to memory
                             if ((WBS_DATA_I(9) = '1') AND                   -- check to see if the branch should be taken (formerly JT = 1)
                                     ((WBS_DATA_I(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
-                                    (WBS_DATA_I(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
-                                    (WBS_DATA_I(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
+                                    (WBS_DATA_I(8 downto 6) = "100" AND Z_sig = '1') OR         -- branch if equal to zero (BEQ)
+                                    (WBS_DATA_I(8 downto 6) = "101" AND Z_sig = '0'))) then     -- branch if not equal to zero (BNE)
                                         PC_reg <= ALU_sig;          -- set PC to address in ALU output to jump
                             else
                                         PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
