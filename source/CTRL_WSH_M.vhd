@@ -66,7 +66,7 @@ entity CTRL_WSH_M is
 
         -- Spikeputor Signals
             -- Data outputs from Control Logic to other modules
-        INST    : out std_logic_vector(15 downto 0);                      -- instruction fetched from memory
+        INST    : out std_logic_vector(15 downto 0);                      -- instruction fetched from memory - for display only
         CONST   : out std_logic_vector(15 downto 0);                      -- constant fetched from memory
         PC      : out std_logic_vector(15 downto 0);                      -- program counter
         PC_INC  : out std_logic_vector(15 downto 0);                      -- incremented program counter
@@ -117,10 +117,6 @@ architecture rtl of CTRL_WSH_M is
     signal ASEL_sig    : std_logic := '0';                                   -- ALU A input select - '0' for REGFile Channel A, '1' for PC+2
     signal BSEL_sig    : std_logic := '0';                                   -- ALU B input select - '0' for REGFile Channel B, '1' for CONST
 
-    signal alu_sig     : std_logic_vector(15 downto 0) := (others => '0');
-    signal Z_sig       : std_logic := '0';
-    signal MWDATA_sig  : std_logic_vector(15 downto 0) := (others => '0');
-
     -- state machine
     type fsm_main is (ST_FETCH_I, ST_FETCH_C, ST_EXECUTE, ST_EXECUTE_RW);
     signal st_main : fsm_main := ST_FETCH_I;
@@ -148,6 +144,8 @@ begin
                     "11" when st_main = ST_EXECUTE_RW else
                     "00";  -- should never occur, default to fetch instruction phase
 
+    PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
+
     process(clk)
     begin
         if rising_edge(clk) then
@@ -155,25 +153,6 @@ begin
                 -- reset state
                 st_main <= ST_FETCH_I;          -- start by fetching instruction
                 PC_reg <= RESET_VECTOR;         -- set PC to reset vector
-                PC_INC_calc <= std_logic_vector(unsigned(RESET_VECTOR) + 2);  -- incremented PC is reset vector + 2
-
-                 -- clear outputs
-                INST_reg <= (others => '0');    -- clear instruction register
-                CONST_reg <= (others => '0');   -- clear constant register
-                MRDATA_reg <= (others => '0');  -- clear memory read data register
-                RBSEL_sig <= '0';               -- clear register select signal
-                WERF_sig <= '0';                -- clear write enable signal
-                WDSEL_sig <= (others => '0');   -- clear write data select signal
-                OPA_sig <= (others => '0');     -- clear register operand A
-                OPB_sig <= (others => '0');     -- clear register operand B
-                OPC_sig <= (others => '0');     -- clear register operand C
-                ALUFN_sig <= (others => '0');   -- clear ALU function select
-                ASEL_sig <= '0';                -- clear ALU A input select
-                BSEL_sig <= '0';                -- clear ALU B input select 
-
-                alu_sig <= (others => '0');
-                Z_sig <= '0';
-                MWDATA_sig <= '0';
 
                  -- clear wishbone signals
                 WBS_CYC_O <= '0';               -- clear wishbone handshake signals
@@ -183,13 +162,8 @@ begin
                 WBS_DATA_O <= (others => '0');  -- clear data output
             else
                 -- normal operation
-                WBS_DATA_O <= MWDATA_sig;       -- data output is directly from Register File Channel B output when reset = '0'
+                WBS_DATA_O <= MWDATA;           -- data output is directly from Register File Channel B output when reset = '0'
                 WERF_sig <= '0';                -- clear write enable signal until we reach execute state
-                PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);   -- PC incremented by 2 for next instruction
-                
-                alu_sig <= ALU_OUT; -- required to latch ALU output to avoid timing issues
-                Z_sig  <= Z;
-                MWDATA_sig <= MWDATA;
 
                 case st_main is
                     when ST_FETCH_I =>
@@ -212,14 +186,6 @@ begin
                                 RBSEL_sig <= '1';
                             else
                                 RBSEL_sig <= '0';
-                            end if;
-
-                            if (WBS_DATA_I(9) = '1' AND WBS_DATA_I(7 downto 6) = "10") then
-                                WDSEL_sig <= "10";                         -- use Memory Read Data as Register Input for LD and LDR instructions
-                            elsif (WBS_DATA_I(9) = '1' AND WBS_DATA_I(7) = '0') then
-                                WDSEL_sig <= "00";                         -- use PC+2 as Register Input for Branch Instructions
-                            else
-                                WDSEL_sig <= "01";                         -- use ALU Output as Register Input for all other instructions
                             end if;
 
                             WBS_STB_O <= '0';           -- deassert strobe - end read phase
@@ -250,8 +216,17 @@ begin
                     when ST_EXECUTE =>
                         -- execute instruction
                         WERF_sig <= NOT RBSEL_sig;                      -- set WERF flag on execute - write to register file if not a store (ST command)
+                                                                        -- set WDSEL
+                        if (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10") then
+                            WDSEL_sig <= "10";                         -- use Memory Read Data as Register Input for LD and LDR instructions
+                        elsif (INST_reg(9) = '1' AND INST_reg(7) = '0') then
+                            WDSEL_sig <= "00";                         -- use PC+2 as Register Input for Branch Instructions
+                        else
+                            WDSEL_sig <= "01";                         -- use ALU Output as Register Input for all other instructions
+                        end if;
+
                         if (INST_reg(9) AND INST_reg(7)) = '1' then     -- operation requires memory read or write (LD, LDR, or ST - formerly MASEL = 1)
-                            WBS_ADDR_O <= ALU_sig;                          -- address is ALU output
+                            WBS_ADDR_O <= ALU_OUT;                          -- address is ALU output
                             WBS_STB_O <= '1';                               -- strobe to indicate valid address and start memory read/write
                             if (INST_reg(9) AND RBSEL_sig) = '1' then       -- write to memory on ST command (formerly MWR = 1), otherwise read
                                 WBS_WE_O <= '1';
@@ -260,11 +235,11 @@ begin
                             end if;
                             st_main <= ST_EXECUTE_RW;       -- wait in execute_rw state until ack received
                         else                            -- other instructions - do not need to read or write to memory
-                            if ((WBS_DATA_I(9) = '1') AND                   -- check to see if the branch should be taken (formerly JT = 1)
-                                    ((WBS_DATA_I(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
-                                    (WBS_DATA_I(8 downto 6) = "100" AND Z_sig = '1') OR         -- branch if equal to zero (BEQ)
-                                    (WBS_DATA_I(8 downto 6) = "101" AND Z_sig = '0'))) then     -- branch if not equal to zero (BNE)
-                                        PC_reg <= ALU_sig;          -- set PC to address in ALU output to jump
+                            if ((INST_reg(9) = '1') AND                   -- check to see if the branch should be taken (formerly JT = 1)
+                                    ((INST_reg(8 downto 6) = "000") OR                        -- unconditional jump (JMP)
+                                    (INST_reg(8 downto 6) = "100" AND Z_sig = '1') OR         -- branch if equal to zero (BEQ)
+                                    (INST_reg(8 downto 6) = "101" AND Z_sig = '0'))) then     -- branch if not equal to zero (BNE)
+                                        PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
                             else
                                         PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                             end if;
