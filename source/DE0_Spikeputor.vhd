@@ -215,9 +215,9 @@ architecture Structural of DE0_Spikeputor is
         RESET       => NOT Button(0),   -- Button 0 is reset button
         CLK         => system_clk,      -- system clock
         CLK_EN      => '1',             -- always enabled for now
-        IN0         => X"F00D", --pcinc_out,       -- PC + 2
-        IN1         => X"DEAD",--s_alu_out,       -- ALU output
-        IN2         => X"B0D1", --mrdata_out,      -- Memory Read Data
+        IN0         => X"DEAD", --pcinc_out,       -- PC + 2
+        IN1         => X"B0D1",--s_alu_out,       -- ALU output
+        IN2         => X"000C", --mrdata_out,      -- Memory Read Data
         WDSEL       => wdsel_out,       -- WDSEL from Control Logic
         OPA         => opa_out,         -- OPA from INST
         OPB         => opb_out,         -- OPB from INST
