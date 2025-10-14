@@ -6,6 +6,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.Types.all;
 
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
+
 entity RAMTest_WSH_P is
     port (
         -- SYSCON inputs
@@ -73,7 +76,7 @@ begin
     -- end process;
 
     -- Altera Memory: 32 words x 16 bits per word, 1 port
-    testram_component: entity work.altsyncram generic map (
+    testram_component: altsyncram generic map (
         clock_enable_input_a    => "BYPASS",
         clock_enable_output_a => "BYPASS",
         intended_device_family => "Cyclone III",
@@ -94,7 +97,7 @@ begin
         clock0    => clk,
         wren_a    => MEM_WE,
         data_a    => WBS_DATA_I,
-        q_a       => q,
+        q_a       => q
   );
 
     -- address mapping
