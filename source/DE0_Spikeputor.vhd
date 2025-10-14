@@ -41,11 +41,11 @@ architecture Structural of DE0_Spikeputor is
     signal data_i : std_logic_vector(15 downto 0) := (others => '0');
     signal we     : std_logic := '0';
 
-    -- Special Registers
+    -- Special Registers                                                            -- number of LED group for dotstar module [bits]
     signal pcinc_out  : std_logic_vector(15 downto 0) := (others => '0');
-    signal inst_out   : std_logic_vector(15 downto 0) := (others => '0');
-    signal const_out  : std_logic_vector(15 downto 0) := (others => '0');
-    signal mrdata_out : std_logic_vector(15 downto 0) := (others => '0');
+    signal inst_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 1 [16]
+    signal const_out  : std_logic_vector(15 downto 0) := (others => '0');           -- 2 [16]
+    signal mrdata_out : std_logic_vector(15 downto 0) := (others => '0');           -- 3 [16]
 
     -- Register File control signals
     signal werf_out  : std_logic := '0';
@@ -56,9 +56,9 @@ architecture Structural of DE0_Spikeputor is
     signal opc_out   : std_logic_vector(2 downto 0) := (others => '0');
 
     -- Regsiter File outputs
-    signal rega_out  : std_logic_vector(15 downto 0) := (others => '0');
-    signal regb_out  : std_logic_vector(15 downto 0) := (others => '0');
-    signal azero_out : std_logic := '0';
+    signal rega_out  : std_logic_vector(15 downto 0) := (others => '0');            -- 13 [17]
+    signal regb_out  : std_logic_vector(15 downto 0) := (others => '0');            -- 14 [16]
+    signal azero_out : std_logic := '0';                                            -- 13
 
     -- ALU control signals
     signal alufn_out : std_logic_vector(4 downto 0) := (others => '0');
@@ -69,28 +69,31 @@ architecture Structural of DE0_Spikeputor is
     signal s_alu_out : std_logic_vector(15 downto 0) := (others => '0');
 
     -- Signals for display only
-    signal pc_out      : std_logic_vector(15 downto 0) := (others => '0');   -- to display current PC value
-    signal reg_stat    : std_logic_vector(15 downto 0) := (others => '0');   -- to display regfile controls/Zero flag
-    signal alu_ctrl    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU controls
-    signal wd_input    : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected write data input
-    signal reg_a_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan A)
-    signal reg_b_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan B)
-    signal reg_w_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write
     signal reg_index  : integer range 1 to 7 := 1;                          -- to select which register to display
-    signal all_regs    : RARRAY := (others => (others => '0'));              -- to display all register contents
-    signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input
-    signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input
-    signal alu_reva    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input reversed
-    signal alu_invb    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input inverted
-    signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift output
-    signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU arithmetic output
-    signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU boolean output
-    signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU compare flags - 4 bits: Z, V, N, CMP result
-    signal alu_shift8  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 8 output
-    signal alu_shift4  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 4 output
-    signal alu_shift2  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 2 output
-    signal alu_shift1  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 1 output
-    signal alu_fnleds  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU function control signals - 13 bits
+
+    signal pc_out      : std_logic_vector(15 downto 0) := (others => '0');   -- to display current PC value                     -- 4 [16]
+
+    signal reg_stat    : std_logic_vector(15 downto 0) := (others => '0');   -- to display regfile controls                     -- 5 [29]
+    signal wd_input    : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected write data input            -- 5
+    signal reg_a_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan A) -- 6-12 [19]
+    signal reg_b_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan B) -- 6-12
+    signal reg_w_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write   -- 6-12
+    signal all_regs    : RARRAY := (others => (others => '0'));              -- to display all register contents                -- 6-12
+
+    signal alu_ctrl    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU controls                         -- 15[20]
+    signal alu_fnleds  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU function control signals - 13 bits -- 15
+    signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input                          -- 16 [16]
+    signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input                          -- 17 [16]
+    signal alu_reva    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input reversed                 -- 18 [16]
+    signal alu_invb    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input inverted                 -- 19 [16]
+    signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU arithmetic output                -- 20 [16]
+    signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU boolean output                   -- 21 [16]
+    signal alu_shift8  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 8 output                -- 22 [16]
+    signal alu_shift4  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 4 output                -- 23 [16]
+    signal alu_shift2  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 2 output                -- 24 [16]
+    signal alu_shift1  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 1 output                -- 25 
+    signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift output                     -- 26 [16]
+    signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU compare flags - 4 bits: Z, V, N, CMP result -- 27 [4]
 
     -- signal to display on 7-seg display
     signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
@@ -153,7 +156,7 @@ architecture Structural of DE0_Spikeputor is
         );
 
         -- RAM Instance
-        RAM : entity work.RAM_WSH_P port map (
+        RAM : entity work.RAMTest_WSH_P port map ( -- synthesizes with RAM_WSH_P, so hopefully changed RAMTest will now work
             -- SYSCON inputs
             CLK         => system_clk,
             RST_I       => NOT Button(0), -- Button 0 is reset button
@@ -177,9 +180,9 @@ architecture Structural of DE0_Spikeputor is
             RESET       => NOT Button(0),   -- Button 0 is reset button
             CLK         => system_clk,      -- system clock
             CLK_EN      => '1',             -- always enabled for now
-            IN0         => pcinc_out,       -- PC + 2
-            IN1         => s_alu_out,       -- ALU output
-            IN2         => mrdata_out,      -- Memory Read Data
+            IN0         => pcinc_out,       -- Register Input: PC + 2
+            IN1         => s_alu_out,       -- Register Input: ALU output
+            IN2         => mrdata_out,      -- Register Input: Memory Read Data
             WDSEL       => wdsel_out,       -- WDSEL from Control Logic
             OPA         => opa_out,         -- OPA from INST
             OPB         => opb_out,         -- OPB from INST
@@ -250,12 +253,12 @@ architecture Structural of DE0_Spikeputor is
     -- LED
     LEDG(6 downto 2) <= (others => '0');
 
--- display PC or PC_INC on 7-seg based on Button(2) - this will change to select other signals later
+-- display PC or PC_INC on 7-seg based on Button(2)
     disp_out <= pc_out when Button(2) = '1' else pcinc_out;
 
-    process(Button(2), reg_index) -- increment register index on each press of Button(2)
+    process(Button(2)) -- increment register index on each press of Button(2) - should work if Buttons are already debounced
     begin
-        if Button(2) = '0' then
+        if falling_edge(Button(2)) then
             if reg_index = 7 then
                 reg_index <= 1;
             else
@@ -266,7 +269,7 @@ architecture Structural of DE0_Spikeputor is
 
     LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
 
-
+    -- output various values to GPIO1 based on switches 9-7 and 4-2
     WITH (SW(9 downto 7)) SELECT
         GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
                                  const_out  WHEN "001",        -- CONST output
@@ -290,8 +293,8 @@ architecture Structural of DE0_Spikeputor is
                                  s_alu_out  WHEN others;       -- ALU output (should never happen)
 
  -- set up internal display signals
- reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;   -- to display regfile controls/Z
- alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                       -- to display ALU controls
+ reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
+ alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                        -- to display ALU controls
 
 
 end Structural;

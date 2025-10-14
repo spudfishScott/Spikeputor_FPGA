@@ -11,8 +11,8 @@ entity dotstar_driver is
         -- INPUTS
         CLK        : in  std_logic;
         START      : in  std_logic;
-        DISPLAY    : in LEDARRAY;       -- array of 20 register values (up to 32 bits each)
-        LED_COUNTS : in LEDCOUNTARRAY;  -- array of 20 values indicating number of LEDs in each set (5 bits each)
+        DISPLAY    : in LEDARRAY;       -- array of 30 register values (up to 32 bits each)
+        LED_COUNTS : in LEDCOUNTARRAY;  -- array of 30 values indicating number of LEDs in each set (5 bits each)
 
          -- OUTPUTS
         DATA_OUT   : out std_logic;
