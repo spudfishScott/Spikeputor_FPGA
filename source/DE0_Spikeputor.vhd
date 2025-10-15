@@ -97,7 +97,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- signal to display on 7-seg display
     signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
-    
+    signal previous_button : std_logic := '1';
     begin
 
         -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
@@ -107,7 +107,11 @@ architecture Structural of DE0_Spikeputor is
                 if SW(0) = '1' then
                     system_clk <= NOT system_clk;
                 else
-                    system_clk <= NOT Button(1);
+					     system_clk <= '0';
+					     if previous_button = '1' and Button(1) = '0' then
+						      system_clk <= '1';
+						  end if;
+                    previous_button <= Button(1);
                 end if;
             end if;
         end process;
@@ -152,7 +156,7 @@ architecture Structural of DE0_Spikeputor is
             MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing
             Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
-            PHASE       => LEDG(1 downto 0)         -- PHASE output to LEDG(1:0) for display only
+            PHASE       => LEDG(4 downto 0)         -- PHASE output to LEDG(4:0) for display only
         );
 
         -- RAM Instance
@@ -251,7 +255,7 @@ architecture Structural of DE0_Spikeputor is
     HEX3_DP <= '1';
 
     -- LED
-    LEDG(6 downto 2) <= (others => '0');
+    LEDG(6 downto 5) <= (others => '0');
 
 -- display PC or PC_INC on 7-seg based on Button(2)
     disp_out <= pc_out when Button(2) = '1' else pcinc_out;

@@ -34,7 +34,7 @@ architecture rtl of RAMTest_WSH_P is
 
     -- internal signals
     -- signal memory : MEMARRAY := (others => (others => '0'));
-    signal addr : std_logic_vector(4 downto 0);
+    signal addr : std_logic_vector(4 downto 0) := (others => '0');
     signal q : std_logic_vector(15 downto 0) := (others => '0');
     signal MEM_WE : std_logic := '0';
     -- signal MEM_CE : std_logic := '0';
@@ -90,7 +90,6 @@ begin
         width_a                 => 16,
         widthad_a               => 5,         -- 2^5 = 32
         width_byteena_a => 1,
-        power_up_uninitialized => "FALSE",  -- maybe don't include??
         init_file               => "RAM32X16_TEST.MIF"
     ) port map (
         address_a => addr,
@@ -102,13 +101,18 @@ begin
 
     -- address mapping
     -- memIndex <= to_integer(unsigned(WBS_ADDR_I(5 downto 1)));   -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
-    addr <= WBS_ADDR_I(5 downto 1);                                -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
-
+    
     -- internal control signals
     -- MEM_CE <= (WBS_CYC_I AND WBS_STB_I);
     MEM_WE <= WBS_WE_I;
+	 WBS_DATA_O <= q;
+	 addr <= WBS_ADDR_I(5 downto 1);                 -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
 
     -- output to wishbone interface
-    WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;                     -- always acknowledge when CYC and STB are asserted
-    WBS_DATA_O  <= q;
+	 process(clk)
+	 begin
+	     if rising_edge(clk) then
+				WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
+		end if;
+	 end process;
 end rtl;

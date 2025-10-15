@@ -1,56 +1,38 @@
+-- Copyright (C) 1991-2013 Altera Corporation
+-- Your use of Altera Corporation's design tools, logic functions 
+-- and other software and tools, and its AMPP partner logic 
+-- functions, and any output files from any of the foregoing 
+-- (including device programming or simulation files), and any 
+-- associated documentation or information are expressly subject 
+-- to the terms and conditions of the Altera Program License 
+-- Subscription Agreement, Altera MegaCore Function License 
+-- Agreement, or other applicable license agreement, including, 
+-- without limitation, that your use is for the sole purpose of 
+-- programming logic devices manufactured by Altera and sold by 
+-- Altera or its authorized distributors.  Please refer to the 
+-- applicable agreement for further details.
+
+-- Quartus II generated Memory Initialization File (.mif)
+
 WIDTH=16;
 DEPTH=32;
 
 ADDRESS_RADIX=HEX;
 DATA_RADIX=HEX;
 
--- simple progress to read and write memory
---_ = 0x0000
---
---TESTMEM = 0x0020
---
---  CMOVE(0x1E, r1)
---
---loop: 
---  LDC(r1, TESTMEM, r2)
---  ADD(r1, r2, r2)
---  STC(r2, TESTMEM, r1)
---  SUBC(r1, 2, r1)
---  BNE(r1, loop)
---
---inf:  BEQ(z, inf)
-
 CONTENT BEGIN
-  00 : 4408;
-  01 : 001E;
-  02 : 4691;
-  03 : 0020;
-  04 : 4091;
-  05 : 46D1;
-  06 : 0020;
-  07 : 4C09;
-  08 : 0002;
-  09 : 4741;
-  0A : FFEE;
-  0B : 4700;
-  0C : FFFC;
-  0D : 0000;
-  0E : 0000;
-  0F : 0000;
-  10 : 0000;
-  11 : 0000;
-  12 : 0000;
-  13 : 0000;
-  14 : 0000;
-  15 : 0000;
-  16 : 0000;
-  17 : 0000;
-  18 : 0000;
-  19 : 0000;
-  1A : 0000;
-  1B : 0000;
-  1C : 0000;
-  1D : 0000;
-  1E : 0000;
-  1F : 0000;
+	00  :   4408;
+	01  :   001E;
+	02  :   4691;
+	03  :   0020;
+	04  :   4091;
+	05  :   46D1;
+	06  :   0020;
+	07  :   4C09;
+	08  :   0002;
+	09  :   4741;
+	0A  :   FFEE;
+	0B  :   4700;
+	0C  :   FFFC;
+	[0D..1F]  :   0000;
 END;
