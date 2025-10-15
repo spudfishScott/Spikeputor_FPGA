@@ -172,22 +172,23 @@ begin
                         WBS_CYC_O <= '1';               -- initiate wishbone cycle
                         WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                         WBS_WE_O <= '0';                -- read operation
-                        if WBS_ACK_I = '1' then     -- wait for acknowledge from memory
-                            INST_reg <= WBS_DATA_I;     -- latch instruction
-                            -- decode instruction to set control signals for ALU and Register File
-                            ALUFN_sig <= WBS_DATA_I(15 downto 11);
-                            ASEL_sig <= WBS_DATA_I(8) AND WBS_DATA_I(9);  -- ASEL = 1 for PC+2 (for memory and branching instructions), else 0 for RegFile Channel A
-                            BSEL_sig <= WBS_DATA_I(10);                   -- BSEL = 1 for CONST (for instructions that get a constant), else 0 for RegFile Channel B
-                            OPA_sig <= WBS_DATA_I(2 downto 0);            -- OPA is always bits 2-0
-                            OPB_sig <= WBS_DATA_I(8 downto 6);            -- OPB is always bits 8-6
-                            OPC_sig <= WBS_DATA_I(5 downto 3);            -- OPC is always bits 5-3
-                            
-                            if WBS_DATA_I(8 downto 6) = "011" then        -- if ST instruction, select OPC for RegFile Channel B output
-                                RBSEL_sig <= '1';
-                            else
-                                RBSEL_sig <= '0';
-                            end if;
 
+                        INST_reg <= WBS_DATA_I;         -- latch instruction
+                        -- decode instruction to set control signals for ALU and Register File
+                        ALUFN_sig <= WBS_DATA_I(15 downto 11);
+                        ASEL_sig <= WBS_DATA_I(8) AND WBS_DATA_I(9);  -- ASEL = 1 for PC+2 (for memory and branching instructions), else 0 for RegFile Channel A
+                        BSEL_sig <= WBS_DATA_I(10);                   -- BSEL = 1 for CONST (for instructions that get a constant), else 0 for RegFile Channel B
+                        OPA_sig <= WBS_DATA_I(2 downto 0);            -- OPA is always bits 2-0
+                        OPB_sig <= WBS_DATA_I(8 downto 6);            -- OPB is always bits 8-6
+                        OPC_sig <= WBS_DATA_I(5 downto 3);            -- OPC is always bits 5-3
+
+                        if WBS_DATA_I(8 downto 6) = "011" then        -- if ST instruction, select OPC for RegFile Channel B output
+                            RBSEL_sig <= '1';
+                        else
+                            RBSEL_sig <= '0';
+                        end if;
+
+                        if WBS_ACK_I = '1' then     -- wait for acknowledge from memory
                             WBS_STB_O <= '0';           -- deassert strobe - end read phase
                             if WBS_DATA_I(10) = '1' then    -- instruction bit 10 indicates if there is a constant to fetch
                                 st_main <= ST_FETCH_C;          -- instruction has constant
@@ -205,8 +206,9 @@ begin
                         WBS_ADDR_O <= PC_reg;           -- set address to PC
                         WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                         WBS_WE_O <= '0';                -- read operation
+
+                        CONST_reg <= WBS_DATA_I;        -- latch constant
                         if WBS_ACK_I = '1' then
-                            CONST_reg <= WBS_DATA_I;    -- latch constant
                             WBS_STB_O <= '0';           -- deassert strobe - end read phase
                             st_main <= ST_EXECUTE;      -- proceed to execute instruction
                         else
