@@ -73,7 +73,7 @@ BEGIN
         numwords_a => NUM_WORDS,
         operation_mode => "SINGLE_PORT",
         outdata_aclr_a => "NONE",
-        outdata_reg_a => "CLOCK0",
+        outdata_reg_a => "UNREGISTERED",
         power_up_uninitialized => "FALSE",
         read_during_write_mode_port_a => "NEW_DATA_NO_NBE_READ",
         widthad_a => ADDR_WIDTH,

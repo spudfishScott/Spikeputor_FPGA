@@ -23,7 +23,8 @@ entity REG_FILE is
     port (
         -- register file inputs
         RESET         : in std_logic;
-        CLK, CLK_EN   : in std_logic;
+        CLK           : in std_logic;
+--		  CLK_EN        : in std_logic;
         IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
         WDSEL         : in std_logic_vector(1 downto 0);
         OPA, OPB, OPC : in std_logic_vector(2 downto 0);
@@ -61,13 +62,6 @@ architecture RTL of REG_FILE is
     signal BREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
     signal WREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
     signal REGS_OUT : RARRAY := (others => (others => '0'));
-
-    -- required to insure that the inputs would not be optimized away (causing fitter to hang)
-    -- NOT NEEDED if Multi-corner hold-timer optimization is off in Quartus!
---    attribute keep : boolean;
---    attribute keep of IN0 : signal is true;
---    attribute keep of IN1 : signal is true;
---    attribute keep of IN2 : signal is true;
 
 begin   -- architecture begin
 
@@ -128,7 +122,7 @@ begin   -- architecture begin
     begin
         RX : entity work.REG_LE generic map(BIT_DEPTH) port map (  -- Registers
             RESET => RESET,
-               EN => CLK_EN,
+          --     EN => CLK_EN,
               CLK => CLK,
                LE => WREG_SEL(r),
                 D => REG_IN,

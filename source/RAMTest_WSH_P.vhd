@@ -75,7 +75,7 @@ begin
     --     end if;
     -- end process;
 
-    -- Altera Memory: 32 words x 16 bits per word, 1 port
+    -- Altera Memory: 32 words x 16 bits per word, 1 port, unregistered output, registered inputs
     testram_component: altsyncram generic map (
         clock_enable_input_a    => "BYPASS",
         clock_enable_output_a => "BYPASS",
@@ -85,7 +85,7 @@ begin
         numwords_a => 32,
         operation_mode => "SINGLE_PORT",
         outdata_aclr_a => "NONE",
-        outdata_reg_a           => "CLOCK0",
+        outdata_reg_a           => "UNREGISTERED",
         read_during_write_mode_port_a => "NEW_DATA_NO_NBE_READ",
         width_a                 => 16,
         widthad_a               => 5,         -- 2^5 = 32
@@ -109,10 +109,6 @@ begin
 	 addr <= WBS_ADDR_I(5 downto 1);                 -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
 
     -- output to wishbone interface
-	 process(clk)
-	 begin
-	     if rising_edge(clk) then
-				WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
-		end if;
-	 end process;
+		WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
+
 end rtl;

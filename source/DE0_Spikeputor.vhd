@@ -156,7 +156,7 @@ architecture Structural of DE0_Spikeputor is
             MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing
             Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
-            PHASE       => LEDG(4 downto 0)         -- PHASE output to LEDG(4:0) for display only
+            PHASE       => LEDG(1 downto 0)         -- PHASE output to LEDG(4:0) for display only
         );
 
         -- RAM Instance
@@ -183,7 +183,7 @@ architecture Structural of DE0_Spikeputor is
             -- register file inputs
             RESET       => NOT Button(0),   -- Button 0 is reset button
             CLK         => system_clk,      -- system clock
-            CLK_EN      => '1',             -- always enabled for now
+        --    CLK_EN      => '1',             -- always enabled for now
             IN0         => pcinc_out,       -- Register Input: PC + 2
             IN1         => s_alu_out,       -- Register Input: ALU output
             IN2         => mrdata_out,      -- Register Input: Memory Read Data
@@ -255,7 +255,7 @@ architecture Structural of DE0_Spikeputor is
     HEX3_DP <= '1';
 
     -- LED
-    LEDG(6 downto 5) <= (others => '0');
+    LEDG(6 downto 2) <= (others => '0');
 
 -- display PC or PC_INC on 7-seg based on Button(2)
     disp_out <= pc_out when Button(2) = '1' else pcinc_out;
@@ -276,7 +276,7 @@ architecture Structural of DE0_Spikeputor is
     -- output various values to GPIO1 based on switches 9-7 and 4-2
     WITH (SW(9 downto 7)) SELECT
         GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
-                                 const_out  WHEN "001",        -- CONST output
+                                 s_alu_out  WHEN "001",        -- CONST output
                                  rega_out   WHEN "010",        -- RegFile Channel A
                                  regb_out   WHEN "011",        -- RegFile Channel B
                                  mrdata_out WHEN "100",        -- MRDATA output
@@ -286,7 +286,7 @@ architecture Structural of DE0_Spikeputor is
                                  inst_out   WHEN others;       -- INST output (should never happen)
 
     WITH (SW(4 downto 2)) SELECT
-        GPIO1_D(15 downto 0)  <= s_alu_out  WHEN "000",        -- ALU Output
+        GPIO1_D(15 downto 0)  <= const_out  WHEN "000",        -- ALU Output
                                  alu_shift  WHEN "001",        -- ALU shift by 8 output
                                  alu_arith  WHEN "010",        -- ALU arithmetic output
                                  alu_bool   WHEN "011",        -- ALU boolean output

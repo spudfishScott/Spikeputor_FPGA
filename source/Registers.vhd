@@ -53,7 +53,8 @@ entity REG_LE is
     generic (width : positive := 8); -- width of register
 
     port (
-        RESET, EN, CLK, LE : in std_logic; -- reset, clock enable, clock, latch enable
+        RESET, CLK, LE : in std_logic; -- reset, clock, latch enable
+		 -- EN : in std_logic; -- clock enable
         D : in std_logic_vector(width-1 downto 0);	-- input
         Q : out std_logic_vector(width-1 downto 0)	-- output
     );
@@ -69,7 +70,8 @@ begin
             DATA <= (others => '0');	-- clear out registers on reset
         elsif (rising_edge(CLK)) then -- changes on rising edge of clock
 				DATA <= DATA;
-            if (EN = '1' and LE = '1') then
+     --       if (EN = '1' and LE = '1') then
+				if (LE = '1') then
                 DATA <= D;
             end if;
         end if;
