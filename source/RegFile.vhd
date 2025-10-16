@@ -3,7 +3,7 @@
 --     Asynchronous RESET to clear all registers
 --     Three Data Inputs 
 --     Three Register Controls (OPA, OPB, OPC) from the opcode 
---     Clock Enable, CLK, Input Select
+--     CLK, Input Select
 --     WERF (Write enable register flag) and RBSEL (Register Channel B Selector)
 -- Outputs:
 --     Two Data Outputs (Channel A and Channel B)
@@ -22,9 +22,7 @@ entity REG_FILE is
 
     port (
         -- register file inputs
-        RESET         : in std_logic;
         CLK           : in std_logic;
---		  CLK_EN        : in std_logic;
         IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
         WDSEL         : in std_logic_vector(1 downto 0);
         OPA, OPB, OPC : in std_logic_vector(2 downto 0);
@@ -121,8 +119,6 @@ begin   -- architecture begin
     REGISTERS: for r in 1 to 7 generate   -- generate the 7 registers
     begin
         RX : entity work.REG_LE generic map(BIT_DEPTH) port map (  -- Registers
-            RESET => RESET,
-          --     EN => CLK_EN,
               CLK => CLK,
                LE => WREG_SEL(r),
                 D => REG_IN,

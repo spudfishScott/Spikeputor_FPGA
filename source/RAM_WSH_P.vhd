@@ -12,7 +12,7 @@ entity RAM_WSH_P is
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
-        RST_I       : in std_logic;
+        -- RST_I       : in std_logic;
 
         -- Wishbone signals
         -- handshaking signals
@@ -85,7 +85,6 @@ begin
         );
 
     -- output to wishbone interface
-  --  WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;                     -- always acknowledge when CYC and STB are asserted
 
     WBS_DATA_O  <= wbs_data32K when WBS_ADDR_I(15) = '0' else               -- 32K block for addresses 0x0000-0x7FFF
                    wbs_data16K when WBS_ADDR_I(15 downto 14) = "10" else    -- 16K block for addresses 0x8000-0xBFFF
@@ -95,7 +94,7 @@ begin
     we_32K <= WBS_WE_I when WBS_ADDR_I(15) = '0' else '0';                  -- only write to 32K block when address is in range 0x0000-0x7FFF
     we_16K <= WBS_WE_I when WBS_ADDR_I(15 downto 14) = "10" else '0';       -- only write to 16K block when address is in range 0x8000-0xBFFF
     we_8K  <= WBS_WE_I when WBS_ADDR_I(15 downto 13) = "110" else '0';      -- only write to 8K block when address is in range 0xC000-0xDFFF
-	 
-	 WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
-	 
+
+    WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
+
 end rtl;

@@ -29,7 +29,7 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
-    -- Clock selection signal
+    -- Clock signal
     signal system_clk : std_logic;
 
     -- Memory interface signals
@@ -66,7 +66,7 @@ architecture Structural of DE0_Spikeputor is
     signal bsel_out  : std_logic := '0';
 
     -- ALU output
-    signal s_alu_out : std_logic_vector(15 downto 0) := (others => '0');
+    signal s_alu_out : std_logic_vector(15 downto 0) := (others => '0');            -- 15 [16]
 
     -- Signals for display only
     signal reg_index  : integer range 1 to 7 := 1;                          -- to select which register to display
@@ -80,24 +80,29 @@ architecture Structural of DE0_Spikeputor is
     signal reg_w_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write   -- 6-12
     signal all_regs    : RARRAY := (others => (others => '0'));              -- to display all register contents                -- 6-12
 
-    signal alu_ctrl    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU controls                         -- 15[20]
-    signal alu_fnleds  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU function control signals - 13 bits -- 15
-    signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input                          -- 16 [16]
-    signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input                          -- 17 [16]
-    signal alu_reva    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input reversed                 -- 18 [16]
-    signal alu_invb    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input inverted                 -- 19 [16]
-    signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU arithmetic output                -- 20 [16]
-    signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU boolean output                   -- 21 [16]
-    signal alu_shift8  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 8 output                -- 22 [16]
-    signal alu_shift4  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 4 output                -- 23 [16]
-    signal alu_shift2  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 2 output                -- 24 [16]
-    signal alu_shift1  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 1 output                -- 25 
-    signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift output                     -- 26 [16]
-    signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU compare flags - 4 bits: Z, V, N, CMP result -- 27 [4]
+    signal alu_ctrl    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU controls                         -- 16[20]
+    signal alu_fnleds  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU function control signals - 13 bits -- 16
+    signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input                          -- 17 [16]
+    signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input                          -- 18 [16]
+    signal alu_reva    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU A input reversed                 -- 19 [16]
+    signal alu_invb    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU B input inverted                 -- 20 [16]
+    signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU arithmetic output                -- 21 [16]
+    signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU boolean output                   -- 22 [16]
+    signal alu_shift8  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 8 output                -- 23 [16]
+    signal alu_shift4  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 4 output                -- 24 [16]
+    signal alu_shift2  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 2 output                -- 25 [16]
+    signal alu_shift1  : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift by 1 output                -- 26 
+    signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift output                     -- 27 [16]
+    signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU compare flags - 4 bits: Z, V, N, CMP result -- 28 [4]
 
     -- signal to display on 7-seg display
     signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
+
+    --signals for clock logic
+    signal clock_counter : integer := 0;
     signal previous_button : std_logic := '1';
+    constant HERTZ : integer := 1;
+    constant MAX_COUNT : integer := 50000000/HERTZ;
     begin
 
         -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
@@ -105,12 +110,18 @@ architecture Structural of DE0_Spikeputor is
         begin
             if rising_edge(CLOCK_50) then
                 if SW(0) = '1' then
-                    system_clk <= NOT system_clk;
+                    if clock_counter = MAX_COUNT then  -- 1 Hz clock from 50 MHz input
+                        clock_counter <= 0;
+                        system_clk <= '1';
+                    else
+                        clock_counter <= clock_counter + 1;
+                        system_clk <= '0';
+                    end if;
                 else
-					     system_clk <= '0';
-					     if previous_button = '1' and Button(1) = '0' then
-						      system_clk <= '1';
-						  end if;
+                    system_clk <= '0';
+                    if previous_button = '1' and Button(1) = '0' then
+                        system_clk <= '1';
+                    end if;
                     previous_button <= Button(1);
                 end if;
             end if;
@@ -156,14 +167,14 @@ architecture Structural of DE0_Spikeputor is
             MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing
             Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
-            PHASE       => LEDG(1 downto 0)         -- PHASE output to LEDG(4:0) for display only
+            PHASE       => LEDG(1 downto 0)         -- PHASE output to LEDG(1:0) for display only
         );
 
         -- RAM Instance
         RAM : entity work.RAMTest_WSH_P port map ( -- synthesizes with RAM_WSH_P, so hopefully changed RAMTest will now work
             -- SYSCON inputs
             CLK         => system_clk,
-            RST_I       => NOT Button(0), -- Button 0 is reset button
+            -- RST_I       => NOT Button(0), -- Button 0 is reset button
 
             -- Wishbone signals
             -- handshaking signals
@@ -181,9 +192,7 @@ architecture Structural of DE0_Spikeputor is
         -- RegFile Instance
         REGFILE : entity work.REG_FILE port map (
             -- register file inputs
-            RESET       => NOT Button(0),   -- Button 0 is reset button
             CLK         => system_clk,      -- system clock
-        --    CLK_EN      => '1',             -- always enabled for now
             IN0         => pcinc_out,       -- Register Input: PC + 2
             IN1         => s_alu_out,       -- Register Input: ALU output
             IN2         => mrdata_out,      -- Register Input: Memory Read Data
@@ -255,9 +264,12 @@ architecture Structural of DE0_Spikeputor is
     HEX3_DP <= '1';
 
     -- LED
-    LEDG(6 downto 2) <= (others => '0');
+    LEDG(6 downto 5) <= (others => '0');
+    LEDG(3 downto 2) <= (others => '0');
 
--- display PC or PC_INC on 7-seg based on Button(2)
+    LEDG(4) <= system_clk;  -- LED4 is system clock indicator
+
+    -- display PC or PC_INC on 7-seg based on Button(2)
     disp_out <= pc_out when Button(2) = '1' else pcinc_out;
 
     process(Button(2)) -- increment register index on each press of Button(2) - should work if Buttons are already debounced
@@ -294,7 +306,7 @@ architecture Structural of DE0_Spikeputor is
                                  alu_a   WHEN "101",           -- ALU A input
                                  alu_b   WHEN "110",           -- ALU B input
                                  alu_ctrl WHEN "111",          -- ALU function control signals
-                                 s_alu_out  WHEN others;       -- ALU output (should never happen)
+                                 const_out  WHEN others;       -- ALU output (should never happen)
 
  -- set up internal display signals
  reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z

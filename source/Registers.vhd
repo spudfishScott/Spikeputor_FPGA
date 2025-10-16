@@ -43,8 +43,8 @@ begin
 end Behavior;
 
 --------------------------------------------------------------------------------------------------------------
--- This is an edge-triggered D-REG that requires both a Latch Enable Signal and a Clock Enable 
--- signal to change its contents. RESET is an asynchronus signal to clear the register data.
+-- This is an edge-triggered D-REG that requires a Latch Enable Signal to write data to the register
+-- signal to change its contents.
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -53,8 +53,7 @@ entity REG_LE is
     generic (width : positive := 8); -- width of register
 
     port (
-        RESET, CLK, LE : in std_logic; -- reset, clock, latch enable
-		 -- EN : in std_logic; -- clock enable
+        CLK, LE : in std_logic; -- clock, latch enable
         D : in std_logic_vector(width-1 downto 0);	-- input
         Q : out std_logic_vector(width-1 downto 0)	-- output
     );
@@ -64,14 +63,11 @@ architecture Behavior of REG_LE is
     signal DATA : std_logic_vector(width-1 downto 0) := (others => '0'); -- the internal data memory
 begin
 
-    P_REG_LE : process(CLK, RESET) is
+    P_REG_LE : process(CLK) is
     begin
-        if (RESET = '1') then
-            DATA <= (others => '0');	-- clear out registers on reset
-        elsif (rising_edge(CLK)) then -- changes on rising edge of clock
-				DATA <= DATA;
-     --       if (EN = '1' and LE = '1') then
-				if (LE = '1') then
+        if (rising_edge(CLK)) then -- changes on rising edge of clock
+            DATA <= DATA;
+            if (LE = '1') then
                 DATA <= D;
             end if;
         end if;

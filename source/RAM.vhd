@@ -58,7 +58,7 @@ ENTITY RAM IS
 END RAM;
 
 ARCHITECTURE SYN OF RAM IS
-    SIGNAL sub_wire0    : STD_LOGIC_VECTOR (15 DOWNTO 0);                   -- output is latched
+    -- SIGNAL sub_wire0    : STD_LOGIC_VECTOR (15 DOWNTO 0);
 
 BEGIN
     q    <= sub_wire0(15 DOWNTO 0);
@@ -73,7 +73,7 @@ BEGIN
         numwords_a => NUM_WORDS,
         operation_mode => "SINGLE_PORT",
         outdata_aclr_a => "NONE",
-        outdata_reg_a => "UNREGISTERED",
+        outdata_reg_a => "UNREGISTERED",            -- unregistered output - available as soon as address/data is latched in
         power_up_uninitialized => "FALSE",
         read_during_write_mode_port_a => "NEW_DATA_NO_NBE_READ",
         widthad_a => ADDR_WIDTH,
@@ -85,7 +85,7 @@ BEGIN
         clock0 => clock,
         data_a => data,
         wren_a => wren,
-        q_a => sub_wire0
+        q_a => q -- can we just do this? without sub_wire0
     );
 
 END SYN;

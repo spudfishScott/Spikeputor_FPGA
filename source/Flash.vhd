@@ -214,7 +214,7 @@ begin
                         t_EX <= t_EX + 1;
                     end if;
 
-                    -- Execute each writes for the "program" sequence (4 for write, 6 for erases), then wait
+                    -- Execute each write for the "program" sequence (4 for write, 6 for erases), then wait
                     if (st_programming /= PR_WAIT) then  -- if state is not waiting, do standard write timing sequence
                         if (t_EX = 0) then                      -- immediately put command address and data on, and set CE
                             write_enable            <= '0';
