@@ -61,7 +61,7 @@ ARCHITECTURE SYN OF RAM IS
     -- SIGNAL sub_wire0    : STD_LOGIC_VECTOR (15 DOWNTO 0);
 
 BEGIN
-    q    <= sub_wire0(15 DOWNTO 0);
+    -- q    <= sub_wire0(15 DOWNTO 0);
 
     altsyncram_component : altsyncram
     GENERIC MAP (
