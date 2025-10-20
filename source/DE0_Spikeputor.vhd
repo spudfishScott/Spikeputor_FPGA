@@ -29,8 +29,6 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
-    -- Clock signal
-    signal system_clk : std_logic;
 
     -- Memory interface signals
     signal cyc    : std_logic := '0';
@@ -99,38 +97,41 @@ architecture Structural of DE0_Spikeputor is
     signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
 
     --signals for clock logic
-    signal clock_counter : integer := 0;
-    signal previous_button : std_logic := '1';
+    signal previous_button1 : std_logic := '1';
+	 signal clock_counter : integer := 0;
+		  
     constant HERTZ : integer := 1;
     constant MAX_COUNT : integer := 50000000/HERTZ;
-    begin
+    signal system_clk_en : std_logic := '0';
 
+    begin
         -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
-        process(CLOCK_50) is
+        clock : process(CLOCK_50) is
         begin
             if rising_edge(CLOCK_50) then
                 if SW(0) = '1' then
                     if clock_counter = MAX_COUNT then  -- 1 Hz clock from 50 MHz input
                         clock_counter <= 0;
-                        system_clk <= '1';
+                        system_clk_en <= NOT system_clk_en; --'1'; making this '1' causes the fitter to fail!
                     else
                         clock_counter <= clock_counter + 1;
-                        system_clk <= '0';
+                        system_clk_en <= '0';
                     end if;
                 else
-                    system_clk <= '0';
-                    if previous_button = '1' and Button(1) = '0' then
-                        system_clk <= '1';
-                    end if;
-                    previous_button <= Button(1);
+                    if previous_button1 = '1' and Button(1) = '0' then
+                        system_clk_en <= '1';
+                    else
+						      system_clk_en <= '0';
+						  end if;
+						  previous_button1 <= Button(1);
                 end if;
             end if;
-        end process;
-
+        end process clock;
+						 
         -- Control Logic Instance
         CTRL : entity work.CTRL_WSH_M port map (
             -- SYSCON inputs
-            CLK         => system_clk,
+            CLK         => system_clk_en, --CLOCK_50,
             RST_I       => NOT Button(0), -- Button 0 is reset button
 
             -- Wishbone signals for memory interface
@@ -173,8 +174,7 @@ architecture Structural of DE0_Spikeputor is
         -- RAM Instance
         RAM : entity work.RAMTest_WSH_P port map ( -- synthesizes with RAM_WSH_P, so hopefully changed RAMTest will now work
             -- SYSCON inputs
-            CLK         => system_clk,
-            -- RST_I       => NOT Button(0), -- Button 0 is reset button
+            CLK         => system_clk_en, --CLOCK_50,
 
             -- Wishbone signals
             -- handshaking signals
@@ -186,13 +186,15 @@ architecture Structural of DE0_Spikeputor is
             WBS_ADDR_I  => addr,
             WBS_DATA_O  => data_i,
             WBS_DATA_I  => data_o,
-            WBS_WE_I    => we       
+            WBS_WE_I    => we     
         );
 
         -- RegFile Instance
         REGFILE : entity work.REG_FILE port map (
             -- register file inputs
-            CLK         => system_clk,      -- system clock
+				RESET       => NOT Button(0),
+            CLK         => system_clk_en, --CLOCK_50,      -- system clock
+				EN          => '1',
             IN0         => pcinc_out,       -- Register Input: PC + 2
             IN1         => s_alu_out,       -- Register Input: ALU output
             IN2         => mrdata_out,      -- Register Input: Memory Read Data
@@ -264,10 +266,10 @@ architecture Structural of DE0_Spikeputor is
     HEX3_DP <= '1';
 
     -- LED
-    LEDG(6 downto 5) <= (others => '0');
-    LEDG(3 downto 2) <= (others => '0');
-
-    LEDG(4) <= system_clk;  -- LED4 is system clock indicator
+    LEDG(6 downto 2) <= (others => '0');
+--    LEDG(3 downto 2) <= (others => '0');
+--
+--    LEDG(4) <= system_clk_en;  -- LED4 is system clock indicator
 
     -- display PC or PC_INC on 7-seg based on Button(2)
     disp_out <= pc_out when Button(2) = '1' else pcinc_out;
