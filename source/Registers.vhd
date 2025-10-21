@@ -67,7 +67,7 @@ begin
     P_REG_LE : process(CLK) is
     begin
         if (rising_edge(CLK)) then -- changes on rising edge of clock
-		      if (LE = '1') then
+            if (LE = '1') then
                 DATA <= D;
             end if;
         end if;

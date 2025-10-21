@@ -120,3 +120,56 @@ begin
     PULSE_OUT <= '1' when ((COUNTER < PULSE_WIDTH) and START_PULSE = '1') else '0';
 
 end Behavior;
+
+------------------------------------------------------------------------------------------------------------------
+-- This is an auto/manual clock generator 
+-- In manual mode, a clock pulse is generated on each rising edge of the CLK_IN input, syncronized with system_clk
+-- in automatic mode, a clock pulse of specified frequency is generated from the system clock
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity AUTO_MANUAL_CLOCK is
+    generic (
+        AUTO_FREQ : Integer := 1            -- Frequency in Hz for automatic clock mode
+        SYS_FREQ  : Integer := 50000000     -- System clock frequency in Hz
+    );
+    port (
+        SYS_CLK     : in std_logic;  -- 50 MHz system clock input
+        MAN_SEL     : in std_logic;  -- signal to select between auto or manual clock
+        MAN_START   : in std_logic;  -- manual clock start signal (from button)
+        CLK_EN      : out std_logic  -- output clock enable signal
+    );
+end AUTO_MANUAL_CLOCK;
+
+architecture RTL of AUTO_MANUAL_CLOCK is
+ --signals for clock logic
+    signal previous_man : std_logic := '1';
+    signal clock_counter : integer := 0;
+
+    constant MAX_COUNT : integer := SYS_FREQ/AUTO_FREQ;
+
+    begin
+        -- Select between automatic and manual clock based on SW(0) - manual clock is KEY(1)
+        clock : process(SYS_CLK) is
+        begin
+            if rising_edge(SYS_CLK) then
+                if MAN_SEL = '0' then
+                    if clock_counter = MAX_COUNT then  -- AUTO_FREQ Hz clock from SYS_FREQ Hz input
+                        clock_counter <= 0;
+                        CLK_EN <= '1';  -- generate clock enable pulse when counter reaches max
+                    else
+                        clock_counter <= clock_counter + 1;
+                        CLK_EN <= '0';
+                    end if;
+                else
+                    if previous_man = '0' and MAN_START = '1' then -- rising edge of manual start signal
+                        CLK_EN <= '1';
+                    else
+                        CLK_EN <= '0';
+                    end if;
+                        previous_man <= MAN_START;
+                end if;
+            end if;
+        end process clock;
+end RTL;

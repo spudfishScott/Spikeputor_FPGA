@@ -105,11 +105,6 @@ begin
     addr <= WBS_ADDR_I(5 downto 1);                 -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
 
     -- output to wishbone interface
---	 process(clk)
---	 begin
---	     if rising_edge(clk) then
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
---        end if;
---	 end process;
 	 
 end rtl;

@@ -26,6 +26,7 @@ architecture Structural of DE0Nano_Spikeputor is
     signal cyc    : std_logic := '0';
     signal stb    : std_logic := '0';
     signal ack    : std_logic := '0';
+    signal arb_ack : std_logic := '0';
     signal addr   : std_logic_vector(15 downto 0) := (others => '0');
     signal data_o : std_logic_vector(15 downto 0) := (others => '0');
     signal data_i : std_logic_vector(15 downto 0) := (others => '0');
@@ -85,40 +86,48 @@ architecture Structural of DE0Nano_Spikeputor is
     signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU shift output                     -- 27 [16]
     signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');   -- to display ALU compare flags - 4 bits: Z, V, N, CMP result -- 28 [4]
 
-    -- signal to display on 7-seg display
-    signal disp_out  : std_logic_vector(15 downto 0) := (others => '0');
-
     --signals for clock logic
-    signal previous_button1 : std_logic := '1';
-    signal clock_counter : integer := 0;
-    constant HERTZ : integer := 5;
-    constant MAX_COUNT : integer := 50000000/HERTZ;
     signal system_clk_en : std_logic := '0';
 
     begin
-        -- Select between automatic and manual clock based on SW(0) - manual clock is KEY(1)
-        -- TODO: Change all module logic from direct clock generation to clock enable generation - better design practice
-        clock : process(CLOCK_50) is
-        begin
-            if rising_edge(CLOCK_50) then
-                if DIP(0) = '1' then
-                    if clock_counter = MAX_COUNT then  -- 1 Hz clock from 50 MHz input
-                        clock_counter <= 0;
-                        system_clk_en <= NOT system_clk_en; --'1'; making this '1' causes the fitter to fail!
-                    else
-                        clock_counter <= clock_counter + 1;
-                        system_clk_en <= '0';
-                    end if;
-                else
-                    if previous_button1 = '1' and KEY(1) = '0' then
-                        system_clk_en <= '1';
-                    else
-                        system_clk_en <= '0';
-                    end if;
-                        previous_button1 <= KEY(1);
-                end if;
-            end if;
-        end process clock;
+        -- -- Select between automatic and manual clock based on SW(0) - manual clock is KEY(1)
+        -- clock : process(CLOCK_50) is
+        -- begin
+        --     if rising_edge(CLOCK_50) then
+        --         if DIP(0) = '1' then
+        --             if clock_counter = MAX_COUNT then  -- 1 Hz clock from 50 MHz input
+        --                 clock_counter <= 0;
+        --                 system_clk_en <= NOT system_clk_en; --'1'; making this '1' causes the fitter to fail!
+        --             else
+        --                 clock_counter <= clock_counter + 1;
+        --                 system_clk_en <= '0';
+        --             end if;
+        --         else
+        --             if previous_button1 = '1' and KEY(1) = '0' then
+        --                 system_clk_en <= '1';
+        --             else
+        --                 system_clk_en <= '0';
+        --             end if;
+        --                 previous_button1 <= KEY(1);
+        --         end if;
+        --     end if;
+        -- end process clock;
+
+        arb_ack <= ack AND system_clk_en;             -- pass ack through to CPU only when clock enable is high (cpu will stall until then)
+
+        -- Auto/Manual Clock Instance - generates system clock enable signal 5 Hz automatically or on button press in manual mode
+        CLK_EN_GEN : entity work.AUTO_MANUAL_CLOCK
+            generic map (
+                AUTO_FREQ => 5,
+                SYS_FREQ  => 50000000
+            )
+
+            port map (
+                SYS_CLK   => CLOCK_50,
+                MAN_SEL   => DIP(0),
+                MAN_START => NOT KEY(1),
+                CLK_EN    => system_clk_en
+            );
 
         -- Control Logic Instance
         CTRL : entity work.CTRL_WSH_M port map (
@@ -130,7 +139,7 @@ architecture Structural of DE0Nano_Spikeputor is
             -- handshaking signals
             WBS_CYC_O   => cyc,
             WBS_STB_O   => stb,
-            WBS_ACK_I   => ack,
+            WBS_ACK_I   => arb_ack,     -- acknowledge signal goes through the arbiter
 
             -- memory read/write signals
             WBS_ADDR_O  => addr,
@@ -242,9 +251,8 @@ architecture Structural of DE0Nano_Spikeputor is
     -- Set default output states
 
     -- LED
-    LED(7 downto 2) <= (others => '0');
---
---    LEDG(7) <= system_clk_en;  -- LED4 is system clock indicator
+    LED(6 downto 2) <= (others => '0');
+    LEDG(7) <= system_clk_en;  -- LED7 is cpu clock indicator
 
     reg_index <= to_integer(unsigned(DIP(3 downto 1)));  -- select register index from DIP switches 3-1
 
