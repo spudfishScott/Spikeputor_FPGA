@@ -19,8 +19,8 @@ entity ARITH is
            SUB  : in std_logic;
 
          M_OUT  : out std_logic_vector(15 downto 0);
-          COUT  : out std_logic;
-         INV_B  : out std_logic_vector(15 downto 0)
+          COUT  : out std_logic--;
+        --  INV_B  : out std_logic_vector(15 downto 0)
     );
 end ARITH;
 
@@ -33,8 +33,8 @@ begin
 
     M_OUT   <= SUM(15 downto 0);
     COUT    <= SUM(16);
-    INV_B   <= B when SUB = '0'
-                 else B XOR X"FFFF";
+    -- INV_B   <= B when SUB = '0'
+    --              else B XOR X"FFFF";
 
     BX      <= B when SUB = '0' 
                  else std_logic_vector(unsigned(NOT B) + 1);
@@ -97,12 +97,12 @@ entity SHIFT is
            EXT  : in std_logic;
            DIR  : in std_logic;
 
-         M_OUT  : out std_logic_vector(15 downto 0);
-           S_8  : out std_logic_vector(15 downto 0);
-           S_4  : out std_logic_vector(15 downto 0);
-           S_2  : out std_logic_vector(15 downto 0);
-           S_1  : out std_logic_vector(15 downto 0);
-         REV_A  : out std_logic_vector(15 downto 0)
+         M_OUT  : out std_logic_vector(15 downto 0)--;
+        --    S_8  : out std_logic_vector(15 downto 0);
+        --    S_4  : out std_logic_vector(15 downto 0);
+        --    S_2  : out std_logic_vector(15 downto 0);
+        --    S_1  : out std_logic_vector(15 downto 0);
+        --  REV_A  : out std_logic_vector(15 downto 0)
     );
 end SHIFT;
 
@@ -146,11 +146,11 @@ begin
         Q => S1_REV
     );
 
-    S_8 <= S8;
-    S_4 <= S4;
-    S_2 <= S2;
-    S_1 <= S1;
-    REV_A <= AX;
+    -- S_8 <= S8;
+    -- S_4 <= S4;
+    -- S_2 <= S2;
+    -- S_1 <= S1;
+    -- REV_A <= AX;
 
     M_OUT <= S1 when DIR = '0'
                 else S1_REV;

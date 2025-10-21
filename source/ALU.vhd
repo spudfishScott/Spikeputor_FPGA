@@ -29,15 +29,15 @@ entity ALU is
         -- LED ouputs
         A       : out std_logic_vector(15 downto 0);
         B       : out std_logic_vector(15 downto 0);
-        REV_A   : out std_logic_vector(15 downto 0);
-        INV_B   : out std_logic_vector(15 downto 0);
+        -- REV_A   : out std_logic_vector(15 downto 0);
+        -- INV_B   : out std_logic_vector(15 downto 0);
         SHIFT   : out std_logic_vector(15 downto 0);
         ARITH   : out std_logic_vector(15 downto 0);
         BOOL    : out std_logic_vector(15 downto 0);
-        SHIFT8  : out std_logic_vector(15 downto 0);
-        SHIFT4  : out std_logic_vector(15 downto 0);
-        SHIFT2  : out std_logic_vector(15 downto 0);
-        SHIFT1  : out std_logic_vector(15 downto 0);
+        -- SHIFT8  : out std_logic_vector(15 downto 0);
+        -- SHIFT4  : out std_logic_vector(15 downto 0);
+        -- SHIFT2  : out std_logic_vector(15 downto 0);
+        -- SHIFT1  : out std_logic_vector(15 downto 0);
         CMP_FLAGS   : out std_logic_vector(3 downto 0);
         ALU_FN_LEDS : out std_logic_vector(12 downto 0)
     );
@@ -117,8 +117,8 @@ begin
              B => B_IN,
            SUB => SUB,
          M_OUT => S_ARITH,
-          COUT => ADD_COUT,
-         INV_B => INV_B
+          COUT => ADD_COUT--,
+        --  INV_B => INV_B
     );
 
     -- Boolean Math
@@ -135,12 +135,12 @@ begin
              B => B_IN(3 downto 0),
            EXT => SHFT_EXT,
            DIR => SHFT_DIR,
-         M_OUT => S_SHIFT,
-           S_8 => SHIFT8,
-           S_4 => SHIFT4,
-           S_2 => SHIFT2,
-           S_1 => SHIFT1,
-         REV_A => REV_A
+         M_OUT => S_SHIFT--,
+        --    S_8 => SHIFT8,
+        --    S_4 => SHIFT4,
+        --    S_2 => SHIFT2,
+        --    S_1 => SHIFT1,
+        --  REV_A => REV_A
     );
 
     -- Compares
