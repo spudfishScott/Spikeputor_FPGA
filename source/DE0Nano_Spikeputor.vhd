@@ -90,45 +90,36 @@ architecture Structural of DE0Nano_Spikeputor is
     signal system_clk_en : std_logic := '0';
     
     -- Input synchronizer signals
-    signal dip0_meta    : std_logic := '0';
-    signal dip0_sync    : std_logic := '0';
-    signal key1_meta    : std_logic := '0';
-    signal key1_sync    : std_logic := '0';
+    signal dip_meta    : std_logic_vector(3 downto 0) := (others => '0');
+    signal dip_sync    : std_logic_vector(3 downto 0) := (others => '0');
+    signal key_meta    : std_logic_vector(1 downto 0) := (others => '0');
+    signal key_sync    : std_logic_vector(1 downto 0) := (others => '0');
+	 signal gpi_meta    : std_logic_vector(7 downto 0) := (others => '0');
+	 signal gpi_sync    : std_logic_vector(7 downto 0) := (others => '0');
 
+    -- Quartus Prime specific synchronizer attributes to identify synchronized signals for analysis
+    attribute altera_attribute : string;
+    attribute altera_attribute of dip_meta, dip_sync : signal is "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS";
+    attribute altera_attribute of key_meta, key_sync : signal is "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS";
+	 attribute altera_attribute of gpi_meta, gpi_sync : signal is "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS";
+	 
     begin
-        -- -- Select between automatic and manual clock based on SW(0) - manual clock is KEY(1)
-        -- clock : process(CLOCK_50) is
-        -- begin
-        --     if rising_edge(CLOCK_50) then
-        --         if DIP(0) = '1' then
-        --             if clock_counter = MAX_COUNT then  -- 1 Hz clock from 50 MHz input
-        --                 clock_counter <= 0;
-        --                 system_clk_en <= NOT system_clk_en; --'1'; making this '1' causes the fitter to fail!
-        --             else
-        --                 clock_counter <= clock_counter + 1;
-        --                 system_clk_en <= '0';
-        --             end if;
-        --         else
-        --             if previous_button1 = '1' and KEY(1) = '0' then
-        --                 system_clk_en <= '1';
-        --             else
-        --                 system_clk_en <= '0';
-        --             end if;
-        --                 previous_button1 <= KEY(1);
-        --         end if;
-        --     end if;
-        -- end process clock;
 
-        process(CLOCK_50)
+	     -- synchronize the external signals with the system clock. Not really needed here but nice practice.
+        synchronizer : process(CLOCK_50)
         begin
             if rising_edge(CLOCK_50) then
-                -- Two-stage synchronizer for DIP(0)
-                dip0_meta <= DIP(0);
-                dip0_sync <= dip0_meta;
+                -- Two-stage synchronizer for DIP
+                dip_meta <= DIP;
+                dip_sync <= dip_meta;
 
-                -- Two-stage synchronizer for KEY(1)
-                key1_meta <= KEY(1);
-                key1_sync <= key1_meta;
+                -- Two-stage synchronizer for KEY
+                key_meta <= KEY;
+                key_sync <= key_meta;
+					 
+					 -- Two-stage synchronizer for GPI
+					 gpi_meta <= GPIO0;
+					 gpi_sync <= gpi_meta;
             end if;
         end process;
 
@@ -143,8 +134,8 @@ architecture Structural of DE0Nano_Spikeputor is
 
             port map (
                 SYS_CLK   => CLOCK_50,
-                MAN_SEL   => dip0_sync,
-                MAN_START => NOT key1_sync,
+                MAN_SEL   => dip_sync(0),
+                MAN_START => NOT key_sync(1),
                 CLK_EN    => system_clk_en
             );
 
@@ -152,7 +143,7 @@ architecture Structural of DE0Nano_Spikeputor is
         CTRL : entity work.CTRL_WSH_M port map (
             -- SYSCON inputs
             CLK         => CLOCK_50,
-            RST_I       => NOT KEY(0), -- KEY 0 is reset button
+            RST_I       => NOT key_sync(0), -- KEY 0 is reset button
 
             -- Wishbone signals for memory interface
             -- handshaking signals
@@ -212,7 +203,7 @@ architecture Structural of DE0Nano_Spikeputor is
         -- RegFile Instance
         REGFILE : entity work.REG_FILE port map (
             -- register file inputs
-            RESET       => NOT KEY(0),
+            RESET       => NOT key_sync(0),
             CLK         => CLOCK_50,      -- system clock
             IN0         => pcinc_out,       -- Register Input: PC + 2
             IN1         => s_alu_out,       -- Register Input: ALU output
@@ -276,7 +267,7 @@ architecture Structural of DE0Nano_Spikeputor is
     reg_index <= to_integer(unsigned(DIP(3 downto 1)));  -- select register index from DIP switches 3-1
 
     -- output various values to GPIO1 based on switches 9-7 and 4-2
-    WITH (GPIO0(7 downto 5)) SELECT
+    WITH (gpi_sync(7 downto 5)) SELECT
         GPIO1(31 downto 16) <= inst_out   WHEN "000",        -- INST output
                                s_alu_out  WHEN "001",        -- CONST output
                                rega_out   WHEN "010",        -- RegFile Channel A
@@ -287,7 +278,7 @@ architecture Structural of DE0Nano_Spikeputor is
                                all_regs(reg_index) WHEN "111",   -- register at current index (1 to 7)
                                inst_out   WHEN others;       -- INST output (should never happen)
 
-    WITH (GPIO0(2 downto 0)) SELECT
+    WITH (gpi_sync(2 downto 0)) SELECT
         GPIO1(15 downto 0)  <= const_out  WHEN "000",        -- ALU Output
                                alu_shift  WHEN "001",        -- ALU shift by 8 output
                                alu_arith  WHEN "010",        -- ALU arithmetic output
