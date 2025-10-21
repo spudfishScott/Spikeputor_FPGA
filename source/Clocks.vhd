@@ -131,7 +131,7 @@ use ieee.numeric_std.all;
 
 entity AUTO_MANUAL_CLOCK is
     generic (
-        AUTO_FREQ : Integer := 1            -- Frequency in Hz for automatic clock mode
+        AUTO_FREQ : Integer := 1;           -- Frequency in Hz for automatic clock mode
         SYS_FREQ  : Integer := 50000000     -- System clock frequency in Hz
     );
     port (

@@ -88,6 +88,12 @@ architecture Structural of DE0Nano_Spikeputor is
 
     --signals for clock logic
     signal system_clk_en : std_logic := '0';
+    
+    -- Input synchronizer signals
+    signal dip0_meta    : std_logic := '0';
+    signal dip0_sync    : std_logic := '0';
+    signal key1_meta    : std_logic := '0';
+    signal key1_sync    : std_logic := '0';
 
     begin
         -- -- Select between automatic and manual clock based on SW(0) - manual clock is KEY(1)
@@ -113,6 +119,19 @@ architecture Structural of DE0Nano_Spikeputor is
         --     end if;
         -- end process clock;
 
+        process(CLOCK_50)
+        begin
+            if rising_edge(CLOCK_50) then
+                -- Two-stage synchronizer for DIP(0)
+                dip0_meta <= DIP(0);
+                dip0_sync <= dip0_meta;
+
+                -- Two-stage synchronizer for KEY(1)
+                key1_meta <= KEY(1);
+                key1_sync <= key1_meta;
+            end if;
+        end process;
+
         arb_ack <= ack AND system_clk_en;             -- pass ack through to CPU only when clock enable is high (cpu will stall until then)
 
         -- Auto/Manual Clock Instance - generates system clock enable signal 5 Hz automatically or on button press in manual mode
@@ -124,8 +143,8 @@ architecture Structural of DE0Nano_Spikeputor is
 
             port map (
                 SYS_CLK   => CLOCK_50,
-                MAN_SEL   => DIP(0),
-                MAN_START => NOT KEY(1),
+                MAN_SEL   => dip0_sync,
+                MAN_START => NOT key1_sync,
                 CLK_EN    => system_clk_en
             );
 
@@ -252,7 +271,7 @@ architecture Structural of DE0Nano_Spikeputor is
 
     -- LED
     LED(6 downto 2) <= (others => '0');
-    LEDG(7) <= system_clk_en;  -- LED7 is cpu clock indicator
+    LED(7) <= system_clk_en;  -- LED7 is cpu clock indicator
 
     reg_index <= to_integer(unsigned(DIP(3 downto 1)));  -- select register index from DIP switches 3-1
 
