@@ -3,23 +3,23 @@ library ieee;
   use ieee.numeric_std.all;
   use work.Types.all;
 
-entity DE0_Spikeputor is
+entity DE0Nano_Spikeputor is
     port (
         -- Clock Input
         CLOCK_50 : in std_logic;
         -- Push Button
         KEY : in std_logic_vector(1 downto 0);  -- KEY(0) is reset, KEY(1) is manual clock
         -- DIP Switch Switch
-        DIP : in std_logic_vector(9 downto 0);  -- DIP(0) switches between auto and manual clock
+        DIP : in std_logic_vector(3 downto 0);  -- DIP(0) switches between auto and manual clock
         -- LED
         LED : out std_logic_vector(7 downto 0);
         -- GPIO
         GPIO0 :in std_logic_vector(7 downto 0); -- switches to control output data
         GPIO1 : out std_logic_vector(31 downto 0)
     );
-end DE0_Spikeputor;
+end DE0Nano_Spikeputor;
 
-architecture Structural of DE0_Spikeputor is
+architecture Structural of DE0Nano_Spikeputor is
     -- Signal Declarations
 
     -- Memory interface signals
@@ -91,7 +91,7 @@ architecture Structural of DE0_Spikeputor is
     --signals for clock logic
     signal previous_button1 : std_logic := '1';
     signal clock_counter : integer := 0;
-    constant HERTZ : integer := 1;
+    constant HERTZ : integer := 5;
     constant MAX_COUNT : integer := 50000000/HERTZ;
     signal system_clk_en : std_logic := '0';
 
@@ -123,7 +123,7 @@ architecture Structural of DE0_Spikeputor is
         -- Control Logic Instance
         CTRL : entity work.CTRL_WSH_M port map (
             -- SYSCON inputs
-            CLK         => system_clk_en, --CLOCK_50,
+            CLK         => CLOCK_50,
             RST_I       => NOT KEY(0), -- KEY 0 is reset button
 
             -- Wishbone signals for memory interface
@@ -166,7 +166,7 @@ architecture Structural of DE0_Spikeputor is
         -- RAM Instance
         RAM : entity work.RAMTest_WSH_P port map ( -- synthesizes with RAM_WSH_P, so hopefully changed RAMTest will now work
             -- SYSCON inputs
-            CLK         => system_clk_en, --CLOCK_50,
+            CLK         => CLOCK_50,
 
             -- Wishbone signals
             -- handshaking signals
@@ -185,8 +185,7 @@ architecture Structural of DE0_Spikeputor is
         REGFILE : entity work.REG_FILE port map (
             -- register file inputs
             RESET       => NOT KEY(0),
-            CLK         => system_clk_en, --CLOCK_50,      -- system clock
-            EN          => '1',
+            CLK         => CLOCK_50,      -- system clock
             IN0         => pcinc_out,       -- Register Input: PC + 2
             IN1         => s_alu_out,       -- Register Input: ALU output
             IN2         => mrdata_out,      -- Register Input: Memory Read Data
@@ -251,26 +250,26 @@ architecture Structural of DE0_Spikeputor is
 
     -- output various values to GPIO1 based on switches 9-7 and 4-2
     WITH (GPIO0(7 downto 5)) SELECT
-        GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
-                                 s_alu_out  WHEN "001",        -- CONST output
-                                 rega_out   WHEN "010",        -- RegFile Channel A
-                                 regb_out   WHEN "011",        -- RegFile Channel B
-                                 mrdata_out WHEN "100",        -- MRDATA output
-                                 reg_stat   WHEN "101",        -- RegFile control signals and Zero flag
-                                 wd_input   WHEN "110",        -- RegFile selected write data
-                                 all_regs(reg_index) WHEN "111",   -- register at current index (1 to 7)
-                                 inst_out   WHEN others;       -- INST output (should never happen)
+        GPIO1(31 downto 16) <= inst_out   WHEN "000",        -- INST output
+                               s_alu_out  WHEN "001",        -- CONST output
+                               rega_out   WHEN "010",        -- RegFile Channel A
+                               regb_out   WHEN "011",        -- RegFile Channel B
+                               mrdata_out WHEN "100",        -- MRDATA output
+                               reg_stat   WHEN "101",        -- RegFile control signals and Zero flag
+                               wd_input   WHEN "110",        -- RegFile selected write data
+                               all_regs(reg_index) WHEN "111",   -- register at current index (1 to 7)
+                               inst_out   WHEN others;       -- INST output (should never happen)
 
     WITH (GPIO0(2 downto 0)) SELECT
-        GPIO1_D(15 downto 0)  <= const_out  WHEN "000",        -- ALU Output
-                                 alu_shift  WHEN "001",        -- ALU shift by 8 output
-                                 alu_arith  WHEN "010",        -- ALU arithmetic output
-                                 alu_bool   WHEN "011",        -- ALU boolean output
-                                 alu_cmpf   WHEN "100",        -- ALU compare flags
-                                 alu_a      WHEN "101",        -- ALU A input
-                                 alu_b      WHEN "110",        -- ALU B input
-                                 pc_out     WHEN "111",        -- ALU function control signals
-                                 const_out  WHEN others;       -- ALU output (should never happen)
+        GPIO1(15 downto 0)  <= const_out  WHEN "000",        -- ALU Output
+                               alu_shift  WHEN "001",        -- ALU shift by 8 output
+                               alu_arith  WHEN "010",        -- ALU arithmetic output
+                               alu_bool   WHEN "011",        -- ALU boolean output
+                               alu_cmpf   WHEN "100",        -- ALU compare flags
+                               alu_a      WHEN "101",        -- ALU A input
+                               alu_b      WHEN "110",        -- ALU B input
+                               pc_out     WHEN "111",        -- ALU function control signals
+                               const_out  WHEN others;       -- ALU output (should never happen)
 
  -- set up internal display signals
  reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z

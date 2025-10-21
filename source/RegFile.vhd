@@ -10,7 +10,7 @@
 --     Zero detect for Register Channel A 
 
 -- All data is BIT_DEPTH bits wide. (use 16 for Spikeputor)
--- Register controls are 3 bits wide (for 8 registers). Input select is 2 bits wide for 3 inputs => 
+-- Register controls are 3 bits wide (for 8 registers). Input select is 2 bits wide for 3 inputs
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -24,7 +24,6 @@ entity REG_FILE is
         -- register file inputs
         RESET         : in std_logic;
         CLK           : in std_logic;   
-        EN            : in std_logic;
         IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
         WDSEL         : in std_logic_vector(1 downto 0);
         OPA, OPB, OPC : in std_logic_vector(2 downto 0);
@@ -123,7 +122,6 @@ begin   -- architecture begin
         RX : entity work.REG_LE generic map(BIT_DEPTH) port map (  -- Registers
             RESET => RESET,
               CLK => CLK,
-               EN => EN,
                LE => WREG_SEL(r),
                 D => REG_IN,
                 Q => REGS_OUT(r)
