@@ -8,22 +8,14 @@ entity DE0_Spikeputor is
         -- Clock Input
         CLOCK_50 : in std_logic;
         -- Push Button
-        BUTTON : in std_logic_vector(2 downto 0);
-        -- DPDT Switch
-        SW : in std_logic_vector(9 downto 0);
-        -- 7-SEG Display
-        HEX0_D : out std_logic_vector(6 downto 0);
-        HEX0_DP : out std_logic;
-        HEX1_D : out std_logic_vector(6 downto 0);
-        HEX1_DP : out std_logic;
-        HEX2_D : out std_logic_vector(6 downto 0);
-        HEX2_DP : out std_logic;
-        HEX3_D : out std_logic_vector(6 downto 0);
-        HEX3_DP : out std_logic;
+        KEY : in std_logic_vector(1 downto 0);  -- KEY(0) is reset, KEY(1) is manual clock
+        -- DIP Switch Switch
+        DIP : in std_logic_vector(9 downto 0);  -- DIP(0) switches between auto and manual clock
         -- LED
-        LEDG : out std_logic_vector(9 downto 0);
+        LED : out std_logic_vector(7 downto 0);
         -- GPIO
-        GPIO1_D : out std_logic_vector(31 downto 0)
+        GPIO0 :in std_logic_vector(7 downto 0); -- switches to control output data
+        GPIO1 : out std_logic_vector(31 downto 0)
     );
 end DE0_Spikeputor;
 
@@ -104,11 +96,12 @@ architecture Structural of DE0_Spikeputor is
     signal system_clk_en : std_logic := '0';
 
     begin
-        -- Select between automatic and manual clock based on SW(0) - manual clock is Button(1)
+        -- Select between automatic and manual clock based on SW(0) - manual clock is KEY(1)
+        -- TODO: Change all module logic from direct clock generation to clock enable generation - better design practice
         clock : process(CLOCK_50) is
         begin
             if rising_edge(CLOCK_50) then
-                if SW(0) = '1' then
+                if DIP(0) = '1' then
                     if clock_counter = MAX_COUNT then  -- 1 Hz clock from 50 MHz input
                         clock_counter <= 0;
                         system_clk_en <= NOT system_clk_en; --'1'; making this '1' causes the fitter to fail!
@@ -117,12 +110,12 @@ architecture Structural of DE0_Spikeputor is
                         system_clk_en <= '0';
                     end if;
                 else
-                    if previous_button1 = '1' and Button(1) = '0' then
+                    if previous_button1 = '1' and KEY(1) = '0' then
                         system_clk_en <= '1';
                     else
                         system_clk_en <= '0';
                     end if;
-                        previous_button1 <= Button(1);
+                        previous_button1 <= KEY(1);
                 end if;
             end if;
         end process clock;
@@ -131,7 +124,7 @@ architecture Structural of DE0_Spikeputor is
         CTRL : entity work.CTRL_WSH_M port map (
             -- SYSCON inputs
             CLK         => system_clk_en, --CLOCK_50,
-            RST_I       => NOT Button(0), -- Button 0 is reset button
+            RST_I       => NOT KEY(0), -- KEY 0 is reset button
 
             -- Wishbone signals for memory interface
             -- handshaking signals
@@ -167,7 +160,7 @@ architecture Structural of DE0_Spikeputor is
             MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing
             Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
-            PHASE       => LEDG(1 downto 0)         -- PHASE output to LEDG(1:0) for display only
+            PHASE       => LED(1 downto 0)          -- PHASE output to LED(1:0) for display only
         );
 
         -- RAM Instance
@@ -191,7 +184,7 @@ architecture Structural of DE0_Spikeputor is
         -- RegFile Instance
         REGFILE : entity work.REG_FILE port map (
             -- register file inputs
-            RESET       => NOT Button(0),
+            RESET       => NOT KEY(0),
             CLK         => system_clk_en, --CLOCK_50,      -- system clock
             EN          => '1',
             IN0         => pcinc_out,       -- Register Input: PC + 2
@@ -247,47 +240,17 @@ architecture Structural of DE0_Spikeputor is
             ALU_FN_LEDS => alu_fnleds(12 downto 0)
         );
 
-        -- 7 Segment display decoder instance
-        DISPLAY : entity work.WORDTO7SEGS port map (
-            WORD  => disp_out,
-            SEGS0 => HEX0_D,
-            SEGS1 => HEX1_D,
-            SEGS2 => HEX2_D,
-            SEGS3 => HEX3_D
-        );
-
     -- Set default output states
 
-    -- 7-SEG Display
-    HEX0_DP <= '1';
-    HEX1_DP <= '1';
-    HEX2_DP <= '1';
-    HEX3_DP <= '1';
-
     -- LED
-    LEDG(6 downto 2) <= (others => '0');
---    LEDG(3 downto 2) <= (others => '0');
+    LED(7 downto 2) <= (others => '0');
 --
---    LEDG(4) <= system_clk_en;  -- LED4 is system clock indicator
+--    LEDG(7) <= system_clk_en;  -- LED4 is system clock indicator
 
-    -- display PC or PC_INC on 7-seg based on Button(2)
-    disp_out <= pc_out when Button(2) = '1' else pcinc_out;
-
-    process(Button(2)) -- increment register index on each press of Button(2) - should work if Buttons are already debounced
-    begin
-        if falling_edge(Button(2)) then
-            if reg_index = 7 then
-                reg_index <= 1;
-            else
-                reg_index <= reg_index + 1;
-            end if;
-        end if;
-    end process;
-
-    LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
+    reg_index <= to_integer(unsigned(DIP(3 downto 1)));  -- select register index from DIP switches 3-1
 
     -- output various values to GPIO1 based on switches 9-7 and 4-2
-    WITH (SW(9 downto 7)) SELECT
+    WITH (GPIO0(7 downto 5)) SELECT
         GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
                                  s_alu_out  WHEN "001",        -- CONST output
                                  rega_out   WHEN "010",        -- RegFile Channel A
@@ -298,15 +261,15 @@ architecture Structural of DE0_Spikeputor is
                                  all_regs(reg_index) WHEN "111",   -- register at current index (1 to 7)
                                  inst_out   WHEN others;       -- INST output (should never happen)
 
-    WITH (SW(4 downto 2)) SELECT
+    WITH (GPIO0(2 downto 0)) SELECT
         GPIO1_D(15 downto 0)  <= const_out  WHEN "000",        -- ALU Output
                                  alu_shift  WHEN "001",        -- ALU shift by 8 output
                                  alu_arith  WHEN "010",        -- ALU arithmetic output
                                  alu_bool   WHEN "011",        -- ALU boolean output
                                  alu_cmpf   WHEN "100",        -- ALU compare flags
-                                 alu_a   WHEN "101",           -- ALU A input
-                                 alu_b   WHEN "110",           -- ALU B input
-                                 alu_ctrl WHEN "111",          -- ALU function control signals
+                                 alu_a      WHEN "101",        -- ALU A input
+                                 alu_b      WHEN "110",        -- ALU B input
+                                 pc_out     WHEN "111",        -- ALU function control signals
                                  const_out  WHEN others;       -- ALU output (should never happen)
 
  -- set up internal display signals

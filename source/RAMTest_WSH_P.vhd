@@ -108,7 +108,7 @@ begin
 --	 process(clk)
 --	 begin
 --	     if rising_edge(clk) then
-		      WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
+    WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
 --        end if;
 --	 end process;
 	 
