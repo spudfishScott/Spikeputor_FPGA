@@ -33,6 +33,7 @@ entity CPU_WSH_M is
         REGS_DISP       : out RARRAY;                        -- 7-13 [7x19 including a, b, w signals]
         REGA_DISP       : out std_logic_vector(15 downto 0);
         REGB_DISP       : out std_logic_vector(15 downto 0);
+        ALU_FNLEDS_DISP : out std_logic_vector(15 downto 0); -- 16 [15 or 17 depending on ASEL/BSEL 1 bit or 2 bit signals]
         ALUA_DISP       : out std_logic_vector(15 downto 0); -- 17 [16]
         ALUB_DISP       : out std_logic_vector(15 downto 0); -- 18 [16]
         ALUARITH_DISP   : out std_logic_vector(15 downto 0); -- 19 [16]
@@ -89,6 +90,7 @@ begin
     REGB_DISP       <= regb_out;
     ALUCMPF_DISP    <= alu_cmpf & "000000000000";  -- pad to 16 bits
     ALUOUT_DISP     <= s_alu_out;
+    ALU_FNLEDS_DISP <= asel_out & alu_fnleds & bsel_out & "0";  -- pad to 16 bits
 
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (

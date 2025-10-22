@@ -1,6 +1,5 @@
 -- Spikeputor Register File
 -- Inputs:
---     Asynchronous RESET to clear all registers
 --     Three Data Inputs 
 --     Three Register Controls (OPA, OPB, OPC) from the opcode 
 --     CLK, Input Select
@@ -22,7 +21,6 @@ entity REG_FILE is
 
     port (
         -- register file inputs
-        -- RESET         : in std_logic;
         CLK           : in std_logic;   
         IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
         WDSEL         : in std_logic_vector(1 downto 0);
@@ -54,11 +52,7 @@ architecture RTL of REG_FILE is
     signal bout_sel : std_logic_vector(2 downto 0) := (others => '0');
     signal   wr_sel : std_logic_vector(2 downto 0) := (others => '0');
     signal aout_int : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
-    -- signal BOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
 
-    -- internal signals only for LEDs
-    -- signal AREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
-    -- signal BREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
     signal wreg_sel : std_logic_vector(7 downto 0) := (others => '0');
     signal REGS_OUT : RARRAY := (others => (others => '0'));
 
@@ -88,13 +82,10 @@ begin   -- architecture begin
 
     -- Register File Outputs (for CPU)
     AOUT <= aout_int;
-    -- BOUT <= BOUT_INT;
     AZERO <= '1' when aout_int = ZEROS else '0';   -- zero detect output
 
     -- Other Outputs (for LEDs)
     SEL_INPUT <= REG_IN;
-    -- SEL_A     <= AREG_SEL;
-    -- SEL_B     <= BREG_SEL;
     SEL_W     <= wreg_sel;
     REG_DATA  <= regs_out;
     

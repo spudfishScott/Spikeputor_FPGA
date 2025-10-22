@@ -56,6 +56,7 @@ architecture Structural of DE0_Spikeputor is
     signal regb_out  : std_logic_vector(15 downto 0) := (others => '0');            -- 15 [16]
 
     -- ALU
+    signal alu_fn_leds : std_logic_vector(15 downto 0) := (others => '0');          -- 16 [17 or 19 depending on ASEL/BSEL 1 bit or 2 bit signals]
     signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');          -- 17 [16]
     signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');          -- 18 [16]
     signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');          -- 19 [16]
@@ -69,7 +70,7 @@ architecture Structural of DE0_Spikeputor is
     
     -- Input synchronized signals
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
-    signal button_sync : std_logic_vector(1 downto 0) := (others => '0');
+    signal button_sync : std_logic_vector(2 downto 0) := (others => '0');
 
 begin
     -- Input Synchronizers
@@ -135,6 +136,7 @@ begin
         REGS_DISP       => all_regs,
         REGA_DISP       => rega_out,
         REGB_DISP       => regb_out,
+        ALU_FNLEDS_DISP => alu_fn_leds,
         ALUA_DISP       => alu_a,
         ALUB_DISP       => alu_b,
         ALUARITH_DISP   => alu_arith,
@@ -204,26 +206,26 @@ begin
 
     -- output various values to GPIO1 based on switches 9-7 and 6-4
     WITH (sw_sync(9 downto 7)) SELECT
-        GPIO1_D(31 downto 16) <= inst_out   WHEN "000",        -- INST output
-                                 s_alu_out  WHEN "001",        -- CONST output
-                                 rega_out   WHEN "010",        -- RegFile Channel A
-                                 regb_out   WHEN "011",        -- RegFile Channel B
-                                 mrdata_out WHEN "100",        -- MRDATA output
-                                 reg_stat   WHEN "101",        -- RegFile control signals and Zero flag
-                                 wd_input   WHEN "110",        -- RegFile selected write data
+        GPIO1_D(31 downto 16) <= inst_out    WHEN "000",        -- INST output
+                                 s_alu_out   WHEN "001",        -- CONST output
+                                 rega_out    WHEN "010",        -- RegFile Channel A
+                                 regb_out    WHEN "011",        -- RegFile Channel B
+                                 mrdata_out  WHEN "100",        -- MRDATA output
+                                 reg_stat    WHEN "101",        -- RegFile control signals and Zero flag
+                                 wd_input    WHEN "110",        -- RegFile selected write data
                                  all_regs(reg_index) WHEN "111",   -- register at current index (1 to 7)
-                                 inst_out   WHEN others;       -- INST output (should never happen)
+                                 inst_out    WHEN others;       -- INST output (should never happen)
 
     WITH (sw_sync(6 downto 4)) SELECT
-        GPIO1_D(15 downto 0)  <= const_out  WHEN "000",        -- ALU Output
-                                 alu_shift  WHEN "001",        -- ALU shift by 8 output
-                                 alu_arith  WHEN "010",        -- ALU arithmetic output
-                                 alu_bool   WHEN "011",        -- ALU boolean output
-                                 alu_cmpf   WHEN "100",        -- ALU compare flags
-                                 alu_a   WHEN "101",           -- ALU A input
-                                 alu_b   WHEN "110",           -- ALU B input
-                                 alu_ctrl WHEN "111",          -- ALU function control signals
-                                 const_out  WHEN others;       -- ALU output (should never happen)
+        GPIO1_D(15 downto 0)  <= const_out   WHEN "000",        -- ALU Output
+                                 alu_shift   WHEN "001",        -- ALU shift by 8 output
+                                 alu_arith   WHEN "010",        -- ALU arithmetic output
+                                 alu_bool    WHEN "011",        -- ALU boolean output
+                                 alu_cmpf    WHEN "100",        -- ALU compare flags
+                                 alu_a       WHEN "101",           -- ALU A input
+                                 alu_b       WHEN "110",           -- ALU B input
+                                 alu_fn_leds WHEN "111",          -- ALU function control signals
+                                 const_out   WHEN others;       -- ALU output (should never happen)
 
  -- set up internal display signals
 --  reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
