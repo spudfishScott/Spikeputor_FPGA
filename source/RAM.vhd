@@ -47,45 +47,43 @@ ENTITY RAM IS
     );
 
     PORT (
-        clock       : IN STD_LOGIC  := '1';
+        CLOCK       : IN STD_LOGIC  := '1';
 
-        address     : IN STD_LOGIC_VECTOR (ADDR_WIDTH-1 DOWNTO 0);
-        data        : IN STD_LOGIC_VECTOR (15 DOWNTO 0);
-        wren        : IN STD_LOGIC  := '0';
+        ADDRESS     : IN STD_LOGIC_VECTOR (ADDR_WIDTH-1 DOWNTO 0);
+        DATA        : IN STD_LOGIC_VECTOR (15 DOWNTO 0);
+        WREN        : IN STD_LOGIC  := '0';
 
-        q           : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
+        qQ          : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
     );
 END RAM;
 
 ARCHITECTURE SYN OF RAM IS
-    -- SIGNAL sub_wire0    : STD_LOGIC_VECTOR (15 DOWNTO 0);
 
 BEGIN
-    -- q    <= sub_wire0(15 DOWNTO 0);
 
     altsyncram_component : altsyncram
     GENERIC MAP (
-        clock_enable_input_a => "BYPASS",
-        clock_enable_output_a => "BYPASS",
-        intended_device_family => "Cyclone III",
-        lpm_hint => "ENABLE_RUNTIME_MOD=NO",
-        lpm_type => "altsyncram",
-        numwords_a => NUM_WORDS,
-        operation_mode => "SINGLE_PORT",
-        outdata_aclr_a => "NONE",
-        outdata_reg_a => "UNREGISTERED",            -- unregistered output - available as soon as address/data is latched in
-        power_up_uninitialized => "FALSE",
-        read_during_write_mode_port_a => "NEW_DATA_NO_NBE_READ",
-        widthad_a => ADDR_WIDTH,
-        width_a => 16,
-        width_byteena_a => 1
+        clock_enable_input_a            => "BYPASS",
+        clock_enable_output_a           => "BYPASS",
+        intended_device_family          => "Cyclone III",
+        lpm_hint                        => "ENABLE_RUNTIME_MOD=NO",
+        lpm_type                        => "altsyncram",
+        numwords_a                      => NUM_WORDS,
+        operation_mode                  => "SINGLE_PORT",
+        outdata_aclr_a                  => "NONE",
+        outdata_reg_a                   => "UNREGISTERED",
+        power_up_uninitialized          => "FALSE",
+        read_during_write_mode_port_a   => "NEW_DATA_NO_NBE_READ",
+        widthad_a                       => ADDR_WIDTH,
+        width_a                         => 16,
+        width_byteena_a                 => 1
     )
     PORT MAP (
-        address_a => address,
-        clock0 => clock,
-        data_a => data,
-        wren_a => wren,
-        q_a => q -- can we just do this? without sub_wire0
+        address_a   => ADDRESS,
+        clock0      => CLOCK,
+        data_a      => DATA,
+        wren_a      => WREN,
+        q_a         => Q
     );
 
 END SYN;

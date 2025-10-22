@@ -12,7 +12,6 @@ entity RAM_WSH_P is
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
-        -- RST_I       : in std_logic;
 
         -- Wishbone signals
         -- handshaking signals
@@ -35,7 +34,7 @@ architecture rtl of RAM_WSH_P is
     signal wbs_data32K  : std_logic_vector(15 downto 0) := (others => '0');
     signal wbs_data16K  : std_logic_vector(15 downto 0) := (others => '0');
     signal wbs_data8K   : std_logic_vector(15 downto 0) := (others => '0');
-    signal wbs_data     : std_logic_vector(15 downto 0) := (others => '0');
+
     signal we_32K       : std_logic := '0';
     signal we_16K       : std_logic := '0';
     signal we_8K        : std_logic := '0';
@@ -50,7 +49,7 @@ begin
             clock     => CLK,
 
             address => WBS_ADDR_I(14 downto 1),
-            data      => WBS_DATA_I,
+            data      => WBS_DATA_I AND WBS_CYC_I AND WBS_STB_I,
             wren      => we_32K AND WBS_CYC_I AND WBS_STB_I,    -- only write when we_32K and CYC and STB are asserted
 
             q         => wbs_data32K
@@ -64,7 +63,7 @@ begin
         port map (                  -- 16K bytes from 0x8000 to 0xBFFF - ADDR[15:14]="10", ADDR[0] = don't care
             clock     => CLK,
             address => WBS_ADDR_I(13 downto 1),
-            data      => WBS_DATA_I,
+            data      => WBS_DATA_I AND WBS_CYC_I AND WBS_STB_I,
             wren      => we_16K AND WBS_CYC_I AND WBS_STB_I,    -- only write when we_16K and CYC and STB are asserted
 
             q         => wbs_data16K
@@ -78,19 +77,19 @@ begin
         port map (                  -- 8K bytes from 0xC000 to 0xDFFF - ADDR[15:13]="110", ADDR[0] = don't care
             clock     => CLK,
             address => WBS_ADDR_I(12 downto 1),
-            data      => WBS_DATA_I,
+            data      => WBS_DATA_I AND WBS_CYC_I AND WBS_STB_I,
             wren      => we_8K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_8K and CYC and STB are asserted
 
             q         => wbs_data8K
         );
 
     -- output to wishbone interface
-
     WBS_DATA_O  <= wbs_data32K when WBS_ADDR_I(15) = '0' else               -- 32K block for addresses 0x0000-0x7FFF
                    wbs_data16K when WBS_ADDR_I(15 downto 14) = "10" else    -- 16K block for addresses 0x8000-0xBFFF
                    wbs_data8K  when WBS_ADDR_I(15 downto 13) = "110" else   -- 8K block  for addresses 0xC000-0xDFFF
                    zero16;                                                  -- return zero for addresses 0xE000-0xFFFF
 
+    -- internal address select and write enable logic
     we_32K <= WBS_WE_I when WBS_ADDR_I(15) = '0' else '0';                  -- only write to 32K block when address is in range 0x0000-0x7FFF
     we_16K <= WBS_WE_I when WBS_ADDR_I(15 downto 14) = "10" else '0';       -- only write to 16K block when address is in range 0x8000-0xBFFF
     we_8K  <= WBS_WE_I when WBS_ADDR_I(15 downto 13) = "110" else '0';      -- only write to 8K block when address is in range 0xC000-0xDFFF

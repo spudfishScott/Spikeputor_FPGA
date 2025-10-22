@@ -30,36 +30,36 @@ entity REG_FILE is
         WERF, RBSEL   : in std_logic;
 
         -- register file outputs for CPU (also will drive LEDs)
-        AOUT  : out std_logic_vector(BIT_DEPTH-1 downto 0);
-        BOUT  : out std_logic_vector(BIT_DEPTH-1 downto 0);
-        AZERO : out std_logic;
+        AOUT          : out std_logic_vector(BIT_DEPTH-1 downto 0);
+        BOUT          : out std_logic_vector(BIT_DEPTH-1 downto 0);
+        AZERO         : out std_logic;
 
         -- outputs to drive LEDs only
-        SEL_INPUT : out std_logic_vector(BIT_DEPTH-1 downto 0);
-        SEL_A     : out std_logic_vector(7 downto 0);
-        SEL_B     : out std_logic_vector(7 downto 0);
-        SEL_W     : out std_logic_vector(7 downto 0);
-        REG_DATA  : out RARRAY
+        SEL_INPUT     : out std_logic_vector(BIT_DEPTH-1 downto 0);
+        SEL_A         : out std_logic_vector(7 downto 0);
+        SEL_B         : out std_logic_vector(7 downto 0);
+        SEL_W         : out std_logic_vector(7 downto 0);
+        REG_DATA      : out RARRAY
     );
 	 
 end REG_FILE;
 
 architecture RTL of REG_FILE is
-    constant ZEROS : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
+    constant ZEROS  : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
 
     -- internal signals
-    signal REG_IN   : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
+    signal reg_in   : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
 
-    signal AOUT_SEL : std_logic_vector(2 downto 0) := (others => '0');
-    signal BOUT_SEL : std_logic_vector(2 downto 0) := (others => '0');
-    signal   WR_SEL : std_logic_vector(2 downto 0) := (others => '0');
-    signal AOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
-    signal BOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
+    signal aout_sel : std_logic_vector(2 downto 0) := (others => '0');
+    signal bout_sel : std_logic_vector(2 downto 0) := (others => '0');
+    signal   wr_sel : std_logic_vector(2 downto 0) := (others => '0');
+    signal aout_int : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
+    -- signal BOUT_INT : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
 
     -- internal signals only for LEDs
-    signal AREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
-    signal BREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
-    signal WREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
+    -- signal AREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
+    -- signal BREG_SEL : std_logic_vector(7 downto 0) := (others => '0');
+    signal wreg_sel : std_logic_vector(7 downto 0) := (others => '0');
     signal REGS_OUT : RARRAY := (others => (others => '0'));
 
 begin   -- architecture begin
@@ -70,7 +70,7 @@ begin   -- architecture begin
            IN1 => IN1,
            IN0 => IN0,
            SEL => WDSEL,
-        MUXOUT => REG_IN
+        MUXOUT => reg_in
     );
 
     -------------------------------
@@ -78,42 +78,42 @@ begin   -- architecture begin
 
     -- Register Address Controls
     -- Channel A selection is simply OPA
-    AOUT_SEL <= OPA;
+    aout_sel <= OPA;
 
     -- Channel B selection depends on the RBSEL signal and is either OPB or OPC
-    BOUT_SEL <= OPB when RBSEL = '0' else OPC;
+    bout_sel <= OPB when RBSEL = '0' else OPC;
 
     -- Register Write selection depends on WERF, OPC is WERF is selected, Register 0 if not
-    WR_SEL <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
+    wr_sel <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
 
     -- Register File Outputs (for CPU)
-    AOUT <= AOUT_INT;
-    BOUT <= BOUT_INT;
-    AZERO <= '1' when AOUT_INT = ZEROS else '0';   -- zero detect output
+    AOUT <= aout_int;
+    -- BOUT <= BOUT_INT;
+    AZERO <= '1' when aount_int = ZEROS else '0';   -- zero detect output
 
     -- Other Outputs (for LEDs)
     SEL_INPUT <= REG_IN;
-    SEL_A     <= AREG_SEL;
-    SEL_B     <= BREG_SEL;
-    SEL_W     <= WREG_SEL;
-    REG_DATA  <= REGS_OUT;
+    -- SEL_A     <= AREG_SEL;
+    -- SEL_B     <= BREG_SEL;
+    SEL_W     <= wreg_sel;
+    REG_DATA  <= regs_out;
     
     -------------------------------
     -- Entity Instantiation
     -- Decoders
     WREG_CTRL: entity work.DECODE3_8 port map ( -- Register Write Select
-        DECIN => WR_SEL,
-        OUTS  => WREG_SEL
+        DECIN => wr_sel,
+        OUTS  => wreg_sel
     );
 
     AREG_CTRL: entity work.DECODE3_8 port map ( -- Register A Select
-        DECIN => AOUT_SEL,
-        OUTS  => AREG_SEL
+        DECIN => aout_sel,
+        OUTS  => SEL_A
     );
 
     BREG_CTRL: entity work.DECODE3_8 port map ( -- Register B Select
-        DECIN => BOUT_SEL,
-        OUTS  => BREG_SEL
+        DECIN => bout_sel,
+        OUTS  => SEL_B
     );
 
     -- Registers
@@ -122,38 +122,38 @@ begin   -- architecture begin
         RX : entity work.REG_LE generic map(BIT_DEPTH) port map (  -- Registers
             RESET => RESET,
               CLK => CLK,
-               LE => WREG_SEL(r),
-                D => REG_IN,
-                Q => REGS_OUT(r)
+               LE => wreg_sel(r),
+                D => reg_in,
+                Q => regs_out(r)
         );
     end generate REGISTERS;
 
     -- Register Output B
     REGOUT_B: entity work.MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel B Output
-        IN7 => REGS_OUT(7),
-        IN6 => REGS_OUT(6),
-        IN5 => REGS_OUT(5),
-        IN4 => REGS_OUT(4),
-        IN3 => REGS_OUT(3),
-        IN2 => REGS_OUT(2),
-        IN1 => REGS_OUT(1),
+        IN7 => regs_out(7),
+        IN6 => regs_out(6),
+        IN5 => regs_out(5),
+        IN4 => regs_out(4),
+        IN3 => regs_out(3),
+        IN2 => regs_out(2),
+        IN1 => regs_out(1),
         IN0 => (others => '0'),     -- Register 0 is always 0
-        SEL => BOUT_SEL,
-        MUXOUT => BOUT_INT
+        SEL => bout_sel,
+        MUXOUT => BOUT
     );
 
         -- Register Output A
     REGOUT_A: entity work.MUX8 generic map(BIT_DEPTH) port map (   -- Register Channel A Output
-        IN7 => REGS_OUT(7),
-        IN6 => REGS_OUT(6),
-        IN5 => REGS_OUT(5),
-        IN4 => REGS_OUT(4),
-        IN3 => REGS_OUT(3),
-        IN2 => REGS_OUT(2),
-        IN1 => REGS_OUT(1),
+        IN7 => regs_out(7),
+        IN6 => regs_out(6),
+        IN5 => regs_out(5),
+        IN4 => regs_out(4),
+        IN3 => regs_out(3),
+        IN2 => regs_out(2),
+        IN1 => regs_out(1),
         IN0 => (others => '0'),     -- Register 0 is always 0
-        SEL => AOUT_SEL,
-        MUXOUT => AOUT_INT
+        SEL => aout_sel,
+        MUXOUT => aout_int
     );
 
 end RTL;

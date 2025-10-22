@@ -30,7 +30,7 @@ entity CPU_WSH_M is
         PC_DISP         : out std_logic_vector(15 downto 0); -- 4 [16]
         REGSTAT_DISP    : out std_logic_vector(15 downto 0); -- 5 [11 or 13 depending on WDSEL inclusion]
         WDINPUT_DISP    : out std_logic_vector(15 downto 0); -- 6 [16 or 18 depending on WDSEL inclusion]
-        REGS_DISP       : out RARRAY;                        -- 7-13 [7x16]
+        REGS_DISP       : out RARRAY;                        -- 7-13 [7x19 including a, b, w signals]
         REGA_DISP       : out std_logic_vector(15 downto 0);
         REGB_DISP       : out std_logic_vector(15 downto 0);
         ALUA_DISP       : out std_logic_vector(15 downto 0); -- 17 [16]
@@ -40,8 +40,9 @@ entity CPU_WSH_M is
         ALUSHIFT_DISP   : out std_logic_vector(15 downto 0); -- 21 [16]
         ALUCMPF_DISP    : out std_logic_vector(15 downto 0);
         ALUOUT_DISP     : out std_logic_vector(15 downto 0);
-        PHASE_DISP      : out std_logic_vector(1 downto 0);
+        PHASE_DISP      : out std_logic_vector(1 downto 0);  -- 24 [2] - or maybe this, clock, and bank select are separate LEDs?
     );
+end CPU_WSH_M;
 
 architecture Behavioral of CPU_WSH_M is
     -- Register File control signals
@@ -184,4 +185,4 @@ begin
         ALU_FN_LEDS => alu_fnleds
     );
 
-end CPU_WSH_M;
+end Behavioral;
