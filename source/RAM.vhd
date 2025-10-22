@@ -53,7 +53,7 @@ ENTITY RAM IS
         DATA        : IN STD_LOGIC_VECTOR (15 DOWNTO 0);
         WREN        : IN STD_LOGIC  := '0';
 
-        qQ          : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
+        Q          : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
     );
 END RAM;
 

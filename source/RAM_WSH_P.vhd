@@ -49,7 +49,7 @@ begin
             clock     => CLK,
 
             address => WBS_ADDR_I(14 downto 1),
-            data      => WBS_DATA_I AND WBS_CYC_I AND WBS_STB_I,
+            data      => WBS_DATA_I,
             wren      => we_32K AND WBS_CYC_I AND WBS_STB_I,    -- only write when we_32K and CYC and STB are asserted
 
             q         => wbs_data32K
@@ -63,7 +63,7 @@ begin
         port map (                  -- 16K bytes from 0x8000 to 0xBFFF - ADDR[15:14]="10", ADDR[0] = don't care
             clock     => CLK,
             address => WBS_ADDR_I(13 downto 1),
-            data      => WBS_DATA_I AND WBS_CYC_I AND WBS_STB_I,
+            data      => WBS_DATA_I,
             wren      => we_16K AND WBS_CYC_I AND WBS_STB_I,    -- only write when we_16K and CYC and STB are asserted
 
             q         => wbs_data16K
@@ -77,7 +77,7 @@ begin
         port map (                  -- 8K bytes from 0xC000 to 0xDFFF - ADDR[15:13]="110", ADDR[0] = don't care
             clock     => CLK,
             address => WBS_ADDR_I(12 downto 1),
-            data      => WBS_DATA_I AND WBS_CYC_I AND WBS_STB_I,
+            data      => WBS_DATA_I,
             wren      => we_8K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_8K and CYC and STB are asserted
 
             q         => wbs_data8K

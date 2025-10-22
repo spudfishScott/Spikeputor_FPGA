@@ -191,9 +191,9 @@ architecture Structural of DE0_Spikeputor is
         -- RegFile Instance
         REGFILE : entity work.REG_FILE port map (
             -- register file inputs
-            RESET       => NOT Button(0),
+            -- RESET       => NOT Button(0),
             CLK         => system_clk_en, --CLOCK_50,      -- system clock
-            EN          => '1',
+            -- EN          => '1',
             IN0         => pcinc_out,       -- Register Input: PC + 2
             IN1         => s_alu_out,       -- Register Input: ALU output
             IN2         => mrdata_out,      -- Register Input: Memory Read Data
@@ -234,15 +234,15 @@ architecture Structural of DE0_Spikeputor is
             -- outputs to drive LEDs only
             A           => alu_a,
             B           => alu_b,
-            REV_A       => alu_reva,
-            INV_B       => alu_invb,
+            -- REV_A       => alu_reva,
+            -- INV_B       => alu_invb,
             SHIFT       => alu_shift,
             ARITH       => alu_arith,
             BOOL        => alu_bool,
-            SHIFT8      => alu_shift8,
-            SHIFT4      => alu_shift4,
-            SHIFT2      => alu_shift2,
-            SHIFT1      => alu_shift1,
+            -- SHIFT8      => alu_shift8,
+            -- SHIFT4      => alu_shift4,
+            -- SHIFT2      => alu_shift2,
+            -- SHIFT1      => alu_shift1,
             CMP_FLAGS   => alu_cmpf(3 downto 0),
             ALU_FN_LEDS => alu_fnleds(12 downto 0)
         );
