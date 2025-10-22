@@ -22,7 +22,7 @@ entity REG_FILE is
 
     port (
         -- register file inputs
-        RESET         : in std_logic;
+        -- RESET         : in std_logic;
         CLK           : in std_logic;   
         IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
         WDSEL         : in std_logic_vector(1 downto 0);
@@ -89,7 +89,7 @@ begin   -- architecture begin
     -- Register File Outputs (for CPU)
     AOUT <= aout_int;
     -- BOUT <= BOUT_INT;
-    AZERO <= '1' when aount_int = ZEROS else '0';   -- zero detect output
+    AZERO <= '1' when aout_int = ZEROS else '0';   -- zero detect output
 
     -- Other Outputs (for LEDs)
     SEL_INPUT <= REG_IN;
@@ -120,7 +120,7 @@ begin   -- architecture begin
     REGISTERS: for r in 1 to 7 generate   -- generate the 7 registers
     begin
         RX : entity work.REG_LE generic map(BIT_DEPTH) port map (  -- Registers
-            RESET => RESET,
+            -- RESET => RESET,
               CLK => CLK,
                LE => wreg_sel(r),
                 D => reg_in,

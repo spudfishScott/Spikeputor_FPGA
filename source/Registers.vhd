@@ -53,7 +53,7 @@ entity REG_LE is
     generic (width : positive := 8); -- width of register
 
     port (
-        RESET : in std_logic;
+        -- RESET : in std_logic;
         CLK, LE : in std_logic; -- clock, latch enable
         D : in std_logic_vector(width-1 downto 0);	-- input
         Q : out std_logic_vector(width-1 downto 0)	-- output
@@ -61,18 +61,18 @@ entity REG_LE is
 end REG_LE;
 
 architecture Behavior of REG_LE is
-    signal DATA : std_logic_vector(width-1 downto 0) := (others => '0'); -- the internal data memory
+    signal data : std_logic_vector(width-1 downto 0) := (others => '0'); -- the internal data memory
 begin
 
     P_REG_LE : process(CLK) is
     begin
         if (rising_edge(CLK)) then -- changes on rising edge of clock
             if (LE = '1') then
-                DATA <= D;
+                Q <= D;
             end if;
         end if;
     end process P_REG_LE;
 
     -- send internal data to output - send zeros when reset, but don't zero out the register data itself
-    Q <= DATA when RESET = '0' else (others => '0');
+    -- Q <= data when RESET = '0' else (others => '0');
 end Behavior;

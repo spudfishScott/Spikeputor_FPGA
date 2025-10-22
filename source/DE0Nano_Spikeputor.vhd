@@ -81,7 +81,7 @@ begin
             SYNC_OUT => key_sync
         );
 
-    GPI_SYNC : entity work.SYNC_REG
+    GPI_SYNC_E : entity work.SYNC_REG
         generic map ( WIDTH => 8 )
         port map (
             CLK_IN   => CLOCK_50,

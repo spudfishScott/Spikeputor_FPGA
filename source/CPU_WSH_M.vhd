@@ -40,7 +40,7 @@ entity CPU_WSH_M is
         ALUSHIFT_DISP   : out std_logic_vector(15 downto 0); -- 21 [16]
         ALUCMPF_DISP    : out std_logic_vector(15 downto 0);
         ALUOUT_DISP     : out std_logic_vector(15 downto 0);
-        PHASE_DISP      : out std_logic_vector(1 downto 0);  -- 24 [2] - or maybe this, clock, and bank select are separate LEDs?
+        PHASE_DISP      : out std_logic_vector(1 downto 0)  -- 24 [2] - or maybe this, clock, and bank select are separate LEDs?
     );
 end CPU_WSH_M;
 
@@ -136,8 +136,8 @@ begin
     -- RegFile Instance
     REGFILE : entity work.REG_FILE port map (
         -- register file inputs
-        RESET       => RESET,
-        CLK         => CLK,      -- system clock
+        -- RESET       => RESET,
+        CLK         => CLK,             -- system clock
         IN0         => pcinc_out,       -- Register Input: PC + 2
         IN1         => s_alu_out,       -- Register Input: ALU output
         IN2         => mrdata_out,      -- Register Input: Memory Read Data

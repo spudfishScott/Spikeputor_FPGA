@@ -46,7 +46,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity MUX3 is
-    generic (width: positive); -- width of in/out signals
+    generic (width: positive := 16); -- width of in/out signals
 
     port (
         IN2 : in std_logic_vector(width-1 downto 0); -- input 2
@@ -75,7 +75,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity MUX4 is
-    generic (width: positive); -- width of in/out signals
+    generic (width: positive := 16); -- width of in/out signals
 
     port (
         IN3 : in std_logic_vector(width-1 downto 0); -- input 2
