@@ -173,3 +173,43 @@ architecture RTL of AUTO_MANUAL_CLOCK is
             end if;
         end process clock;
 end RTL;
+
+------------------------------------------------------------------------------------------------------------------
+-- This is an external signal synchronizer
+-- It synchronizes an external asynchronous signal of arbitrary bit depth to the system clock domain
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity SYNC_REG is
+    generic (
+        WIDTH : Integer := 1                                    -- Width of the signal to be synchronized
+    );
+
+    port (
+        CLK_IN   : in std_logic;                                 -- System clock input
+        ASYNC_IN : in std_logic_vector(WIDTH-1 downto 0);        -- Asynchronous input signal
+        SYNC_OUT : out std_logic_vector(WIDTH-1 downto 0)        -- Synchronized output signal
+    );
+end SYNC_REG;
+
+architecture RTL of SYNC_REG is
+    signal reg_meta : std_logic_vector(WIDTH-1 downto 0) := (others => '0');
+    signal reg_sync : std_logic_vector(WIDTH-1 downto 0) := (others => '0');
+
+     -- Quartus Prime specific synchronizer attributes to identify synchronized signals for analysis
+    attribute altera_attribute : string;
+    attribute altera_attribute of reg_meta, reg_sync : signal is "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS";
+
+begin
+    SYNC_PROCESS : process(CLK_IN)
+    begin
+        if rising_edge(CLK_IN) then
+            reg_meta <= ASYNC_IN;        -- First stage of synchronization
+            reg_sync <= reg_meta;        -- Second stage of synchronization
+        end if;
+    end process SYNC_PROCESS;
+    SYNC_OUT <= reg_sync;                -- Output the synchronized signal
+end RTL;
+
+------------------------------------------------------------------------------------------------------------------
