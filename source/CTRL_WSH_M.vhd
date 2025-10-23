@@ -6,9 +6,9 @@
 -- Contains the INST, CONST, and PC registers
 -- Also contains the state machine for fetching instructions and constants from memory
 -- and executing instructions, including memory read and write operations.
--- Uses a simple 4-state FSM to manage instruction fetch, constant fetch, and execution phases (with out without memory r/w command)
+-- Uses a FSM to manage instruction fetch, constant fetch, and execution phases (with out without memory r/w command) with stalling as needed for memory acknowledgements.
 -- Includes a PHASE output to indicate current phase of instruction cycle for display purposes
--- Memory interface is a Wishbone Master interface
+-- Memory interface is a Wishbone Provider interface
 -- Inputs from ALU and Register File, outputs to Register File and ALU control signals
 -- Memory write data is directly from Register File Channel B output (MWDATA)
 -- Memory Read Data is output to MRDATA signal
@@ -47,6 +47,9 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity CTRL_WSH_M is
+    generic (
+        RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000"  -- reset vector address
+    );
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
@@ -97,8 +100,6 @@ end CTRL_WSH_M;
 architecture rtl of CTRL_WSH_M is
 
     -- internal signals
-    constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000";   -- reset vector address
-
     -- internal registers to hold outputs
     signal INST_reg    : std_logic_vector(15 downto 0) := (others => '0');   -- instruction fetched from memory
     signal CONST_reg   : std_logic_vector(15 downto 0) := (others => '0');   -- constant fetched from memory
@@ -128,8 +129,10 @@ begin
     PC_INC      <= PC_INC_calc;                                             -- incremented program counter
     INST        <= INST_reg;                                                -- instruction fetched from memory
     CONST       <= CONST_reg;                                               -- constant fetched from memory
-    MRDATA      <= MRDATA_reg;                                              -- memory read data
-    RBSEL       <= RBSEL_sig;                                               -- Register Channel B Select - '0' for OPB, '1' for OPC
+
+    MRDATA      <= WBS_DATA_I; --MRDATA_reg;                                -- memory read data
+    -- RBSEL       <= RBSEL_sig;                                               -- Register Channel B Select - '0' for OPB, '1' for OPC
+    RBSEL       <= '1' when INST(8 downto 6) = "011" else '0';              -- select OPC for RegFile Channel B output on ST instruction, else OPB
     WERF        <= WERF_sig;                                                -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
     WDSEL       <= WDSEL_sig;                                               -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
     OPA         <= OPA_sig;                                                 -- Register Operand A
@@ -138,6 +141,8 @@ begin
     ALUFN       <= ALUFN_sig;                                               -- ALU Function select - opcode from instruction
     ASEL        <= ASEL_sig;                                                -- ALU A input select - '0' for REGFile Channel A, '1' for PC+2
     BSEL        <= BSEL_sig;                                                -- ALU B input select - '0' for REGFile Channel B
+
+    WBS_WE_O    <= '1' when (INST(9 downto 6) = "1011" AND st_main = ST_EXECUTE AND RST_I = '0') else '0';            -- write enable output - write on ST and STC commands, read otherwise
 
     -- Generate PHASE signal for display purposes
     WITH (st_main) SELECT                       -- current phase of instruction cycle for display purposes
@@ -164,7 +169,7 @@ begin
                  -- clear wishbone signals
                 WBS_CYC_O <= '0';               -- clear wishbone handshake signals
                 WBS_STB_O <= '0';
-                WBS_WE_O <= '0';
+                -- WBS_WE_O <= '0';
                 WBS_ADDR_O <= RESET_VECTOR;     -- set address to reset vector
                 WBS_DATA_O <= (others => '0');  -- clear data output
             else
@@ -178,7 +183,7 @@ begin
                         if WBS_ACK_I = '0' then             -- confirm that acknowledgement is clear
                             WBS_CYC_O <= '1';               -- initiate wishbone cycle
                             WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
-                            WBS_WE_O <= '0';                -- read operation
+                            -- WBS_WE_O <= '0';                -- read operation
                             st_main <= ST_FETCH_I_WAIT;	    -- go to wait for instruction (may take more than one clock cycle for non-RAM)
                         else
                             st_main <= ST_FETCH_I;          -- keep waiting until ready
@@ -197,11 +202,11 @@ begin
                             OPB_sig <= WBS_DATA_I(8 downto 6);            -- OPB is always bits 8-6
                             OPC_sig <= WBS_DATA_I(5 downto 3);            -- OPC is always bits 5-3
 
-                            if WBS_DATA_I(8 downto 6) = "011" then        -- if ST instruction, select OPC for RegFile Channel B output (RBSEL = 1)
-                                RBSEL_sig <= '1';
-                            else
-                                RBSEL_sig <= '0';
-                            end if;
+                            -- if WBS_DATA_I(8 downto 6) = "011" then        -- if ST instruction, select OPC for RegFile Channel B output (RBSEL = 1)
+                            --     RBSEL_sig <= '1';
+                            -- else
+                            --     RBSEL_sig <= '0';
+                            -- end if;
 
                            if WBS_DATA_I(10) = '1' then     -- instruction bit 10 indicates if there is a constant to fetch
                                 st_main <= ST_FETCH_C;          -- instruction has constant - go to fetch constant state
@@ -218,7 +223,7 @@ begin
                         -- fetch constant from memory at now incremented PC
                         if WBS_ACK_I = '0' then             -- confirm that acknowledgement is clear
                             WBS_STB_O <= '1';                   -- strobe to indicate valid address and start memory read
-                            WBS_WE_O <= '0';                    -- read operation
+                            -- WBS_WE_O <= '0';                    -- read operation
                             st_main <= ST_FETCH_C_WAIT;         -- go to wait for constant (may take more than one clock cycle for non-RAM)
                         else
                             st_main <= ST_FETCH_C;              -- keep waiting until ready
@@ -246,11 +251,11 @@ begin
 
                         if (INST_reg(9) AND INST_reg(7)) = '1' then    -- operation requires memory read or write (LD, LDR, or ST - formerly MASEL = 1)
                             WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output
-                            if (INST_reg(9) AND RBSEL_sig) = '1' then       -- write to memory on ST command (formerly MWR = 1), otherwise read
-                                WBS_WE_O <= '1';
-                            else
-                                WBS_WE_O <= '0';
-                            end if;
+                            -- if (INST_reg(9) AND RBSEL_sig) = '1' then       -- write to memory on ST command (formerly MWR = 1), otherwise read
+                            --     WBS_WE_O <= '1';
+                            -- else
+                            --     WBS_WE_O <= '0';
+                            -- end if;
                             st_main <= ST_EXECUTE_RW;       -- go to execute_rw state
                         else                            -- other instructions - do not need to read or write to memory
                             if ((INST_reg(9) = '1') AND                             -- check to see if the branch should be taken (formerly JT = 1)
@@ -282,10 +287,10 @@ begin
                         -- wait state for memory read or write operation to complete
                         if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
                             if (INST_reg(9) AND RBSEL_sig) = '0' then   -- if not a store command (formerly MRW = 0), it is a memory read operation
-                                MRDATA_reg <= WBS_DATA_I;                   -- latch memory read data from the read operation
+             --                   MRDATA_reg <= WBS_DATA_I;                   -- latch memory read data from the read operation
                                 WERF_sig <= '1';                            -- write to register on next clock 
-                            else
-                                WBS_WE_O <= '0';                            -- deassert write enable after write operation
+                            -- else
+                            --     WBS_WE_O <= '0';                            -- deassert write enable after write operation
                             end if;
 
                             PC_reg <= PC_INC_calc;              -- increment PC by 2 for next instruction

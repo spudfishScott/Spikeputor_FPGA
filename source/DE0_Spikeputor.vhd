@@ -176,7 +176,7 @@ begin
 
     -- LED output logic
     LEDG(8 downto 2) <= (others => '0');
-    LEDG(9) <= system_clk_en;  -- LED7 is cpu clock indicator
+    LEDG(9) <= system_clk_en;  -- LED7 is cpu clock indicator - need to use pulse generator so we can see it since it's only on for 20 ns!
 
     -- Set default output states
 
@@ -185,22 +185,6 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-
-    -- display PC or PC_INC on 7-seg based on Button(2)
-    -- disp_out <= pc_out when button_sync(2) = '1' else pcinc_out;
-
-    -- process(Button(2)) -- increment register index on each press of Button(2) - should work if Buttons are already debounced
-    -- begin
-    --     if falling_edge(Button(2)) then
-    --         if reg_index = 7 then
-    --             reg_index <= 1;
-    --         else
-    --             reg_index <= reg_index + 1;
-    --         end if;
-    --     end if;
-    -- end process;
-
-    -- LEDG(9 downto 7) <= std_logic_vector(to_unsigned(reg_index, 3));  -- display current register index on LEDG(9:7)
 
     reg_index <= to_integer(unsigned(sw_sync(3 downto 1)));  -- select register index from switches 3-1
 
@@ -226,10 +210,5 @@ begin
                                  alu_b       WHEN "110",           -- ALU B input
                                  alu_fn_leds WHEN "111",          -- ALU function control signals
                                  const_out   WHEN others;       -- ALU output (should never happen)
-
- -- set up internal display signals
---  reg_stat <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
---  alu_ctrl <= asel_out & "00000" & alufn_out & "0000" & bsel_out;                                        -- to display ALU controls
-
 
 end Structural;
