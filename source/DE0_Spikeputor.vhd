@@ -144,7 +144,7 @@ begin
         ALUSHIFT_DISP   => alu_shift,
         ALUCMPF_DISP    => alu_cmpf,
         ALUOUT_DISP     => s_alu_out,
-        PHASE_DISP      => LEDG(1 downto 0)
+        PHASE_DISP      => LEDG(2 downto 0)
     );
 
     -- RAM Instance as Wishbone provider
@@ -174,9 +174,19 @@ begin
         SEGS3 => HEX3_D
     );
 
+    PULSE : entity.work.PULSE_GEN
+        generic map (
+            PULSE_WIDTH => 5000000    -- 0.1 second pulse at 50 MHz clock
+        )
+        port map (
+            CLK       => CLOCK_50,
+            START     => system_clk_en,
+            PULSE_OUT => LEDG(9)      -- LEDG9 is pulse indicator
+        );
+
     -- LED output logic
-    LEDG(8 downto 2) <= (others => '0');
-    LEDG(9) <= system_clk_en;  -- LED7 is cpu clock indicator - need to use pulse generator so we can see it since it's only on for 20 ns!
+    LEDG(8 downto 3) <= (others => '0');
+   -- LEDG(9) <= system_clk_en;  -- LED7 is cpu clock indicator - need to use pulse generator so we can see it since it's only on for 20 ns!
 
     -- Set default output states
 

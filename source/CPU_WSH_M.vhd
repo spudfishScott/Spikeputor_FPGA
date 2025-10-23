@@ -41,7 +41,7 @@ entity CPU_WSH_M is
         ALUSHIFT_DISP   : out std_logic_vector(15 downto 0); -- 21 [16]
         ALUCMPF_DISP    : out std_logic_vector(15 downto 0);
         ALUOUT_DISP     : out std_logic_vector(15 downto 0);
-        PHASE_DISP      : out std_logic_vector(1 downto 0)  -- 24 [2] - or maybe this, clock, and bank select are separate LEDs?
+        PHASE_DISP      : out std_logic_vector(2 downto 0)  -- 24 [2] - or maybe this, clock, and bank select are separate LEDs?
     );
 end CPU_WSH_M;
 

@@ -33,7 +33,7 @@ CONTENT BEGIN
     09  :   4C09;
     0A  :   0002;
     0B  :   4741;
-    0C  :   FFEE;
+    0C  :   FFEA;
     0D  :   4700;
     0E  :   FFFC;
     [0F..1F]  :   0000;
