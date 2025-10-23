@@ -174,14 +174,15 @@ begin
         SEGS3 => HEX3_D
     );
 
-    PULSE : entity.work.PULSE_GEN
+    -- this isn't working the weay it needs to
+    PULSE : entity work.PULSE_GEN
         generic map (
             PULSE_WIDTH => 5000000    -- 0.1 second pulse at 50 MHz clock
         )
         port map (
-            CLK       => CLOCK_50,
-            START     => system_clk_en,
-            PULSE_OUT => LEDG(9)      -- LEDG9 is pulse indicator
+            CLK_IN       => CLOCK_50,
+            START_PULSE  => system_clk_en,
+            PULSE_OUT    => LEDG(9)      -- LEDG9 is pulse indicator
         );
 
     -- LED output logic
