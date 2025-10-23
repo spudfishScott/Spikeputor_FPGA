@@ -105,9 +105,9 @@ architecture rtl of CTRL_WSH_M is
     signal CONST_reg   : std_logic_vector(15 downto 0) := (others => '0');   -- constant fetched from memory
     signal PC_reg      : std_logic_vector(15 downto 0) := (others => '0');   -- program counter
     signal PC_INC_calc : std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
-    signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- memory read data
+    -- signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- memory read data
     
-    signal RBSEL_sig   : std_logic := '0';                                   -- Register Channel B Select - '0' for OPB, '1' for OPC
+    -- signal RBSEL_sig   : std_logic := '0';                                   -- Register Channel B Select - '0' for OPB, '1' for OPC
     signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
     signal WDSEL_sig   : std_logic_vector(1 downto 0) := (others => '0');    -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
     signal OPA_sig     : std_logic_vector(2 downto 0) := (others => '0');    -- Register Operand A
@@ -129,8 +129,9 @@ begin
     INST        <= INST_reg;                                                -- instruction fetched from memory
     CONST       <= CONST_reg;                                               -- constant fetched from memory
 
-    MRDATA      <= MRDATA_reg;                                              -- memory read data
-    RBSEL       <= RBSEL_sig;                                               -- Register Channel B Select - '0' for OPB, '1' for OPC
+    -- MRDATA      <= MRDATA_reg;                                              -- memory read data
+    -- RBSEL       <= RBSEL_sig;                                               -- Register Channel B Select - '0' for OPB, '1' for OPC
+    RBSEL       <= '1' when INST_reg(8 downto 6) = "011" else 0;            -- Set RBSEL to '1' for ST and STC instructions, else '0'
     WERF        <= WERF_sig;                                                -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
     WDSEL       <= WDSEL_sig;                                               -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
     OPA         <= OPA_sig;                                                 -- Register Operand A
@@ -198,11 +199,11 @@ begin
                             OPB_sig <= WBS_DATA_I(8 downto 6);            -- OPB is always bits 8-6
                             OPC_sig <= WBS_DATA_I(5 downto 3);            -- OPC is always bits 5-3
 
-                            if WBS_DATA_I(8 downto 6) = "011" then        -- if ST instruction, select OPC for RegFile Channel B output (RBSEL = 1)
-                                RBSEL_sig <= '1';
-                            else
-                                RBSEL_sig <= '0';
-                            end if;
+                            -- if WBS_DATA_I(8 downto 6) = "011" then        -- if ST instruction, select OPC for RegFile Channel B output (RBSEL = 1)
+                            --     RBSEL_sig <= '1';
+                            -- else
+                            --     RBSEL_sig <= '0';
+                            -- end if;
 
                            if WBS_DATA_I(10) = '1' then     -- instruction bit 10 indicates if there is a constant to fetch
                                 st_main <= ST_FETCH_C;          -- instruction has constant - go to fetch constant state
@@ -247,7 +248,8 @@ begin
 
                         if (INST_reg(9) AND INST_reg(7)) = '1' then    -- operation requires memory read or write (LD, LDR, or ST - formerly MASEL = 1)
                             WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output
-                            if (INST_reg(9) AND RBSEL_sig) = '1' then       -- write to memory on ST command (formerly MWR = 1), otherwise read
+                            if INST_reg(9 downto 6) = "1011" then
+                            -- if (INST_reg(9) AND RBSEL_sig) = '1' then       -- write to memory on ST command (formerly MWR = 1), otherwise read
                                 WBS_WE_O <= '1';
                             else
                                 WBS_WE_O <= '0';
@@ -282,8 +284,10 @@ begin
                     when ST_EXECUTE_RW_WAIT =>
                         -- wait state for memory read or write operation to complete
                         if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
-                            if (INST_reg(9) AND RBSEL_sig) = '0' then   -- if not a store command (formerly MRW = 0), it is a memory read operation
-                                MRDATA_reg <= WBS_DATA_I;                   -- latch memory read data from the read operation
+                            if (INST_reg(9) = '0' OR INST_reg(8 downto 6) /= "011") then
+                            -- if (INST_reg(9) AND RBSEL_sig) = '0' then   -- if not a store command (formerly MRW = 0), it is a memory read operation
+                                MRDATA <= WBS_DATA_I;                       -- output memory read data
+                                -- MRDATA_reg <= WBS_DATA_I;                   -- latch memory read data from the read operation
                                 WERF_sig <= '1';                            -- write to register on next clock 
                             else
                                 WBS_WE_O <= '0';                            -- deassert write enable after write operation

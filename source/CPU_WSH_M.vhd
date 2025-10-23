@@ -129,7 +129,7 @@ begin
         BSEL        => bsel_out,                -- BSEL output to ALU
         -- Inputs to Control Logic from other modules
         ALU_OUT     => s_alu_out,               -- ALU output to Control Logic
-        MWDATA      => rega_out,                -- RegFile Channel A input to Control Logic for memory writing
+        MWDATA      => regb_out,                -- RegFile Channel B input to Control Logic for memory writing
         Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
         PHASE       => PHASE_DISP               -- PHASE output for display only
