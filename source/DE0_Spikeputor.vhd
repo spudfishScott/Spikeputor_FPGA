@@ -104,18 +104,18 @@ begin
             CLK_EN    => system_clk_en
         );
 
-    -- Arbiter - simple right now: just stall the CPU module to wait for clock enable, eventually will include clock enable as a wishbone master, as well as a wishbone master DMA module
-    arb_ack <= ack AND system_clk_en;             -- pass ack through to CPU only when clock enable is high (cpu will stall until then)
+    -- Arbiter - TODO: include clock enable as a wishbone master (to stall CPU between instructions for single step/slower clock), as well as a wishbone master DMA module
 
     -- Spikeputor CPU as Wishbone master
     CPU : entity work.CPU_WSH_M port map (
         -- Timing
         CLK       => CLOCK_50,
-        RESET     => NOT button_sync(0),      -- Button 0 is system reset (active low)
+        RESET     => NOT button_sync(0),            -- Button 0 is system reset (active low)
+        STALL     => NOT system_clk_en, --'0',      -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
 
         -- Memory interface
         M_DATA_I  => data_i,
-        M_ACK_I   => arb_ack,
+        M_ACK_I   => arb,
         M_DATA_O  => data_o,
         M_ADDR_O  => addr,
         M_CYC_O   => cyc,

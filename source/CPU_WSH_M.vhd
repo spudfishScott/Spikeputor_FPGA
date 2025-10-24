@@ -8,6 +8,7 @@ entity CPU_WSH_M is
         -- Timing
         CLK       : in  std_logic;      -- System clock
         RESET     : in  std_logic;      -- System reset
+        STALL     : in  std_logic;      -- CPU stall signal for debugging
 
         -- Memory interface
         M_DATA_I  : in  std_logic_vector(15 downto 0);
@@ -97,6 +98,7 @@ begin
         -- SYSCON inputs
         CLK         => CLK,
         RST_I       => RESET,
+        STALL_I     => STALL,
 
         -- Wishbone signals for memory interface
         -- Handshaking signals
