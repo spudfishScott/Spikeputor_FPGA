@@ -34,7 +34,6 @@ architecture Structural of DE0_Spikeputor is
     signal cyc    : std_logic := '0';
     signal stb    : std_logic := '0';
     signal ack    : std_logic := '0';
-    signal arb_ack : std_logic := '0';
     signal addr   : std_logic_vector(15 downto 0) := (others => '0');
     signal data_o : std_logic_vector(15 downto 0) := (others => '0');
     signal data_i : std_logic_vector(15 downto 0) := (others => '0');
@@ -105,8 +104,7 @@ begin
         );
 
     -- Arbiter - TODO: include clock enable as a wishbone master (to stall CPU between instructions for single step/slower clock), as well as a wishbone master DMA module
---    arb_ack <= ack AND system_clk_en;
-	 
+
     -- Spikeputor CPU as Wishbone master
     CPU : entity work.CPU_WSH_M port map (
         -- Timing

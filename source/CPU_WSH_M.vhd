@@ -20,7 +20,7 @@ entity CPU_WSH_M is
         M_STB_O   : out std_logic;
         M_WE_O    : out std_logic;
 
-        -- Display interface
+        -- Display interface - maybe this should go in the top level module instead
         DISP_DATA : out std_logic;      -- DotStar data line
         DISP_CLK  : out std_logic;      -- DotStar clock line
 

@@ -41,13 +41,13 @@ begin
         intended_device_family          => "Cyclone III",
         lpm_hint                        => "ENABLE_RUNTIME_MOD=NO",
         lpm_type                        => "altsyncram",
-        numwords_a                      => 32,
+        numwords_a                      => 51, -- 102 bytes
         operation_mode                  => "SINGLE_PORT",
         outdata_aclr_a                  => "NONE",
         outdata_reg_a                   => "UNREGISTERED",
         read_during_write_mode_port_a   => "NEW_DATA_NO_NBE_READ",
         width_a                         => 16,
-        widthad_a                       => 5,         -- 2^5 = 32
+        widthad_a                       => 7,         -- 2^6 = 64 locations
         width_byteena_a                 => 1,
         init_file                       => "RAM32X16_TEST.MIF"
     ) port map (
@@ -59,7 +59,7 @@ begin
   );
     
     -- internal control signals
-    addr        <= WBS_ADDR_I(5 downto 1);                  -- use address bits A5 to A1 to index 32 locations - ignore A15 to A6 and A0
+    addr        <= WBS_ADDR_I(6 downto 1);                  -- use address bits A6 to A1 to index 64 locations - ignore A15 to A7 and A0
 
     -- output to wishbone interface
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;                 -- always acknowledge when CYC and STB are asserted
