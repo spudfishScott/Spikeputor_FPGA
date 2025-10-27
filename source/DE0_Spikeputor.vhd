@@ -94,7 +94,7 @@ begin
     -- TODO: convert to a wishbone master and integrate into arbiter
     CLK_EN_GEN_E : entity work.AUTO_MANUAL_CLOCK
         generic map (
-            AUTO_FREQ => 5,
+            AUTO_FREQ => 10,
             SYS_FREQ  => 50000000
         )
         port map (
@@ -105,17 +105,18 @@ begin
         );
 
     -- Arbiter - TODO: include clock enable as a wishbone master (to stall CPU between instructions for single step/slower clock), as well as a wishbone master DMA module
-
+--    arb_ack <= ack AND system_clk_en;
+	 
     -- Spikeputor CPU as Wishbone master
     CPU : entity work.CPU_WSH_M port map (
         -- Timing
         CLK       => CLOCK_50,
         RESET     => NOT button_sync(0),            -- Button 0 is system reset (active low)
-        STALL     => NOT system_clk_en, --'0',      -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
+        STALL     => NOT system_clk_en, --'0',       -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
 
         -- Memory interface
         M_DATA_I  => data_i,
-        M_ACK_I   => arb,
+        M_ACK_I   => ack,
         M_DATA_O  => data_o,
         M_ADDR_O  => addr,
         M_CYC_O   => cyc,

@@ -109,7 +109,7 @@ architecture rtl of CTRL_WSH_M is
     -- signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- memory read data
     
     -- signal RBSEL_sig   : std_logic := '0';                                   -- Register Channel B Select - '0' for OPB, '1' for OPC
-    -- signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
+    signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
     -- signal WDSEL_sig   : std_logic_vector(1 downto 0) := (others => '0');    -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
     -- signal OPA_sig     : std_logic_vector(2 downto 0) := (others => '0');    -- Register Operand A
     -- signal OPB_sig     : std_logic_vector(2 downto 0) := (others => '0');    -- Register Operand B
@@ -135,9 +135,9 @@ begin
     MRDATA <= WBS_DATA_I;
     -- RBSEL       <= RBSEL_sig;                                               -- Register Channel B Select - '0' for OPB, '1' for OPC
     RBSEL       <= '1' when INST_reg(8 downto 6) = "011" else '0';             -- Set RBSEL to '1' for ST and STC instructions, else '0' (RBSEL not registered)
-    -- WERF        <= WERF_sig;                                                -- Write Enable for Register File - on during execute phases if instruction is not a store (ST command)
-    WERF        <= '1' when (st_main = ST_EXECUTE AND (INST_reg(9) = '0' OR INST_reg(7) = '0')) OR
-                            (st_main = ST_EXECUTE_RW_WAIT AND INST_reg(9 downto 6) /= "1011") else '0';
+    WERF        <= WERF_sig;                                                -- Write Enable for Register File - on during execute phases if instruction is not a store (ST command)
+--    WERF        <= '1' when (st_main = ST_EXECUTE AND (INST_reg(9) = '0' OR INST_reg(7) = '0')) OR
+--                            (st_main = ST_EXECUTE_RW_WAIT AND INST_reg(9 downto 6) /= "1011") else '0';
     -- WDSEL       <= WDSEL_sig;                                               -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
     WDSEL       <=  "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10") else      -- use Memory Read Data as Register Input for LD and LDR instructions
                     "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0') else                -- use PC+2 as Register Input for Branch Instructions
@@ -157,8 +157,8 @@ begin
 
     WBS_DATA_O  <= MWDATA;                                                  -- data output is directly from Register File Channel B output
     WBS_WE_O    <= '1'  when INST_reg(9 downto 6) = "1011" AND
-                             (st_main = ST_EXECUTE_RW OR (st_main = ST_EXECUTE_RW_WAIT AND WBS_ACK_I = '0')) AND
-                             RESET = '0' else '0';                          -- write enable high for ST and STC instructions during execute with r/w phase
+                             (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND
+                             RST_I = '0' else '0';                          -- write enable high for ST and STC instructions during execute with r/w phase
 
 
     -- Generate PHASE signal for display purposes
@@ -171,7 +171,7 @@ begin
             "100" when ST_EXECUTE,           -- "10" = Execute Instruction (no memory r/w)
             "101" when ST_EXECUTE_RW,        -- "11" = Execute Instruction (with memory r/w)
             "111" when ST_EXECUTE_RW_WAIT,
-            "00" when others;  -- should never occur, default to fetch instruction phase
+            "000" when others;  -- should never occur, default to fetch instruction phase
 
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
 
@@ -192,7 +192,7 @@ begin
             else
                 -- normal operation
                 -- WBS_DATA_O <= MWDATA;           -- data output is directly from Register File Channel B output when reset = '0'
-                -- WERF_sig <= '0';                -- do not write to registers unless specifically set below
+                WERF_sig <= '0';                -- do not write to registers unless specifically set below
                 if STALL_I = '0' then              -- only proceed if not stalled for debugging, otherwise hold current state and do nothing
                     case st_main is
                         when ST_FETCH_I =>
@@ -288,7 +288,7 @@ begin
                                             WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
                                 end if;
 
-                                -- WERF_sig <= '1';            -- write to register on next clock
+                                WERF_sig <= '1';            -- write to register on next clock
                                 WBS_CYC_O <= '0';           -- end wishbone cycle
                                 st_main <= ST_FETCH_I;      -- go back to fetch next instruction, no wishbone read/write phase needed
                             end if;
@@ -304,13 +304,13 @@ begin
                         when ST_EXECUTE_RW_WAIT =>
                             -- wait state for memory read or write operation to complete
                             if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
-                                -- if (INST_reg(9 downto 6) /= "1011") then
-                                -- if (INST_reg(9) AND RBSEL_sig) = '0' then   -- if not a store command (formerly MRW = 0), it is a memory read operation
+                                if (INST_reg(9 downto 6) /= "1011") then
+                                --if (INST_reg(9) AND RBSEL_sig) = '0' then   -- if not a store command (formerly MRW = 0), it is a memory read operation
                                     -- MRDATA_reg <= WBS_DATA_I;                   -- latch memory read data from the read operation
-                                    -- WERF_sig <= '1';                            -- write to register on next clock 
+                                    WERF_sig <= '1';                            -- write to register on next clock 
                                 -- else
                                 -- WBS_WE_O <= '0';                            -- deassert write enable for next operation
-                                -- end if;
+                                end if;
 
                                 PC_reg <= PC_INC_calc;              -- increment PC by 2 for next instruction
                                 WBS_ADDR_O <= PC_INC_calc;          -- set address of next instruction to PC+2
