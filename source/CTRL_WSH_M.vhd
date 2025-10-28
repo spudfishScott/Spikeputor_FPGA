@@ -122,8 +122,7 @@ begin
 
     -- Control Signal Logic
     MRDATA <= WBS_DATA_I;
-    RBSEL       <= '1' when INST_reg(8 downto 6) = "011" else '0';          -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST and STC instructions, else '0'
-    -- issue with non-manual run of fibonacci. Other signals probably need to be synchronous
+    RBSEL       <= '1' when INST_reg(9 downto 6) = "1011" else '0';         -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST and STC instructions, else '0'
     WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command)
     WDSEL       <=  "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10") else      -- Write Data Select: use Memory Read Data as Register Input for LD and LDR instructions
                     "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0') else                --      use PC+2 as Register Input for Branch Instructions
