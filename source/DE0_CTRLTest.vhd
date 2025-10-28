@@ -98,7 +98,7 @@ architecture Structural of DE0_CTRLTest is
         OPC         => open,
         ALUFN       => open,
         ASEL        => open,
-        BSEL        => open <= 
+        BSEL        => open, 
 
         -- Inputs to Control Logic from other modules
         ALU_OUT     => GPIO0_D(31 downto 16),

@@ -176,7 +176,8 @@ begin
     -- this isn't working the weay it needs to
     PULSE : entity work.PULSE_GEN
         generic map (
-            PULSE_WIDTH => 5000000    -- 0.1 second pulse at 50 MHz clock
+            PULSE_WIDTH => 5000000,     -- 0.1 second pulse at 50 MHz clock
+            RESET_LOW => false          -- pulse starts on rising edge of START_PULSE and continues for PULSE_WIDTH ticks
         )
         port map (
             CLK_IN       => CLOCK_50,

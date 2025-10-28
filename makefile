@@ -1,7 +1,7 @@
 
 
 # vhdl files
-FILES = source/*
+FILES = source/*.vhd
 VHDLEX = .vhd
 
 # testbench

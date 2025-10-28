@@ -81,14 +81,15 @@ end Behavior;
 -- Timed Pulse Generator
 -- Generates a pulse of specified width in clock ticks
 -- pulse starts immediately and ends after the specified number of clock ticks
--- If START_PULSE is low before pulse is finished, the pulse is deactivated and the counter resets
+-- If RESET_LOW is true, If START_PULSE is low before pulse is finished, the pulse is deactivated and the counter resets
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity PULSE_GEN is
     generic (
-        PULSE_WIDTH : Integer := 10 -- Pulse width in clock ticks
+        PULSE_WIDTH : Integer := 10; -- Pulse width in clock ticks
+        RESET_LOW : Boolean := true   -- If true, pulse can be reset by bringing START_PULSE low before pulse is finished
     );
 
     port (
@@ -101,23 +102,39 @@ end PULSE_GEN;
 architecture Behavior of PULSE_GEN is
     signal COUNTER : Integer := 0;
     signal PULSE_ACTIVE : std_logic := '0';
+    signal previous_start : std_logic := '0';
 
 begin
     PULSE_GEN_PROCESS : process(CLK_IN)
     begin
         if rising_edge(CLK_IN) then
-				PULSE_ACTIVE <= START_PULSE;    -- PULSE_ACTIVE changes based on the START_PULSE input
-                if (PULSE_ACTIVE = '1' AND COUNTER < PULSE_WIDTH) then
-                        COUNTER <= COUNTER + 1;    -- increment the counter if pulse active and counter not done
-                 end if;
-					if START_PULSE = '0' then
-                  COUNTER <= 0;           -- Reset counter when pulse_start goes low
-					end if;
+            if previous_start = '0' and START_PULSE = '1' then
+                PULSE_ACTIVE <= '1';    -- start pulse on rising edge of START_PULSE
+            end if;
+
+            if previous_start = '1' and START_PULSE = '0' and RESET_LOW = true then
+                PULSE_ACTIVE <= '0';    -- reset pulse if RESET_LOW is true and START_PULSE goes low
+            end if;
+
+            if PULSE_ACTIVE = '1' then
+                if COUNTER < PULSE_WIDTH then
+                    COUNTER <= COUNTER + 1;     -- increment the counter if pulse active and counter not done
+                else 
+                    PULSE_ACTIVE <= '0';        -- end the pulse when counter reaches pulse width
+                    COUNTER <= 0;               -- reset counter
+                end if;
+            else
+                if PULSE_ACTIVE = '0' then
+                    COUNTER <= 0;               -- Reset counter when pulse_active goes low
+                end if;
+            end if;
+
+            previous_start <= START_PULSE;      -- store previous state of START_PULSE for edge detection
         end if;
     end process PULSE_GEN_PROCESS;
 
     -- PULSE_OUT is 1 when the counter is less than the pulse width and START_PULSE is high
-    PULSE_OUT <= '1' when ((COUNTER < PULSE_WIDTH) and START_PULSE = '1') else '0';
+    PULSE_OUT <= '1' when (COUNTER < PULSE_WIDTH AND PULSE_ACTIVE = '1') else '0';
 
 end Behavior;
 

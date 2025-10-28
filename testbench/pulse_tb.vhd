@@ -9,7 +9,8 @@ architecture tb of pulse_tb is
     -- Component declaration
     component PULSE_GEN
         generic (
-            PULSE_WIDTH : Integer := 10
+            PULSE_WIDTH : Integer := 10;
+            RESET_LOW   : Boolean := true
         );
         port (
             START_PULSE : in std_logic;
@@ -30,7 +31,8 @@ begin
     -- Instantiate DUT
     DUT: PULSE_GEN
         generic map (
-            PULSE_WIDTH => 5  -- Set pulse width for test = 5 ticks (100 ns at 20 ns clock period)
+            PULSE_WIDTH => 5,  -- Set pulse width for test = 5 ticks (100 ns at 20 ns clock period)
+            RESET_LOW   => false
         )
         port map (
             START_PULSE => start_pulse,
