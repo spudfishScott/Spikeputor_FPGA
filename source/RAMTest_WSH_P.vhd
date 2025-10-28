@@ -31,7 +31,7 @@ end RAMTest_WSH_P;
 architecture rtl of RAMTest_WSH_P is
 
     -- internal signals
-    signal addr : std_logic_vector(4 downto 0) := (others => '0');
+    signal addr : std_logic_vector(5 downto 0) := (others => '0');
 
 begin
     -- Altera Memory: 32 words x 16 bits per word, 1 port, unregistered output, registered inputs
@@ -41,13 +41,13 @@ begin
         intended_device_family          => "Cyclone III",
         lpm_hint                        => "ENABLE_RUNTIME_MOD=NO",
         lpm_type                        => "altsyncram",
-        numwords_a                      => 51, -- 102 bytes
+        numwords_a                      => 64, -- 102 bytes
         operation_mode                  => "SINGLE_PORT",
         outdata_aclr_a                  => "NONE",
         outdata_reg_a                   => "UNREGISTERED",
         read_during_write_mode_port_a   => "NEW_DATA_NO_NBE_READ",
         width_a                         => 16,
-        widthad_a                       => 7,         -- 2^6 = 64 locations
+        widthad_a                       => 6,         -- 2^6 = 64 locations
         width_byteena_a                 => 1,
         init_file                       => "RAM32X16_TEST.MIF"
     ) port map (
