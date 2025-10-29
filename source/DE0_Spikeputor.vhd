@@ -30,42 +30,57 @@ end DE0_Spikeputor;
 architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
 
-    -- Memory interface signals
-    signal cyc    : std_logic := '0';
-    signal stb    : std_logic := '0';
-    signal ack    : std_logic := '0';
-    signal addr   : std_logic_vector(15 downto 0) := (others => '0');
-    signal data_o : std_logic_vector(15 downto 0) := (others => '0');
-    signal data_i : std_logic_vector(15 downto 0) := (others => '0');
-    signal we     : std_logic := '0';
+    -- CPU Memory interface signals
+    signal cpu_cyc     : std_logic := '0';
+    signal cpu_stb     : std_logic := '0';
+    signal cpu_ack     : std_logic := '0';
+    signal cpu_addr    : std_logic_vector(15 downto 0) := (others => '0');
+    signal cpu_data_o  : std_logic_vector(15 downto 0) := (others => '0');
+    signal cpu_we      : std_logic := '0';
+    signal cpu_gnt_sig : std_logic := '0';
+    
+    -- Memory output signals
+    signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
+    signal ack         : std_logic := '0';
+
+    -- CPU clock control related signals
+    signal clk_gnt_req : std_logic := '0';
+    signal clk_gnt_sig : std_logic := '0';
+
+    -- Arbiter-related signals
+    signal arb_cyc     : std_logic := '0';
+    signal arb_stb     : std_logic := '0';
+    signal arb_we      : std_logic := '0';
+    signal arb_addr    : std_logic_vector(15 downto 0) := (others => '0');
+    signal arb_data_o  : std_logic_vector(15 downto 0) := (others => '0');
 
     -- Registers and Signals to Display (will be replaced with DotStar output eventually)
     -- Special Registers                                                            -- number of LED group for dotstar module [bits]
-    signal inst_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 1 [16]
-    signal const_out  : std_logic_vector(15 downto 0) := (others => '0');           -- 2 [16]
-    signal mrdata_out : std_logic_vector(15 downto 0) := (others => '0');           -- 3 [16]
-    signal pc_out      : std_logic_vector(15 downto 0) := (others => '0');          -- 4 [16]
+    signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 1 [16]
+    signal const_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 2 [16]
+    signal mrdata_out  : std_logic_vector(15 downto 0) := (others => '0');           -- 3 [16]
+    signal pc_out      : std_logic_vector(15 downto 0) := (others => '0');           -- 4 [16]
 
     -- Regsiter File
-    signal reg_stat    : std_logic_vector(15 downto 0) := (others => '0');          -- 5 [15]
-    signal wd_input    : std_logic_vector(15 downto 0) := (others => '0');          -- 6 [16]
-    signal reg_index  : integer range 1 to 7 := 1;                                  -- to select which register to display
-    signal all_regs    : RARRAY := (others => (others => '0'));                     -- 7-13
-    signal rega_out  : std_logic_vector(15 downto 0) := (others => '0');            -- 14 [17]
-    signal regb_out  : std_logic_vector(15 downto 0) := (others => '0');            -- 15 [16]
+    signal reg_stat    : std_logic_vector(15 downto 0) := (others => '0');           -- 5 [15]
+    signal wd_input    : std_logic_vector(15 downto 0) := (others => '0');           -- 6 [16]
+    signal reg_index   : integer range 1 to 7 := 1;                                  -- to select which register to display
+    signal all_regs    : RARRAY := (others => (others => '0'));                      -- 7-13
+    signal rega_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 14 [17]
+    signal regb_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 15 [16]
 
     -- ALU
-    signal alu_fn_leds : std_logic_vector(15 downto 0) := (others => '0');          -- 16 [17 or 19 depending on ASEL/BSEL 1 bit or 2 bit signals]
-    signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');          -- 17 [16]
-    signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');          -- 18 [16]
-    signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');          -- 19 [16]
-    signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');          -- 20 [16]
-    signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');          -- 21 [16]
-    signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');          -- 22 [4]
-    signal s_alu_out   : std_logic_vector(15 downto 0) := (others => '0');          -- 23 [16]
+    signal alu_fn_leds : std_logic_vector(15 downto 0) := (others => '0');           -- 16 [17 or 19 depending on ASEL/BSEL 1 bit or 2 bit signals]
+    signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');           -- 17 [16]
+    signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');           -- 18 [16]
+    signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');           -- 19 [16]
+    signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');           -- 20 [16]
+    signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');           -- 21 [16]
+    signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');           -- 22 [4]
+    signal s_alu_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 23 [16]
 
     -- clock logic
-    signal system_clk_en : std_logic := '0';
+    -- signal system_clk_en : std_logic := '0';
     
     -- Input synchronized signals
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
@@ -89,60 +104,82 @@ begin
             SYNC_OUT => button_sync
         );
 
-    CLK_GEN : entity work.CLOCK_WSH_M
+    -- -- Auto/Manual Clock Instance - generates CPU clock enable signal 5 Hz automatically or on button press in manual mode
+    -- CLK_EN_GEN_E : entity work.AUTO_MANUAL_CLOCK
+    --     generic map (
+    --         AUTO_FREQ => 10,
+    --         SYS_FREQ  => 50000000
+    --     )
+    --     port map (
+    --         SYS_CLK   => CLOCK_50,
+    --         MAN_SEL   => sw_sync(0),            -- switch 0 selects between auto and manual clock
+    --         MAN_START => NOT button_sync(1),    -- Button 1 is manual clock start (active low)
+    --         CLK_EN    => system_clk_en
+    --     );
+
+    -- -- Pulse Generator for LEDG9 to indicate CPU clock enable signal
+    -- PULSE : entity work.PULSE_GEN
+    --     generic map (
+    --         PULSE_WIDTH => 5000000,     -- 0.1 second pulse at 50 MHz clock
+    --         RESET_LOW => false          -- pulse starts on rising edge of START_PULSE and continues for PULSE_WIDTH ticks
+    --     )
+    --     port map (
+    --         CLK_IN       => CLOCK_50,
+    --         START_PULSE  => system_clk_en,
+    --         PULSE_OUT    => LEDG(9)      -- LEDG9 is pulse indicator
+    --     );
+
+    -- Arbiter
+    ARBITER : entity work.WSH_ARBITER 
         port map (
-            CLK        => CLOCK_50,
-            RESET      => NOT button_sync(0),   -- Button 0 is system reset (active low)
-            M_CYC_O    => open,                 -- will be connected to the arbiter when implemented
-            M_ACK_I    => '0',                  -- will be connected to the arbiter when implemented
-            AUTO_TICKS => std_logic_vector(to_unsigned(1000000, 32)), -- 1 million ticks at 50 MHz = 0.02 second period = 50 Hz clock
-            MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
-            MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
-            CPU_CLOCK  => LEDG(8)
+            CLK         => CLOCK_50,
+            RESET       => NOT button_sync(0),      --  Button 0 is system reset (active low)
+
+            -- Master 0 (CPU) signals
+            M0_CYC_O    => cpu_cyc,
+            M0_STB_O    => cpu_stb,
+            M0_WE_O     => cpu_we,
+            M0_DATA_O   => cpu_data_o,
+            M0_ADDR_O   => cpu_addr,
+            M0_GNT      => cpu_gnt_sig,
+
+            -- Master 1 (DMA) signals - not yet implemented
+            M1_CYC_O    => '0',
+            M1_STB_O    => '0',
+            M1_WE_O     => '0',
+            M1_DATA_O   => X"0000"
+            M1_ADDR_O   => X"0000"
+            M1_GNT      => open,
+
+            -- Master 2 (Clock Generator) signals
+            M2_CYC_O    => clk_gnt_req,             -- clock grant request
+            M2_GNT      => clk_gnt_sig,             -- clock grant given
+
+            -- Wishbone bus signals passed out throught the arbiter
+            CYC_O      : arb_cyc,
+            STB_O      : arb_stb,
+            WE_O       : arb_we,
+            ADDR_O     : arb_addr,
+            DATA_O     : arb_data_o
         );
 
-    -- Auto/Manual Clock Instance - generates CPU clock enable signal 5 Hz automatically or on button press in manual mode
-    CLK_EN_GEN_E : entity work.AUTO_MANUAL_CLOCK
-        generic map (
-            AUTO_FREQ => 10,
-            SYS_FREQ  => 50000000
-        )
-        port map (
-            SYS_CLK   => CLOCK_50,
-            MAN_SEL   => sw_sync(0),            -- switch 0 selects between auto and manual clock
-            MAN_START => NOT button_sync(1),    -- Button 1 is manual clock start (active low)
-            CLK_EN    => system_clk_en
-        );
-        
-    -- Pulse Generator for LEDG9 to indicate CPU clock enable signal
-    PULSE : entity work.PULSE_GEN
-        generic map (
-            PULSE_WIDTH => 5000000,     -- 0.1 second pulse at 50 MHz clock
-            RESET_LOW => false          -- pulse starts on rising edge of START_PULSE and continues for PULSE_WIDTH ticks
-        )
-        port map (
-            CLK_IN       => CLOCK_50,
-            START_PULSE  => system_clk_en,
-            PULSE_OUT    => LEDG(9)      -- LEDG9 is pulse indicator
-        );
-
-    -- Arbiter - TODO: include clock enable as a wishbone master (to stall CPU between instructions for single step/slower clock), as well as a wishbone master DMA module
+        cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for arbitrated master is wishbone bus ack signal AND master grant signal
 
     -- Spikeputor CPU as Wishbone master
     CPU : entity work.CPU_WSH_M port map (
         -- Timing
         CLK       => CLOCK_50,
         RESET     => NOT button_sync(0),            -- Button 0 is system reset (active low)
-        STALL     => NOT system_clk_en, --'0',       -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
+        STALL     => '0',--NOT system_clk_en,       -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
 
         -- Memory interface
         M_DATA_I  => data_i,
-        M_ACK_I   => ack,
-        M_DATA_O  => data_o,
-        M_ADDR_O  => addr,
-        M_CYC_O   => cyc,
-        M_STB_O   => stb,
-        M_WE_O    => we,
+        M_ACK_I   => cpu_ack,
+        M_DATA_O  => cpu_data_o,
+        M_ADDR_O  => cpu_addr,
+        M_CYC_O   => cpu_cyc,
+        M_STB_O   => cpu_stb,
+        M_WE_O    => cpu_we,
 
         --Display interface - DotStar outputs not used currently
         DISP_DATA => open,
@@ -169,6 +206,19 @@ begin
         PHASE_DISP      => LEDG(2 downto 0)
     );
 
+    -- Spikeputor CPU Clock Control as Wishbone Master
+    CLK_GEN : entity work.CLOCK_WSH_M
+    port map (
+        CLK        => CLOCK_50,
+        RESET      => NOT button_sync(0),   -- Button 0 is system reset (active low)
+        M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
+        M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
+        AUTO_TICKS => std_logic_vector(to_unsigned(50000000, 32)), -- 50 million ticks at 50 MHz = 1 second period = 1 Hz clock
+        MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
+        MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
+        CPU_CLOCK  => LEDG(9)
+    );
+
     -- RAM Instance as Wishbone provider
     RAM : entity work.RAMTest_WSH_P port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
         -- SYSCON inputs
@@ -176,15 +226,15 @@ begin
 
         -- Wishbone signals
         -- handshaking signals
-        WBS_CYC_I   => cyc,
-        WBS_STB_I   => stb,
-        WBS_ACK_O   => ack,
+        WBS_CYC_I   => arb_cyc,
+        WBS_STB_I   => arb_stb,     -- Later, this is derived from arb_stb AND address comparator (to select a specific type of memory to interface with based on address and bank select register)
+        WBS_ACK_O   => ack,         -- Later, just OR all the memory ack signals together
 
         -- memory read/write signals
-        WBS_ADDR_I  => addr,
-        WBS_DATA_O  => data_i,
-        WBS_DATA_I  => data_o,
-        WBS_WE_I    => we
+        WBS_ADDR_I  => arb_addr,
+        WBS_DATA_O  => data_i,      -- Later, 
+        WBS_DATA_I  => arb_data_o,
+        WBS_WE_I    => arb_we
     );
 
     -- 7 Segment display decoder instance
