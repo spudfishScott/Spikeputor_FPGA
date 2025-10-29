@@ -147,8 +147,8 @@ begin
             M1_CYC_O    => '0',
             M1_STB_O    => '0',
             M1_WE_O     => '0',
-            M1_DATA_O   => X"0000"
-            M1_ADDR_O   => X"0000"
+            M1_DATA_O   => X"0000",
+            M1_ADDR_O   => X"0000",
             M1_GNT      => open,
 
             -- Master 2 (Clock Generator) signals
@@ -156,11 +156,11 @@ begin
             M2_GNT      => clk_gnt_sig,             -- clock grant given
 
             -- Wishbone bus signals passed out throught the arbiter
-            CYC_O      : arb_cyc,
-            STB_O      : arb_stb,
-            WE_O       : arb_we,
-            ADDR_O     : arb_addr,
-            DATA_O     : arb_data_o
+            CYC_O       => arb_cyc,
+            STB_O       => arb_stb,
+            WE_O        => arb_we,
+            ADDR_O      => arb_addr,
+            DATA_O      => arb_data_o
         );
 
         cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for arbitrated master is wishbone bus ack signal AND master grant signal

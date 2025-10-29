@@ -37,13 +37,13 @@ begin
 
     clock : process(CLK) is
     begin
-        if RESET = '1' then
-            bus_req <= '0';         -- release bus on reset and reset counter and internal flags
-            holding_bus <= '0';
-            CPU_CLOCK <= '0';
-            counter <= 1;
-        else
-            if rising_edge(CLK) then
+        if rising_edge(CLK) then
+            if RESET = '1' then
+                bus_req <= '0';         -- release bus on reset and reset counter and internal flags
+                holding_bus <= '0';
+                CPU_CLOCK <= '0';
+                counter <= 1;
+            else
                 previous_man <= MAN_START;  -- store previous state of manual start signal for edge detection
 
                 if holding_bus = '0' then   -- not holding the bus, check for bus request/grant
