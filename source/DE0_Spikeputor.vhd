@@ -39,7 +39,7 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_we      : std_logic := '0';
     signal cpu_gnt_sig : std_logic := '0';
     
-    -- Memory output signals
+    -- Memory output signals - will eventually be multiplexed when multiple Wishbone providers are implemented
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
     signal ack         : std_logic := '0';
 
@@ -104,32 +104,7 @@ begin
             SYNC_OUT => button_sync
         );
 
-    -- -- Auto/Manual Clock Instance - generates CPU clock enable signal 5 Hz automatically or on button press in manual mode
-    -- CLK_EN_GEN_E : entity work.AUTO_MANUAL_CLOCK
-    --     generic map (
-    --         AUTO_FREQ => 10,
-    --         SYS_FREQ  => 50000000
-    --     )
-    --     port map (
-    --         SYS_CLK   => CLOCK_50,
-    --         MAN_SEL   => sw_sync(0),            -- switch 0 selects between auto and manual clock
-    --         MAN_START => NOT button_sync(1),    -- Button 1 is manual clock start (active low)
-    --         CLK_EN    => system_clk_en
-    --     );
-
-    -- -- Pulse Generator for LEDG9 to indicate CPU clock enable signal
-    -- PULSE : entity work.PULSE_GEN
-    --     generic map (
-    --         PULSE_WIDTH => 5000000,     -- 0.1 second pulse at 50 MHz clock
-    --         RESET_LOW => false          -- pulse starts on rising edge of START_PULSE and continues for PULSE_WIDTH ticks
-    --     )
-    --     port map (
-    --         CLK_IN       => CLOCK_50,
-    --         START_PULSE  => system_clk_en,
-    --         PULSE_OUT    => LEDG(9)      -- LEDG9 is pulse indicator
-    --     );
-
-    -- Arbiter
+    -- Round Robin Wishbone Bus Arbiter
     ARBITER : entity work.WSH_ARBITER 
         port map (
             CLK         => CLOCK_50,
@@ -141,7 +116,6 @@ begin
             M0_WE_O     => cpu_we,
             M0_DATA_O   => cpu_data_o,
             M0_ADDR_O   => cpu_addr,
-            M0_GNT      => cpu_gnt_sig,
 
             -- Master 1 (DMA) signals - not yet implemented
             M1_CYC_O    => '0',
@@ -149,10 +123,13 @@ begin
             M1_WE_O     => '0',
             M1_DATA_O   => X"0000",
             M1_ADDR_O   => X"0000",
-            M1_GNT      => open,
 
             -- Master 2 (Clock Generator) signals
             M2_CYC_O    => clk_gnt_req,             -- clock grant request
+
+            -- Wishbone Grant Signals
+            M0_GNT      => cpu_gnt_sig,             -- CPU grant given
+            M1_GNT      => open,                    -- DMA grant given
             M2_GNT      => clk_gnt_sig,             -- clock grant given
 
             -- Wishbone bus signals passed out throught the arbiter
@@ -172,14 +149,14 @@ begin
         RESET     => NOT button_sync(0),            -- Button 0 is system reset (active low)
         STALL     => '0',--NOT system_clk_en,       -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
 
-        -- Memory interface
-        M_DATA_I  => data_i,
-        M_ACK_I   => cpu_ack,
-        M_DATA_O  => cpu_data_o,
-        M_ADDR_O  => cpu_addr,
-        M_CYC_O   => cpu_cyc,
-        M_STB_O   => cpu_stb,
-        M_WE_O    => cpu_we,
+        -- Memory standard Wishbone interface signals
+        M_DATA_I  => data_i,                        -- Wishbone Data from providers
+        M_ACK_I   => cpu_ack,                       -- Wishbone ACK from providers
+        M_DATA_O  => cpu_data_o,                    -- Wishbone Data to providers
+        M_ADDR_O  => cpu_addr,                      -- Wishbone Address to providers
+        M_CYC_O   => cpu_cyc,                       -- Wishbone CYC to providers
+        M_STB_O   => cpu_stb,                       -- Wishbone STB to providers
+        M_WE_O    => cpu_we,                        -- Wishbone WE to providers
 
         --Display interface - DotStar outputs not used currently
         DISP_DATA => open,
@@ -224,7 +201,7 @@ begin
         -- SYSCON inputs
         CLK         => CLOCK_50,
 
-        -- Wishbone signals
+        -- Wishbone signals - inputs from the arbiter, outputs as described
         -- handshaking signals
         WBS_CYC_I   => arb_cyc,
         WBS_STB_I   => arb_stb,     -- Later, this is derived from arb_stb AND address comparator (to select a specific type of memory to interface with based on address and bank select register)
@@ -232,7 +209,7 @@ begin
 
         -- memory read/write signals
         WBS_ADDR_I  => arb_addr,
-        WBS_DATA_O  => data_i,      -- Later, 
+        WBS_DATA_O  => data_i,      -- Later, this will be sent to a multiplexer input. MUX selection based on address and bank select register
         WBS_DATA_I  => arb_data_o,
         WBS_WE_I    => arb_we
     );
@@ -261,25 +238,25 @@ begin
 
     -- output various values to GPIO1 based on switches 9-7 and 6-4
     WITH (sw_sync(9 downto 7)) SELECT
-        GPIO1_D(31 downto 16) <= inst_out    WHEN "000",        -- INST output
-                                 s_alu_out   WHEN "001",        -- CONST output
-                                 rega_out    WHEN "010",        -- RegFile Channel A
-                                 regb_out    WHEN "011",        -- RegFile Channel B
-                                 mrdata_out  WHEN "100",        -- MRDATA output
-                                 reg_stat    WHEN "101",        -- RegFile control signals and Zero flag
-                                 wd_input    WHEN "110",        -- RegFile selected write data
-                                 all_regs(reg_index) WHEN "111",   -- register at current index (1 to 7)
-                                 inst_out    WHEN others;       -- INST output (should never happen)
+        GPIO1_D(31 downto 16) <= inst_out    WHEN "000",            -- INST output
+                                 s_alu_out   WHEN "001",            -- CONST output
+                                 rega_out    WHEN "010",            -- RegFile Channel A
+                                 regb_out    WHEN "011",            -- RegFile Channel B
+                                 mrdata_out  WHEN "100",            -- MRDATA output
+                                 reg_stat    WHEN "101",            -- RegFile control signals and Zero flag
+                                 wd_input    WHEN "110",            -- RegFile selected write data
+                                 all_regs(reg_index) WHEN "111",    -- register at current index (1 to 7)
+                                 inst_out    WHEN others;           -- INST output (should never happen)
 
     WITH (sw_sync(6 downto 4)) SELECT
-        GPIO1_D(15 downto 0)  <= const_out   WHEN "000",        -- ALU Output
-                                 alu_shift   WHEN "001",        -- ALU shift by 8 output
-                                 alu_arith   WHEN "010",        -- ALU arithmetic output
-                                 alu_bool    WHEN "011",        -- ALU boolean output
-                                 alu_cmpf    WHEN "100",        -- ALU compare flags
-                                 alu_a       WHEN "101",           -- ALU A input
-                                 alu_b       WHEN "110",           -- ALU B input
-                                 alu_fn_leds WHEN "111",          -- ALU function control signals
-                                 const_out   WHEN others;       -- ALU output (should never happen)
+        GPIO1_D(15 downto 0)  <= const_out   WHEN "000",            -- ALU Output
+                                 alu_shift   WHEN "001",            -- ALU shift output
+                                 alu_arith   WHEN "010",            -- ALU arithmetic output
+                                 alu_bool    WHEN "011",            -- ALU boolean output
+                                 alu_cmpf    WHEN "100",            -- ALU compare flags
+                                 alu_a       WHEN "101",            -- ALU A input
+                                 alu_b       WHEN "110",            -- ALU B input
+                                 alu_fn_leds WHEN "111",            -- ALU function control signals
+                                 const_out   WHEN others;           -- ALU output (should never happen)
 
 end Structural;

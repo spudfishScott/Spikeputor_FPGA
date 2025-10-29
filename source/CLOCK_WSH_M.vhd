@@ -15,11 +15,11 @@ entity CLOCK_WSH_M is
         
         -- Wishbone arbiter signals
         M_CYC_O    : out std_logic;      -- wishbone cycle output - set high to request bus, low to release bus
-        M_ACK_I    : in  std_logic;      -- aribiter grant signal - wait until high, then counting begins, then set CYC_O low after specified ticks, then set them high again to request bus again
+        M_ACK_I    : in  std_logic;      -- aribiter grant signal - kicks off bus stall process
 
         AUTO_TICKS : in std_logic_vector(31 downto 0); -- Automatic clock frequency pulse width in system clock ticks
         MAN_SEL    : in std_logic;                     -- Manual/Automatic clock select
-        MAN_START  : in std_logic;                      -- Manual clock start signal
+        MAN_START  : in std_logic;                     -- Manual clock start signal
 
         CPU_CLOCK  : out std_logic      -- CPU Clock output for display purposes (should be 50% duty cycle)
     );
@@ -33,7 +33,7 @@ architecture Behavioral of CLOCK_WSH_M is
     signal bus_req        : std_logic := '0';
 
 begin
-    M_CYC_O <= bus_req;
+    M_CYC_O <= bus_req;     -- bus request in the form of a wishbone master cycle signal
 
     clock : process(CLK) is
     begin
@@ -59,17 +59,18 @@ begin
 
                 else    -- holding bus, counting ticks or waiting for manual button press
                     if MAN_SEL = '0' then
-                        if counter < to_integer(unsigned(AUTO_TICKS)) then
+                        if counter < to_integer(unsigned(AUTO_TICKS)) then  -- increment counter until complete
                             counter <= counter + 1;
                             if counter > to_integer(unsigned(AUTO_TICKS))/2 then
-                                CPU_CLOCK <= '1';    -- set CPU clock display low at half of the cycle
+                                CPU_CLOCK <= '1';   -- set CPU clock display high at half of the cycle
                             end if;
-                        else
+                        else                        -- counter complete
                             holding_bus <= '0';     -- done holding bus
                             bus_req <= '0';         -- release bus
                         end if;
                     else
                         counter <= 1; -- reset counter in manual mode
+                        CPU_CLOCK <= '0';           -- CPU clock display starts at low
                         if previous_man = '0' and MAN_START = '1' then -- rising edge of manual start signal
                             CPU_CLOCK <= '1';       -- set CPU clock display high, keep holding the bus until button is released
                         elsif previous_man = '1' and MAN_START = '0' then -- falling edge of manual start signal
