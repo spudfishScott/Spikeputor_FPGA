@@ -70,8 +70,9 @@ begin
                         end if;
                     else
                         counter <= 1; -- reset counter in manual mode
-                        CPU_CLOCK <= '0';           -- CPU clock display starts at low
-                        if previous_man = '0' and MAN_START = '1' then -- rising edge of manual start signal
+                        if previous_man = '0' and MAN_START = '0' then
+                            CPU_CLOCK <= '0';           -- CPU clock display starts at low
+                        elsif previous_man = '0' and MAN_START = '1' then -- rising edge of manual start signal
                             CPU_CLOCK <= '1';       -- set CPU clock display high, keep holding the bus until button is released
                         elsif previous_man = '1' and MAN_START = '0' then -- falling edge of manual start signal
                             holding_bus <= '0';     -- done holding bus
