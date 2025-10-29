@@ -82,15 +82,26 @@ begin
         );
 
     BUTTON_SYNC_E : entity work.SYNC_REG
-        generic map ( WIDTH => 3)
+        generic map ( WIDTH => 3 )
         port map (
             CLK_IN   => CLOCK_50,
             ASYNC_IN => BUTTON,
             SYNC_OUT => button_sync
         );
 
+    CLK_GEN : entity work.CLOCK_WSH_M
+        port map (
+            CLK        => CLOCK_50,
+            RESET      => NOT button_sync(0),   -- Button 0 is system reset (active low)
+            M_CYC_O    => open,                 -- will be connected to the arbiter when implemented
+            M_ACK_I    => '0',                  -- will be connected to the arbiter when implemented
+            AUTO_TICKS => std_logic_vector(to_unsigned(1000000, 32)), -- 1 million ticks at 50 MHz = 0.02 second period = 50 Hz clock
+            MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
+            MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
+            CPU_CLOCK  => LEDG(8)
+        );
+
     -- Auto/Manual Clock Instance - generates CPU clock enable signal 5 Hz automatically or on button press in manual mode
-    -- TODO: convert to a wishbone master and integrate into arbiter
     CLK_EN_GEN_E : entity work.AUTO_MANUAL_CLOCK
         generic map (
             AUTO_FREQ => 10,
@@ -101,6 +112,18 @@ begin
             MAN_SEL   => sw_sync(0),            -- switch 0 selects between auto and manual clock
             MAN_START => NOT button_sync(1),    -- Button 1 is manual clock start (active low)
             CLK_EN    => system_clk_en
+        );
+        
+    -- Pulse Generator for LEDG9 to indicate CPU clock enable signal
+    PULSE : entity work.PULSE_GEN
+        generic map (
+            PULSE_WIDTH => 5000000,     -- 0.1 second pulse at 50 MHz clock
+            RESET_LOW => false          -- pulse starts on rising edge of START_PULSE and continues for PULSE_WIDTH ticks
+        )
+        port map (
+            CLK_IN       => CLOCK_50,
+            START_PULSE  => system_clk_en,
+            PULSE_OUT    => LEDG(9)      -- LEDG9 is pulse indicator
         );
 
     -- Arbiter - TODO: include clock enable as a wishbone master (to stall CPU between instructions for single step/slower clock), as well as a wishbone master DMA module
@@ -173,21 +196,8 @@ begin
         SEGS3 => HEX3_D
     );
 
-    -- this isn't working the weay it needs to
-    PULSE : entity work.PULSE_GEN
-        generic map (
-            PULSE_WIDTH => 5000000,     -- 0.1 second pulse at 50 MHz clock
-            RESET_LOW => false          -- pulse starts on rising edge of START_PULSE and continues for PULSE_WIDTH ticks
-        )
-        port map (
-            CLK_IN       => CLOCK_50,
-            START_PULSE  => system_clk_en,
-            PULSE_OUT    => LEDG(9)      -- LEDG9 is pulse indicator
-        );
-
     -- LED output logic
-    LEDG(8 downto 3) <= (others => '0');
-   -- LEDG(9) <= system_clk_en;  -- LED7 is cpu clock indicator - need to use pulse generator so we can see it since it's only on for 20 ns!
+    LEDG(7 downto 3) <= (others => '0');
 
     -- Set default output states
 
