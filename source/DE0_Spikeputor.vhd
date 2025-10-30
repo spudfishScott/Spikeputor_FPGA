@@ -167,7 +167,7 @@ begin
         CONST_DISP      => const_out,
         MDATA_DISP      => mdata_out,
         PC_DISP         => pc_out,
-        JT              => LEDG(8)
+        JT              => LEDG(8),
         REGSTAT_DISP    => reg_stat,
         WDINPUT_DISP    => wd_input,
         REGS_DISP       => all_regs,

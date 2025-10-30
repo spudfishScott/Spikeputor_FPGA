@@ -106,6 +106,7 @@ architecture rtl of CTRL_WSH_M is
     signal CONST_reg   : std_logic_vector(15 downto 0) := (others => '0');   -- constant fetched from memory
     signal PC_reg      : std_logic_vector(15 downto 0) := (others => '0');   -- program counter
     signal PC_INC_calc : std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
+    signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- MRDATA register (for display)
 
     signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
 
@@ -121,7 +122,7 @@ begin
     CONST       <= CONST_reg;                                               -- constant fetched from memory
 
     -- Control Signal Logic
-    MRDATA <= WBS_DATA_I;
+    MRDATA      <= MRDATA_reg;
     RBSEL       <= '1' when INST_reg(9 downto 6) = "1011" else '0';         -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST and STC instructions, else '0'
     WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command)
     WDSEL       <=  "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10") else      -- Write Data Select: use Memory Read Data as Register Input for LD and LDR instructions
@@ -162,11 +163,13 @@ begin
                 st_main <= ST_FETCH_I;          -- start by fetching instruction
                 PC_reg <= RESET_VECTOR;         -- set PC to reset vector
                 WERF_sig <= '0';                -- do not write to registers during reset
+                MRDATA_reg <= (others => '0');  -- clear MRDATA registere
 
                  -- clear wishbone signals
                 WBS_CYC_O <= '0';               -- clear wishbone handshake signals
                 WBS_STB_O <= '0';
                 WBS_ADDR_O <= RESET_VECTOR;     -- set address to reset vector
+
             else
                 -- normal operation
                 WERF_sig <= '0';                -- do not write to registers unless specifically set below
@@ -255,6 +258,7 @@ begin
                             if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
                                 if (INST_reg(9 downto 6) /= "1011") then
                                     WERF_sig <= '1';                -- write to register on next clock if not a ST command
+                                    MRDATA_reg <= WBS_DATA_I;       -- store data read into register for display
                                 end if;
 
                                 PC_reg <= PC_INC_calc;              -- increment PC by 2 for next instruction
