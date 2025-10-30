@@ -24,7 +24,7 @@ entity DE0_Spikeputor is
         LEDG : out std_logic_vector(9 downto 0);
         -- GPIO
         GPIO1_D : out std_logic_vector(31 downto 0);
-        GPIO0_D : out std_logic_vector(1 downto 0);
+        GPIO0_D : out std_logic_vector(1 downto 0)
     );
 end DE0_Spikeputor;
 

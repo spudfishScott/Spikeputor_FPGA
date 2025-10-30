@@ -89,13 +89,14 @@ architecture Behavioral of CPU_WSH_M is
     signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
     signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
     signal cyc_sig     : std_logic := '0';                                   -- wishone cycle signal from cpu
-
+    signal last_cyc_sig : std_logic := '0';
+	 
 begin
 
     -- wire internal signals to display outputs
     INST_DISP       <= inst_out;
     CONST_DISP      <= const_out;
-    MDATA_DISP      <= mdata_disp_sign(16 downto 1);
+    MDATA_DISP      <= mdata_disp_sig(16 downto 1);
     PC_DISP         <= pc_disp_sig(16 downto 1);
     pc_disp_sig(0)  <= '1' when ((inst_out(9) = '1') AND                     -- check to see if the branch should be taken
                                  ((inst_out(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
@@ -117,13 +118,12 @@ begin
                            else '0';
 
     M_CYC_O         <= cyc_sig;
+	 refresh	        <= '1' when (last_cyc_sig = '1' AND cyc_sig = '0' AND led_busy = '0') else '0';
     
-    process(cyc_sig) is
+    process(CLK) is
     begin
-        if falling_edge(cyc_sig) then   -- only update DotStar LEDs at the end of a CPU cycle and if DotStar is not busy
-            refresh <= not led_busy;
-        else
-            refresh <= '0';
+        if rising_edge(CLK) then   -- only update DotStar LEDs at the end of a CPU cycle and if DotStar is not busy
+            last_cyc_sig <= cyc_sig;
         end if;
     end process;
 
@@ -138,7 +138,7 @@ begin
         PC          => pc_disp_sig,
 
         DATA_OUT    => DISP_DATA,
-        CLOCK_OUT   => DISP_CLK,
+        CLK_OUT     => DISP_CLK,
         BUSY        => led_busy
     );
 

@@ -119,22 +119,22 @@ begin
                             -- for each set, use custom signal names and bit widths
                             case set_index is
                                 when 1 =>
-                                    set_reg  <= "0000000000000000" & INST;
+                                    set_reg  <= "00000" & INST;
                                     num_leds <= 16;
                                 when 2 =>
-                                    set_reg  <= "0000000000000000" & CONST;
+                                    set_reg  <= "00000" & CONST;
                                     num_leds <= 16;
                                 when 3 =>
-                                    set_reg  <= "000000000000000" & MDATA;
+                                    set_reg  <= "0000" & MDATA;
                                     num_leds <= 17;
                                 when 4 =>
-                                    set_reg  <= "000000000000000" & PC;
+                                    set_reg  <= "0000" & PC;
                                     num_leds <= 17;
                                 when 5 => -- placeholder to just use the last 6 LEDs on the test strip
                                     set_reg <= (others => '0');
                                     num_leds <= 6;
                                 when others =>
-                                    set_reg  <= "0000000000000000" & INST;
+                                    set_reg  <= "00000" & INST;
                                     num_leds <= 16;
                             end case;
 
