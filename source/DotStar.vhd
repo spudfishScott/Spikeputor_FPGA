@@ -27,7 +27,7 @@ end dotstar_driver;
 architecture rtl of dotstar_driver is
 
     constant NUM_SETS         : integer := 5;                             -- number of LED sets in the display array (or input arrays)
-    constant MAX_LEDS_PER_SET : integer := 32;                            -- max number of LEDs in each set
+    constant MAX_LEDS_PER_SET : integer := 21;                            -- max number of LEDs in each set
     constant TOTAL_LEDS       : integer := NUM_SETS * MAX_LEDS_PER_SET;   -- number of LEDs in the display data (make this exact from the size of all the signals)
 
     constant START_BITS       : integer := 32;                            -- number of bits in start frame (all '0's)
@@ -36,13 +36,12 @@ architecture rtl of dotstar_driver is
     
     constant NO_COLOR         : std_logic_vector(23 downto 0) := (others => '0'); -- color data for LED off
 
-    signal int_start : std_logic := '0';                                                    -- internal start signal, latched when not busy
     signal start_bit_index : integer range 0 to START_BITS := 0;                            -- bit index within start frame
     signal end_bit_index   : integer range 0 to END_BITS := 0;                              -- bit index within end frame
 
     signal set_index  : integer range 1 to NUM_SETS+1 := 1;                                 -- index of current LED set being transmitted
     signal set_reg    : std_logic_vector(MAX_LEDS_PER_SET-1 downto 0) := (others => '0');   -- stores the on/off values for the current LED set
-    signal num_leds   : integer range 0 to MAX_LEDS_PER_SET;                                -- number of LEDs per set
+    signal num_leds   : integer range 0 to MAX_LEDS_PER_SET;                                -- number of LEDs in current set
 
     signal led_index  : integer range 0 to MAX_LEDS_PER_SET+1 := 0;                         -- LED index within current LED set
     signal color_data_index : integer range 0 to BITS_PER_LED := 0;                         -- index of current color data bit being transmitted
@@ -70,8 +69,7 @@ begin
         if rising_edge(CLK) then
 
             if active = '0' then            -- start a new transaction only if not already active
-                int_start <= START;         -- latch in start signal
-                if START = '1' then         -- if starting, initialize clockdivider and set active
+                if START = '1' then         -- if starting, initialize clock divider and set active
                     active <= '1';
                     clk_div <= 0;
                     phase <= '0';
@@ -90,9 +88,9 @@ begin
                         clk_out_int <= '0';
                         data_out_int <= '0';
 
-                        if int_start = '1' then                     -- on start, send the start frame, otherwise, state remains idle
+                        if START = '1' then                   -- on start, send the start frame, otherwise, state remains idle
                             start_bit_index <= START_BITS-1;      -- set up to send bits of start frame (all '0')
-                            state <= SEND_START;                -- go to send_start state
+                            state <= SEND_START;                  -- go to send_start state
                         else 
                             state <= IDLE;
                         end if;
@@ -118,11 +116,7 @@ begin
 
                     when LOAD_SET =>                                -- get next set of LEDs to send
                         if set_index /= NUM_SETS+1 then             -- if not finished all LED sets
-
-                            -- set_reg <= DISPLAY(set_index);          -- load the LED on/off data for the current set
-                            -- num_leds <= LED_COUNTS(set_index);      -- load the number of LEDs in this set
-
-                            -- replaced above with a case statement to use custom signal names and bit widths
+                            -- for each set, use custom signal names and bit widths
                             case set_index is
                                 when 1 =>
                                     set_reg  <= "0000000000000000" & INST;
@@ -136,9 +130,9 @@ begin
                                 when 4 =>
                                     set_reg  <= "000000000000000" & PC;
                                     num_leds <= 17;
-										  when 5 =>
-										      set_reg <= (others => '0');
-												num_leds <= 6;
+                                when 5 => -- placeholder to just use the last 6 LEDs on the test strip
+                                    set_reg <= (others => '0');
+                                    num_leds <= 6;
                                 when others =>
                                     set_reg  <= "0000000000000000" & INST;
                                     num_leds <= 16;
@@ -153,16 +147,7 @@ begin
 
                     when LOAD_LED =>                                -- get next LED in the current set
                         if led_index /= Integer(num_leds) then      -- now we handle variable number of LEDs per set, so check against num_leds
-                            -- if set_reg(led_index) = '1' then        -- if this LED is on, load its color data based on set_index and led_index
-                                                                    -- this will eventually be a big nested case . . . when statement based on set_index and led_index
-                                                                     -- if set_index mod 2 = 1 then
-                                --     led_reg <= "11111111" & x"001133";      -- color BGR data for current LED, prepended with brightness byte (0xff)
-                                -- else
-                                --     led_reg <= "11111111" & x"440000";      -- color BGR data for current LED, prepended with brightness byte (0xff)
-                                -- end if;
-                            -- else
-                                -- led_reg <= "11111111" & NO_COLOR;   -- if this LED is off, load all zeros, prepended with brightness byte (0xff)
-                            -- end if;
+                            -- each set and sometimes LED within set has its own color
                             case set_index is
                                 when 1 | 2 =>
                                     if set_reg(led_index) = '1' then
@@ -198,10 +183,10 @@ begin
                                             led_reg <= "11111111" & NO_COLOR;
                                         end if;
                                     end if;
-											when others =>
-											    led_reg <= "11111111" & NO_COLOR;
+                                when others =>      -- default is unlit LEDs
+                                    led_reg <= "11111111" & NO_COLOR;
                             end case;
-                            
+
                             color_data_index <= BITS_PER_LED-1;     -- set up to send bits of current LED color data
                             clk_div <= 0;                           -- reset clock divider
                             phase <= '0';
@@ -242,7 +227,6 @@ begin
                                 else                                        -- finished sending end frame
                                     state <= IDLE;                          -- go to idle state
                                     active <= '0';                          -- clear active flag
-                                    int_start <= '0';                       -- clear latched start signal
                                     clk_div <= 0;                           -- reset clock divider and phase
                                     phase <= '0';
                                 end if;

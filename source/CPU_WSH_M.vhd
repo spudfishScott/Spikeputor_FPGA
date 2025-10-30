@@ -80,15 +80,30 @@ architecture Behavioral of CPU_WSH_M is
     signal reg_b_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan B) -- 7-13
     signal reg_w_addr  : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write   -- 7-13
 
+    signal mdata_disp_sig : std_logic_vector(16 downto 0) := (others => '0');
+    signal pc_disp_sig    : std_logic_vector(16 downto 0) := (others => '0');
+
     signal alu_fnleds  : std_logic_vector(12 downto 0) := (others => '0');   -- to display ALU function control signals incld. ASEL/BSEL  -- 16 [15 or 17, depending on whether ASEL/BSEL get 2 LEDs each]
     signal alu_cmpf    : std_logic_vector(3 downto 0) := (others => '0');    -- to display ALU compare flags - 4 bits: Z, V, N, CMP result -- 22 [4]
+
+    signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
+    signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
+    signal cyc_sig     : std_logic := '0';                                   -- wishone cycle signal from cpu
 
 begin
 
     -- wire internal signals to display outputs
     INST_DISP       <= inst_out;
     CONST_DISP      <= const_out;
-    MDATA_DISP      <= mrdata_out when rbsel_out = '0' else regb_out;
+    MDATA_DISP      <= mdata_disp_sign(16 downto 1);
+    PC_DISP         <= pc_disp_sig(16 downto 1);
+    pc_disp_sig(0)  <= '1' when ((inst_out(9) = '1') AND                     -- check to see if the branch should be taken
+                                 ((inst_out(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
+                                  (inst_out(8 downto 6) = "100" AND azero_out = '1') OR         -- branch if equal to zero (BEQ)
+                                  (inst_out(8 downto 6) = "101" AND azero_out = '0')))          -- branch if not equal to zero (BNE)
+                           else '0';
+
+    mdata_disp_sig  <= (mrdata_out & "0") when rbsel_out = '0' else (regb_out & "1");
     REGSTAT_DISP    <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
     REGA_DISP       <= rega_out;
     REGB_DISP       <= regb_out;
@@ -101,6 +116,32 @@ begin
                                   (inst_out(8 downto 6) = "101" AND azero_out = '0')))          -- branch if not equal to zero (BNE)
                            else '0';
 
+    M_CYC_O         <= cyc_sig;
+    
+    process(cyc_sig) is
+    begin
+        if falling_edge(cyc_sig) then   -- only update DotStar LEDs at the end of a CPU cycle and if DotStar is not busy
+            refresh <= not led_busy;
+        else
+            refresh <= '0';
+        end if;
+    end process;
+
+    DOTSTAR : entity work.dotstar_driver generic map ( XMIT_QUANTA => 1 )
+    port map (
+        CLK         => CLK,
+        START       => refresh,
+
+        INST        => inst_out,
+        CONST       => const_out,
+        MDATA       => mdata_disp_sig,
+        PC          => pc_disp_sig,
+
+        DATA_OUT    => DISP_DATA,
+        CLOCK_OUT   => DISP_CLK,
+        BUSY        => led_busy
+    );
+
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (
         -- SYSCON inputs
@@ -110,7 +151,7 @@ begin
 
         -- Wishbone signals for memory interface
         -- Handshaking signals
-        WBS_CYC_O   => M_CYC_O,
+        WBS_CYC_O   => cyc_sig,
         WBS_STB_O   => M_STB_O,
         WBS_ACK_I   => M_ACK_I,
 
@@ -124,7 +165,7 @@ begin
         -- Data outputs from Control Logic to other modules
         INST        => inst_out,                -- INST output for display only
         CONST       => const_out,               -- CONST output to ALU
-        PC          => PC_DISP,                 -- PC output for display only
+        PC          => pc_disp_sig(16 downto 1),-- PC output for display only
         PC_INC      => pcinc_out,               -- PC+2 output to ALU and REG_FILE
         MRDATA      => mrdata_out,              -- MEM output to REG_FILE
         -- Control signals from Control Logic to other modules
@@ -148,7 +189,6 @@ begin
     -- RegFile Instance
     REGFILE : entity work.REG_FILE port map (
         -- register file inputs
-        -- RESET       => RESET,
         CLK         => CLK,             -- system clock
         IN0         => pcinc_out,       -- Register Input: PC + 2
         IN1         => s_alu_out,       -- Register Input: ALU output

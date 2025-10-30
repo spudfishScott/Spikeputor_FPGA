@@ -23,7 +23,8 @@ entity DE0_Spikeputor is
         -- LED
         LEDG : out std_logic_vector(9 downto 0);
         -- GPIO
-        GPIO1_D : out std_logic_vector(31 downto 0)
+        GPIO1_D : out std_logic_vector(31 downto 0);
+        GPIO0_D : out std_logic_vector(1 downto 0);
     );
 end DE0_Spikeputor;
 
@@ -140,7 +141,7 @@ begin
             DATA_O      => arb_data_o
         );
 
-        cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for arbitrated master is wishbone bus ack signal AND master grant signal
+        cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for arbitrated master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
 
     -- Spikeputor CPU as Wishbone master
     CPU : entity work.CPU_WSH_M port map (
@@ -158,9 +159,9 @@ begin
         M_STB_O   => cpu_stb,                       -- Wishbone STB to providers
         M_WE_O    => cpu_we,                        -- Wishbone WE to providers
 
-        --Display interface - DotStar outputs not used currently
-        DISP_DATA => open,
-        DISP_CLK  => open,
+        --Display interface
+        DISP_DATA => GPIO0_D(0),
+        DISP_CLK  => GPIO0_D(1),
 
         -- Direct Display Values (temporary - will eventually all be DotStar ouput)
         INST_DISP       => inst_out,
