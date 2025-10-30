@@ -58,7 +58,7 @@ architecture Structural of DE0_Spikeputor is
     -- Special Registers                                                            -- number of LED group for dotstar module [bits]
     signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 1 [16]
     signal const_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 2 [16]
-    signal mrdata_out  : std_logic_vector(15 downto 0) := (others => '0');           -- 3 [16]
+    signal mdata_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 3 [16]
     signal pc_out      : std_logic_vector(15 downto 0) := (others => '0');           -- 4 [16]
 
     -- Regsiter File
@@ -165,8 +165,9 @@ begin
         -- Direct Display Values (temporary - will eventually all be DotStar ouput)
         INST_DISP       => inst_out,
         CONST_DISP      => const_out,
-        MRDATA_DISP     => mrdata_out,
+        MDATA_DISP      => mdata_out,
         PC_DISP         => pc_out,
+        JT              => LEDG(8)
         REGSTAT_DISP    => reg_stat,
         WDINPUT_DISP    => wd_input,
         REGS_DISP       => all_regs,
@@ -242,7 +243,7 @@ begin
                                  s_alu_out   WHEN "001",            -- CONST output
                                  rega_out    WHEN "010",            -- RegFile Channel A
                                  regb_out    WHEN "011",            -- RegFile Channel B
-                                 mrdata_out  WHEN "100",            -- MRDATA output
+                                 mdata_out   WHEN "100",            -- MRDATA output or MWDATA input (when a ST command)
                                  reg_stat    WHEN "101",            -- RegFile control signals and Zero flag
                                  wd_input    WHEN "110",            -- RegFile selected write data
                                  all_regs(reg_index) WHEN "111",    -- register at current index (1 to 7)

@@ -27,8 +27,9 @@ entity CPU_WSH_M is
         -- Direct Display Values (temporary - will eventually all be DotStar ouput)
         INST_DISP       : out std_logic_vector(15 downto 0); -- 1 [16]
         CONST_DISP      : out std_logic_vector(15 downto 0);
-        MRDATA_DISP     : out std_logic_vector(15 downto 0);
+        MDATA_DISP     : out std_logic_vector(15 downto 0); -- memory data read or to write
         PC_DISP         : out std_logic_vector(15 downto 0); -- 4 [16]
+        JT              : out std_logic;
         REGSTAT_DISP    : out std_logic_vector(15 downto 0); -- 5 [11 or 13 depending on WDSEL inclusion]
         WDINPUT_DISP    : out std_logic_vector(15 downto 0); -- 6 [16 or 18 depending on WDSEL inclusion]
         REGS_DISP       : out RARRAY;                        -- 7-13 [7x19 including a, b, w signals]
@@ -57,6 +58,7 @@ architecture Behavioral of CPU_WSH_M is
 
     -- Special Registers                                                            -- number of LED group for dotstar module [bits]
     signal const_out  : std_logic_vector(15 downto 0) := (others => '0');           -- 2 [16]
+    signal inst_out   : std_logic_vector(15 downto 0) := (others => '0');
     signal pcinc_out  : std_logic_vector(15 downto 0) := (others => '0');
     signal mrdata_out : std_logic_vector(15 downto 0) := (others => '0');           -- 3 [16]
 
@@ -84,14 +86,20 @@ architecture Behavioral of CPU_WSH_M is
 begin
 
     -- wire internal signals to display outputs
+    INST_DISP       <= inst_out;
     CONST_DISP      <= const_out;
-    MRDATA_DISP     <= mrdata_out;
+    MDATA_DISP      <= mrdata_out when rbsel_out = '0' else regb_out;
     REGSTAT_DISP    <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
     REGA_DISP       <= rega_out;
     REGB_DISP       <= regb_out;
     ALUCMPF_DISP    <= alu_cmpf & "000000000000";  -- pad to 16 bits
     ALUOUT_DISP     <= s_alu_out;
     ALU_FNLEDS_DISP <= asel_out & alu_fnleds & bsel_out & "0";  -- pad to 16 bits
+    JT              <= '1' when ((inst_out(9) = '1') AND                     -- check to see if the branch should be taken
+                                 ((inst_out(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
+                                  (inst_out(8 downto 6) = "100" AND azero_out = '1') OR         -- branch if equal to zero (BEQ)
+                                  (inst_out(8 downto 6) = "101" AND azero_out = '0')))          -- branch if not equal to zero (BNE)
+                           else '0';
 
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (
@@ -114,7 +122,7 @@ begin
 
         -- Internal Spikeputor signals
         -- Data outputs from Control Logic to other modules
-        INST        => INST_DISP,               -- INST output for display only
+        INST        => inst_out,                -- INST output for display only
         CONST       => const_out,               -- CONST output to ALU
         PC          => PC_DISP,                 -- PC output for display only
         PC_INC      => pcinc_out,               -- PC+2 output to ALU and REG_FILE

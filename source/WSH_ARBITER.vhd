@@ -137,12 +137,12 @@ begin
                     when IDLE =>    -- wait for requests from all masters, priority is round-robin based on previous grant
                         case prev_grant is
                             when IDLE => 
-                                if M0_CYC_O = '1' then
+                                if M2_CYC_O = '1' then          -- on IDLE (and reset), prioritize CLOCK over CPU
+                                    grant_state <= GRANT_M2;
+                                elsif M0_CYC_O = '1' then
                                     grant_state <= GRANT_M0;
                                 elsif M1_CYC_O = '1' then
                                     grant_state <= GRANT_M1;
-                                elsif M2_CYC_O = '1' then
-                                    grant_state <= GRANT_M2;
                                 else
                                     grant_state <= IDLE;
                                 end if;
