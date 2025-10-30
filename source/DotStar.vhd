@@ -26,14 +26,13 @@ end dotstar_driver;
 
 architecture rtl of dotstar_driver is
 
-    constant NUM_SETS         : integer := 4;                             -- number of LED sets in the display array (or input arrays)
-    constant MAX_LEDS_PER_SET : integer := 16;                            -- max number of LEDs in each set
-    constant MAX_LED_SET_BITS : integer := 4;                             -- number of bits to describe max number of LEDs in a set (2^4 = 16)
-    constant NUM_LEDS         : integer := NUM_SETS * MAX_LEDS_PER_SET;   -- number of LEDs in the display data (make this exact from the size of all the signals)
+    constant NUM_SETS         : integer := 5;                             -- number of LED sets in the display array (or input arrays)
+    constant MAX_LEDS_PER_SET : integer := 32;                            -- max number of LEDs in each set
+    constant TOTAL_LEDS       : integer := NUM_SETS * MAX_LEDS_PER_SET;   -- number of LEDs in the display data (make this exact from the size of all the signals)
 
     constant START_BITS       : integer := 32;                            -- number of bits in start frame (all '0's)
     constant BITS_PER_LED     : integer := 32;                            -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
-    constant END_BITS         : integer := ((NUM_LEDS + 15) / 16) * 8;    -- number of bits in end frame (at least (n/2) bits, rounded up to next byte, all '1's)
+    constant END_BITS         : integer := ((TOTAL_LEDS + 15) / 16) * 8;  -- number of bits in end frame (at least (n/2) bits, rounded up to next byte, all '1's)
     
     constant NO_COLOR         : std_logic_vector(23 downto 0) := (others => '0'); -- color data for LED off
 
@@ -43,7 +42,7 @@ architecture rtl of dotstar_driver is
 
     signal set_index  : integer range 1 to NUM_SETS+1 := 1;                                 -- index of current LED set being transmitted
     signal set_reg    : std_logic_vector(MAX_LEDS_PER_SET-1 downto 0) := (others => '0');   -- stores the on/off values for the current LED set
-    signal num_leds   : std_logic_vector(MAX_LED_SET_BITS-1 downto 0) := (others => '0');   -- number of LEDs per set
+    signal num_leds   : integer range 0 to MAX_LEDS_PER_SET;                                -- number of LEDs per set
 
     signal led_index  : integer range 0 to MAX_LEDS_PER_SET+1 := 0;                         -- LED index within current LED set
     signal color_data_index : integer range 0 to BITS_PER_LED := 0;                         -- index of current color data bit being transmitted
@@ -126,19 +125,22 @@ begin
                             -- replaced above with a case statement to use custom signal names and bit widths
                             case set_index is
                                 when 1 =>
-                                    set_reg  <= INST;
+                                    set_reg  <= "0000000000000000" & INST;
                                     num_leds <= 16;
                                 when 2 =>
-                                    set_reg  <= CONST;
+                                    set_reg  <= "0000000000000000" & CONST;
                                     num_leds <= 16;
                                 when 3 =>
-                                    set_reg  <= MDATA;
+                                    set_reg  <= "000000000000000" & MDATA;
                                     num_leds <= 17;
                                 when 4 =>
-                                    set_reg  <= PC;
+                                    set_reg  <= "000000000000000" & PC;
                                     num_leds <= 17;
+										  when 5 =>
+										      set_reg <= (others => '0');
+												num_leds <= 6;
                                 when others =>
-                                    set_reg  <= INST;
+                                    set_reg  <= "0000000000000000" & INST;
                                     num_leds <= 16;
                             end case;
 
@@ -161,41 +163,43 @@ begin
                             -- else
                                 -- led_reg <= "11111111" & NO_COLOR;   -- if this LED is off, load all zeros, prepended with brightness byte (0xff)
                             -- end if;
-                            case set index is
+                            case set_index is
                                 when 1 | 2 =>
                                     if set_reg(led_index) = '1' then
-                                        led_reg <= "11111111" & x"000088";  -- INST and CONST are all red LEDs
+                                        led_reg <= "11111111" & x"000022";  -- INST and CONST are all red LEDs
                                     else
-                                        led_reg = "11111111" & NO_COLOR;
+                                        led_reg <= "11111111" & NO_COLOR;
                                     end if;
                                 when 3 =>
                                     if led_index = 0 then     -- first LED of MDATA
                                         if set_reg(led_index) = '1' then
-                                            led_reg <= "11111111" & x"880088"; -- violet LED for write
+                                            led_reg <= "11111111" & x"220022"; -- violet LED for write
                                         else
-                                            led_reg <= "11111111" & x"001100"; -- green LED for read
+                                            led_reg <= "11111111" & x"002200"; -- green LED for read
                                         end if;
                                     else
                                         if set_reg(led_index) = '1' then
-                                            led_reg <= "11111111" & x"000088";  -- MDATA is all red LEDs
+                                            led_reg <= "11111111" & x"000022";  -- MDATA is all red LEDs
                                         else
-                                            led_reg = "11111111" & NO_COLOR;
+                                            led_reg <= "11111111" & NO_COLOR;
                                         end if;
                                     end if;
                                 when 4 =>
                                     if led_index = 0 then     -- first LED of PC
                                         if set_reg(led_index) = '1' then
-                                            led_reg <= "11111111" & x"880088"; -- blue LED for JT
+                                            led_reg <= "11111111" & x"220000"; -- blue LED for JT
                                         else
                                             led_reg <= "11111111" & NO_COLOR;  -- off for no JT
                                         end if;
                                     else
                                         if set_reg(led_index) = '1' then
-                                            led_reg <= "11111111" & x"000088";  -- PC is all red LEDs
+                                            led_reg <= "11111111" & x"000022";  -- PC is all red LEDs
                                         else
-                                            led_reg = "11111111" & NO_COLOR;
+                                            led_reg <= "11111111" & NO_COLOR;
                                         end if;
                                     end if;
+											when others =>
+											    led_reg <= "11111111" & NO_COLOR;
                             end case;
                             
                             color_data_index <= BITS_PER_LED-1;     -- set up to send bits of current LED color data

@@ -9,7 +9,7 @@ entity DE0_DotStarTest is -- the interface to the DE0 board
         -- CLOCK
         CLOCK_50 : in std_logic; -- 20 ns clock
         -- GPIO
-        GPIO0_D  : in std_logic_vector(31 downto 0);    -- data inputs, 3 bits each (RGB) for 10 LEDs
+      --  GPIO0_D  : in std_logic_vector(31 downto 0);    -- data inputs, 3 bits each (RGB) for 10 LEDs
         -- Push Button
         BUTTON   : in std_logic_vector(2 downto 0);     -- BUTTON(0) = send data
 
@@ -24,18 +24,18 @@ end DE0_DotStarTest;
 
 architecture Structural of DE0_DotStarTest is
 
-    signal INST       : in std_logic_vector(15 downto 0);  -- Instruction
-    signal CONST      : in std_logic_vector(15 downto 0);  -- Constant
-    signal MDATA      : in std_logic_vector(16 downto 0);  -- Memory Data, prepended with R/W signal (0 = read, 1 = write)
-    signal PC         : in std_logic_vector(16 downto 0);  -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)
+    signal INST       : std_logic_vector(15 downto 0);  -- Instruction
+    signal CONST      : std_logic_vector(15 downto 0);  -- Constant
+    signal MDATA      : std_logic_vector(16 downto 0);  -- Memory Data, prepended with R/W signal (0 = read, 1 = write)
+    signal PC         : std_logic_vector(16 downto 0);  -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)
 
 begin
     LEDG(8 downto 0) <= (others => '0'); -- other LEDs off
 
     INST  <= X"DEAD";
     CONST <= X"F00D";
-    MDATA <= "1" & X"BEEF";
-    PC    <= "0" & X"CAFE";
+    MDATA <= X"BEEF" & "1";
+    PC    <= X"CAFE" & "1";
 
     -- REGARRAY(1) <= GPIO0_D(15 downto 0) & "0000000000000000"; -- set up data in, shifted to msb, padded at lsb to equal max number of leds per set
     -- REGARRAY(2) <= GPIO0_D(31 downto 16) & "0000000000000000";
@@ -74,10 +74,10 @@ begin
             INST       => INST,     -- Instruction
             CONST      => CONST,    -- Constant
             MDATA      => MDATA,    -- Memory Data, prepended with R/W signal (0 = read, 1 = write)
-            PC         => PC        -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)
+            PC         => PC,       -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)
 
-           DATA_OUT    => GPIO1_D(0),
-           CLK_OUT     => GPIO1_D(1),
+           DATA_OUT    => GPIO0_D(0),
+           CLK_OUT     => GPIO0_D(1),
            BUSY        => LEDG(9)
         );
 
