@@ -81,7 +81,7 @@ architecture Structural of DE0_Spikeputor is
     signal s_alu_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 23 [16]
 
     -- clock logic
-    signal clk_speed : std_logic_vector := (31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)) -- default clock speed = 1 Hz
+    signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
     
     -- Input synchronized signals
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');

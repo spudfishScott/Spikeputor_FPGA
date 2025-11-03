@@ -117,7 +117,7 @@ architecture rtl of CTRL_WSH_M is
 
 begin
     -- Spikeputor control outputs, including control signals for ALU and Register File
-    PC          <= prev_PC;                                                 -- program counter for display - set to instruction that is about to execute during CPU halt by the clock controller
+    PC          <= prev_PC;                                                 -- program counter for display - set to address that is about to be executed during CPU halt by the clock controller
     PC_INC      <= PC_INC_calc;                                             -- incremented program counter
     INST        <= INST_reg;                                                -- instruction fetched from memory
     CONST       <= CONST_reg;                                               -- constant fetched from memory
@@ -163,7 +163,7 @@ begin
                 -- reset state
                 st_main    <= ST_FETCH_I;          -- start by fetching instruction
                 PC_reg     <= RESET_VECTOR;        -- set PC to reset vector
-                prev_PC    <= RESET_VECTOR;        -- set display PC to reset vector
+                prev_PC    <= RESET_VECTOR;        -- set display PC pipeline to reset vector
                 WERF_sig   <= '0';                 -- do not write to registers during reset
                 MRDATA_reg <= (others => '0');     -- clear MRDATA registere
 
@@ -183,8 +183,8 @@ begin
                                 WBS_CYC_O <= '1';               -- initiate wishbone cycle
                                 WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                                 st_main <= ST_FETCH_I_WAIT;	    -- go to wait for instruction (may take more than one clock cycle for non-RAM)
-                                prev_PC <= PC_reg;              -- set PC for display now that the previous instruction has fully executed and we're back in a wishobone cycle for the CPU
-                            else
+                                prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
+									 else
                                 st_main <= ST_FETCH_I;          -- keep waiting until ready
                             end if;
 

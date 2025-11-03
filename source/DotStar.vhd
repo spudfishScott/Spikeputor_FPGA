@@ -146,8 +146,8 @@ begin
                             -- for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
                             case set_index is
                                 when 21 =>
-                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto regin_sel'length => '0') & regin_sel;
-                                    num_leds <= regin_sel'length;
+                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto regin_sig'length => '0') & regin_sig;
+                                    num_leds <= regin_sig'length;
                                 when 20 =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto REG7'length => '0') & REG7;
                                     num_leds <= REG7'length;

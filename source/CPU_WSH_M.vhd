@@ -93,6 +93,7 @@ architecture Behavioral of CPU_WSH_M is
     signal alub_sig       : std_logic_vector(15 downto 0) := (others => '0');   -- to display the alu b input
 
     signal allregs_sig    : RARRAY := (others => (others => '0'));              -- to display the registers
+	 signal regin_sig      : std_logic_vector(15 downto 0) := (others => '0');   -- to display the register input
     signal reg_a_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan A) -- 7-13 [19]
     signal reg_b_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan B) -- 7-13
     signal reg_w_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write   -- 7-13
@@ -111,10 +112,11 @@ begin
     MDATA_DISP      <= mdata_sig;
     PC_DISP         <= pc_disp_sig;
     REGSTAT_DISP    <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
-    REGA_DISP       <= rega_out;
+    WDINPUT_DISP    <= regin_sig;
+	 REGA_DISP       <= rega_out;
     REGB_DISP       <= regb_out;
     REGS_DISP       <= allregs_sig;
-    ALUCMPF_DISP    <= alu_fn_leds(6 downto 5) & "00000000000000";  -- pad to 16 bits
+    ALUCMPF_DISP    <= alu_fnleds(6 downto 5) & "00000000000000";  -- pad to 16 bits
     ALUOUT_DISP     <= s_alu_out;
     ALUSHIFT_DISP   <= alu_shift_sig;
     ALUBOOL_DISP    <= alu_bool_sig;
@@ -149,17 +151,19 @@ begin
 
         INST        => inst_out,                                                            -- bits: Instruction (16 bits)
         CONST       => const_out,                                                           -- bits: Constant (16 bits)
-        MDATA       => rbsel_sig & mdata_sig,                                               -- bits: write flag, Memory read/write (16 bits)
+        MDATA       => rbsel_out & mdata_sig,                                               -- bits: write flag, Memory read/write (16 bits)
         PC          => jt_sig & pc_disp_sig,                                                -- bits: JT flag, Program Counter (16 bits)
 
         ALU_OUT     => s_alu_out,
-        ALU_CMP     => alu_fn_leds(6 downto 5) & alu_cmpf & alu_fnleds(7),                  -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
+        ALU_CMP     => alu_fnleds(6 downto 5) & alu_cmpf & alu_fnleds(7),                   -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
         ALU_SHIFT   => alu_fnleds(8) & alu_fnleds(9) & alu_shift_sig & alu_fnleds(10),      -- bits: shift dir, shift extend, shift result (16 bits), SHIFT selected
         ALU_BOOL    => alu_fnleds(3 downto 0) & alu_bool_sig & alu_fnleds(4),               -- bits: bool truth table (4 bits), bool result (16 bits), BOOL selected
         ALU_ARITH   => alu_fnleds(11) & alu_arith_sig & alu_fnleds(12),                     -- bits: subtract flag, arith result (16 bits), ARITH selected
         ALU_A       => asel_out & alua_sig,                                                 -- bits: ASEL, ALU A Input (16 bits)
         ALU_B       => bsel_out & alub_sig,                                                 -- bits: BSEL, ALU B Input (16 bits)
 
+		  REGB_OUT    => regb_out,                                                            -- bits: Register B out (16 bits)
+        REGA_OUT    => azero_out & rega_out,                                                -- bits: Zero detect, Register A out (16 bits)
         REG1        => reg_a_addr(1) & reg_b_addr(1) & reg_w_addr(1) & allregs_sig(1),      -- bits: Reg 1 to Channel A Out, Reg 1 to Channel B Out, Write to Register 1, Register 1 (16 bits)
         REG2        => reg_a_addr(2) & reg_b_addr(2) & reg_w_addr(2) & allregs_sig(2),      -- bits: Reg 2 to Channel A Out, Reg 2 to Channel B Out, Write to Register 2, Register 2 (16 bits)
         REG3        => reg_a_addr(3) & reg_b_addr(3) & reg_w_addr(3) & allregs_sig(3),      -- bits: Reg 3 to Channel A Out, Reg 3 to Channel B Out, Write to Register 3, Register 3 (16 bits)
@@ -167,10 +171,8 @@ begin
         REG5        => reg_a_addr(5) & reg_b_addr(5) & reg_w_addr(5) & allregs_sig(5),      -- bits: Reg 5 to Channel A Out, Reg 5 to Channel B Out, Write to Register 5, Register 5 (16 bits)
         REG6        => reg_a_addr(6) & reg_b_addr(6) & reg_w_addr(6) & allregs_sig(6),      -- bits: Reg 6 to Channel A Out, Reg 6 to Channel B Out, Write to Register 6, Register 6 (16 bits)
         REG7        => reg_a_addr(7) & reg_b_addr(7) & reg_w_addr(7) & allregs_sig(7),      -- bits: Reg 7 to Channel A Out, Reg 7 to Channel B Out, Write to Register 7, Register 7 (16 bits)
-
-        REGB_OUT    => regb_out,                                                            -- bits: Register B out (16 bits)
-        REGA_OUT    => azero_out & rega_out,                                                -- bits: Zero detect, Register A out (16 bits)
-
+		  REGIN       => wdsel_out & regin_sig,                                               -- bits: WDSEL (2 bits), Reg Input (16 bits)
+		  
         DATA_OUT    => DISP_DATA,
         CLK_OUT     => DISP_CLK,
         BUSY        => led_busy
@@ -199,7 +201,7 @@ begin
         -- Data outputs from Control Logic to other modules
         INST        => inst_out,                -- INST output for display only
         CONST       => const_out,               -- CONST output to ALU
-        PC          => pc_disp_sig(15 downto 0),-- PC output for display only
+        PC          => pc_disp_sig,             -- PC output for display only
         PC_INC      => pcinc_out,               -- PC+2 output to ALU and REG_FILE
         MRDATA      => mrdata_out,              -- MEM output to REG_FILE
         -- Control signals from Control Logic to other modules
@@ -240,7 +242,7 @@ begin
         AZERO       => azero_out,       -- Zero flag output to Control Logic
 
         -- outputs to drive LEDs only
-        SEL_INPUT   => WDINPUT_DISP,             -- selected input
+        SEL_INPUT   => regin_sig,                -- selected input
         SEL_A       => reg_a_addr(7 downto 0),   -- selected register to output to Channel A
         SEL_B       => reg_b_addr(7 downto 0),   -- selected register to output to Channel B
         SEL_W       => reg_w_addr(7 downto 0),   -- selected register Channel to write
