@@ -178,20 +178,19 @@ begin
                 if STALL_I = '0' then              -- only proceed if not stalled for debugging, otherwise hold current state and do nothing
                     case st_main is
                         when ST_FETCH_I =>
-                            -- fetch instruction from memory at address PC - state machine waits here if clock manager is holding the bus
+                            -- fetch instruction from memory at address PC 
                             if WBS_ACK_I = '0' then             -- confirm that acknowledgement is clear and we're not stalled for debugging
                                 WBS_CYC_O <= '1';               -- initiate wishbone cycle
                                 WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                                 st_main <= ST_FETCH_I_WAIT;	    -- go to wait for instruction (may take more than one clock cycle for non-RAM)
-                                -- prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
+                                prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
                             else
                                 st_main <= ST_FETCH_I;          -- keep waiting until ready
                             end if;
 
                         when ST_FETCH_I_WAIT =>
-                            -- wait for memory to return instruction
+                            -- wait for memory to return instruction - state machine waits here if clock manager is holding the bus
                             if WBS_ACK_I = '1' then             -- wait for ack indicating memory read is valid
-                                prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
                                 WBS_STB_O <= '0';               -- deassert strobe - end read phase
                                 INST_reg <= WBS_DATA_I;         -- latch instruction
 

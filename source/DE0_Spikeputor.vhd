@@ -167,7 +167,7 @@ begin
         INST_DISP       => inst_out,
         CONST_DISP      => const_out,
         MDATA_DISP      => mdata_out,
-        PC_DISP         => pc_out,
+        PC_DISP         => pc_out
 
         -- -- Direct Display Values (temporary - will eventually all be DotStar ouput)
         -- JT              => LEDG(8),

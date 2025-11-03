@@ -29,7 +29,7 @@ entity CPU_WSH_M is
         INST_DISP       : out std_logic_vector(15 downto 0); -- 1 [16] *
         CONST_DISP      : out std_logic_vector(15 downto 0); -- *
         MDATA_DISP      : out std_logic_vector(15 downto 0); -- memory data read or to write -- *
-        PC_DISP         : out std_logic_vector(15 downto 0); -- 4 [16] *
+        PC_DISP         : out std_logic_vector(15 downto 0)  -- 4 [16] *
 
         -- These go after DotStar implemented
         -- JT              : out std_logic;                            -- *
@@ -220,7 +220,7 @@ begin
         -- Inputs to Control Logic from other modules
         ALU_OUT     => s_alu_out,               -- ALU output to Control Logic
         MWDATA      => regb_out,                -- RegFile Channel B input to Control Logic for memory writing
-        Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
+        Z           => azero_out               -- Zero flag input (from RegFile) to Control Logic
 
         -- PHASE       => PHASE_DISP               -- PHASE output for display only
     );

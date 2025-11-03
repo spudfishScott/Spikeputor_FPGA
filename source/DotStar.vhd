@@ -135,7 +135,7 @@ begin
                                     start_bit_index <= start_bit_index - 1; -- decrement bit index
                                     state <= SEND_START;                    -- remain in send_start state
                                 else                                        -- finished sending start frame
-                                    set_index <= 1;                         -- set up counter for LED data sets
+                                    set_index <= 14;                         -- set up counter for LED data sets
                                     state <= LOAD_SET;                      -- go to load_LED state to get next LED to send
                                 end if;
                             end if;
@@ -250,7 +250,7 @@ begin
                                             when 18 =>
                                                 led_reg(COLOR_RANGE) <= x"000204";  -- orange LED for output to Channel A
                                             when 17 =>
-                                                led_reg(COLOR_RANGE) <= x"004000";  -- green LED for output to Channel B
+                                                led_reg(COLOR_RANGE) <= x"000400";  -- green LED for output to Channel B
                                             when 16 =>
                                                 led_reg(COLOR_RANGE) <= x"040000";  -- blue LED for register write
                                             when others =>
@@ -278,7 +278,7 @@ begin
                                         end if;
                                     else
                                         if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"004000";      -- green LEDs for ALU inputs
+                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LEDs for ALU inputs
                                         end if;
                                     end if;
                                 when 9 =>
@@ -318,7 +318,7 @@ begin
                                                 led_reg(COLOR_RANGE) <= x"000004";  -- red LEDs for SHIFT result
                                         end case;
                                     elsif led_index = 18 then   -- shift left (flag = '0')
-                                        led_reg(COLOR_RANGE) <= x"002200040000";          -- green LED for shift left
+                                        led_reg(COLOR_RANGE) <= x"000400";          -- green LED for shift left
                                     end if;
                                 when 6 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
