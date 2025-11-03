@@ -54,6 +54,7 @@ architecture RTL of REG_FILE is
     signal aout_int : std_logic_vector(BIT_DEPTH-1 downto 0) := (others => '0');
 
     signal wreg_sel : std_logic_vector(7 downto 0) := (others => '0');
+    signal wr_sel_d : std_logic_vector(7 downto 0) := (others => '0');
     signal REGS_OUT : RARRAY := (others => (others => '0'));
 
 begin   -- architecture begin
@@ -86,7 +87,7 @@ begin   -- architecture begin
 
     -- Other Outputs (for LEDs)
     SEL_INPUT <= REG_IN;
-    SEL_W     <= wreg_sel;
+    SEL_W     <= wr_sel_d;
     REG_DATA  <= regs_out;
     
     -------------------------------
@@ -95,6 +96,11 @@ begin   -- architecture begin
     WREG_CTRL: entity work.DECODE3_8 port map ( -- Register Write Select
         DECIN => wr_sel,
         OUTS  => wreg_sel
+    );
+
+    WR_D_CTRL: entity work.DECODE3_8 port map ( -- Register Write for Display Only - not dependent on fleeting WERF
+        DECIN => OPC,
+        OUTS  => wr_sel_d
     );
 
     AREG_CTRL: entity work.DECODE3_8 port map ( -- Register A Select

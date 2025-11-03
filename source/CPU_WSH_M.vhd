@@ -85,7 +85,6 @@ architecture Behavioral of CPU_WSH_M is
 
     signal alu_fnleds     : std_logic_vector(12 downto 0) := (others => '0');   -- to display ALU function control signals incld. ASEL/BSEL  -- 16 [15 or 17, depending on whether ASEL/BSEL get 2 LEDs each]
     signal alu_cmpf       : std_logic_vector(3 downto 0) := (others => '0');    -- to display ALU compare flags - 4 bits: Z, V, N, CMP result -- 22 [4]
-    --signal alu_cmpfn      : std_logic_vector(3 downto 0) := (others => '0');    -- four bits for one-hot compare function display
     signal alu_shift_sig  : std_logic_vector(15 downto 0) := (others => '0');   -- to display shift result
     signal alu_bool_sig   : std_logic_vector(15 downto 0) := (others => '0');   -- to display the bool result
     signal alu_arith_sig  : std_logic_vector(15 downto 0) := (others => '0');   -- to display the arith result
@@ -93,10 +92,11 @@ architecture Behavioral of CPU_WSH_M is
     signal alub_sig       : std_logic_vector(15 downto 0) := (others => '0');   -- to display the alu b input
 
     signal allregs_sig    : RARRAY := (others => (others => '0'));              -- to display the registers
-	 signal regin_sig      : std_logic_vector(15 downto 0) := (others => '0');   -- to display the register input
+    signal regin_sig      : std_logic_vector(15 downto 0) := (others => '0');   -- to display the register input
     signal reg_a_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan A) -- 7-13 [19]
     signal reg_b_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan B) -- 7-13
-    signal reg_w_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write   -- 7-13
+    signal reg_w_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- received register Channel to write   -- 7-13
+    signal reg_w_disp     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write   -- 7-13
 
     signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
     signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
@@ -113,7 +113,7 @@ begin
     PC_DISP         <= pc_disp_sig;
     REGSTAT_DISP    <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
     WDINPUT_DISP    <= regin_sig;
-	 REGA_DISP       <= rega_out;
+    REGA_DISP       <= rega_out;
     REGB_DISP       <= regb_out;
     REGS_DISP       <= allregs_sig;
     ALUCMPF_DISP    <= alu_fnleds(6 downto 5) & "00000000000000";  -- pad to 16 bits
@@ -162,21 +162,23 @@ begin
         ALU_A       => asel_out & alua_sig,                                                 -- bits: ASEL, ALU A Input (16 bits)
         ALU_B       => bsel_out & alub_sig,                                                 -- bits: BSEL, ALU B Input (16 bits)
 
-		  REGB_OUT    => regb_out,                                                            -- bits: Register B out (16 bits)
+        REGB_OUT    => regb_out,                                                            -- bits: Register B out (16 bits)
         REGA_OUT    => azero_out & rega_out,                                                -- bits: Zero detect, Register A out (16 bits)
-        REG1        => reg_a_addr(1) & reg_b_addr(1) & reg_w_addr(1) & allregs_sig(1),      -- bits: Reg 1 to Channel A Out, Reg 1 to Channel B Out, Write to Register 1, Register 1 (16 bits)
-        REG2        => reg_a_addr(2) & reg_b_addr(2) & reg_w_addr(2) & allregs_sig(2),      -- bits: Reg 2 to Channel A Out, Reg 2 to Channel B Out, Write to Register 2, Register 2 (16 bits)
-        REG3        => reg_a_addr(3) & reg_b_addr(3) & reg_w_addr(3) & allregs_sig(3),      -- bits: Reg 3 to Channel A Out, Reg 3 to Channel B Out, Write to Register 3, Register 3 (16 bits)
-        REG4        => reg_a_addr(4) & reg_b_addr(4) & reg_w_addr(4) & allregs_sig(4),      -- bits: Reg 4 to Channel A Out, Reg 4 to Channel B Out, Write to Register 4, Register 4 (16 bits)
-        REG5        => reg_a_addr(5) & reg_b_addr(5) & reg_w_addr(5) & allregs_sig(5),      -- bits: Reg 5 to Channel A Out, Reg 5 to Channel B Out, Write to Register 5, Register 5 (16 bits)
-        REG6        => reg_a_addr(6) & reg_b_addr(6) & reg_w_addr(6) & allregs_sig(6),      -- bits: Reg 6 to Channel A Out, Reg 6 to Channel B Out, Write to Register 6, Register 6 (16 bits)
-        REG7        => reg_a_addr(7) & reg_b_addr(7) & reg_w_addr(7) & allregs_sig(7),      -- bits: Reg 7 to Channel A Out, Reg 7 to Channel B Out, Write to Register 7, Register 7 (16 bits)
-		  REGIN       => wdsel_out & regin_sig,                                               -- bits: WDSEL (2 bits), Reg Input (16 bits)
-		  
+        REG1        => reg_a_addr(1) & reg_b_addr(1) & reg_w_disp(1) & allregs_sig(1),      -- bits: Reg 1 to Channel A Out, Reg 1 to Channel B Out, Write to Register 1, Register 1 (16 bits)
+        REG2        => reg_a_addr(2) & reg_b_addr(2) & reg_w_disp(2) & allregs_sig(2),      -- bits: Reg 2 to Channel A Out, Reg 2 to Channel B Out, Write to Register 2, Register 2 (16 bits)
+        REG3        => reg_a_addr(3) & reg_b_addr(3) & reg_w_disp(3) & allregs_sig(3),      -- bits: Reg 3 to Channel A Out, Reg 3 to Channel B Out, Write to Register 3, Register 3 (16 bits)
+        REG4        => reg_a_addr(4) & reg_b_addr(4) & reg_w_disp(4) & allregs_sig(4),      -- bits: Reg 4 to Channel A Out, Reg 4 to Channel B Out, Write to Register 4, Register 4 (16 bits)
+        REG5        => reg_a_addr(5) & reg_b_addr(5) & reg_w_disp(5) & allregs_sig(5),      -- bits: Reg 5 to Channel A Out, Reg 5 to Channel B Out, Write to Register 5, Register 5 (16 bits)
+        REG6        => reg_a_addr(6) & reg_b_addr(6) & reg_w_disp(6) & allregs_sig(6),      -- bits: Reg 6 to Channel A Out, Reg 6 to Channel B Out, Write to Register 6, Register 6 (16 bits)
+        REG7        => reg_a_addr(7) & reg_b_addr(7) & reg_w_disp(7) & allregs_sig(7),      -- bits: Reg 7 to Channel A Out, Reg 7 to Channel B Out, Write to Register 7, Register 7 (16 bits)
+        REGIN       => wdsel_out & regin_sig,                                               -- bits: WDSEL (2 bits), Reg Input (16 bits)
+
         DATA_OUT    => DISP_DATA,
         CLK_OUT     => DISP_CLK,
         BUSY        => led_busy
     );
+
+    reg_w_disp <= reg_w_addr when rbsel_out = '0' else (others => '0'); -- display register write unless rbsel is 1
 
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M port map (

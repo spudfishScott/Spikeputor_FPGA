@@ -184,7 +184,7 @@ begin
                                 WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                                 st_main <= ST_FETCH_I_WAIT;	    -- go to wait for instruction (may take more than one clock cycle for non-RAM)
                                 prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
-									 else
+                            else
                                 st_main <= ST_FETCH_I;          -- keep waiting until ready
                             end if;
 
