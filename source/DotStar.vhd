@@ -234,141 +234,141 @@ begin
                                         if led_index = 16 then
                                             case REGIN(17 downto 16) is             -- select color for the wdsel LED from the two wdsel bits
                                                 when "00" =>
-                                                    led_reg(COLOR_RANGE) <= x"220022";  -- magenta LED for WDSEL = 0 (PC_INC)
+                                                    led_reg(COLOR_RANGE) <= x"040004";  -- magenta LED for WDSEL = 0 (PC_INC)
                                                 when "01" =>
-                                                    led_reg(COLOR_RANGE) <= x"222200";  -- cyan LED for WDSEL = 1 (ALU)
+                                                    led_reg(COLOR_RANGE) <= x"040400";  -- cyan LED for WDSEL = 1 (ALU)
                                                 when others =>
-                                                    led_reg(COLOR_RANGE) <= x"002222";  -- yellow LED for WDSEL = 2 (MEM)
+                                                    led_reg(COLOR_RANGE) <= x"004040";  -- yellow LED for WDSEL = 2 (MEM)
                                             end case;
                                         else
-                                            led_reg(COLOR_RANGE) <= x"002200";      -- green LEDs for register input value
+                                            led_reg(COLOR_RANGE) <= x"004000";      -- green LEDs for register input value
                                         end if;
                                     end if;
                                 when 14 to 20 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         case led_index is
                                             when 18 =>
-                                                led_reg(COLOR_RANGE) <= x"001122";  -- orange LED for output to Channel A
+                                                led_reg(COLOR_RANGE) <= x"000204";  -- orange LED for output to Channel A
                                             when 17 =>
-                                                led_reg(COLOR_RANGE) <= x"002200";  -- green LED for output to Channel B
+                                                led_reg(COLOR_RANGE) <= x"004000";  -- green LED for output to Channel B
                                             when 16 =>
-                                                led_reg(COLOR_RANGE) <= x"220000";  -- blue LED for register write
+                                                led_reg(COLOR_RANGE) <= x"040000";  -- blue LED for register write
                                             when others =>
-                                                led_reg(COLOR_RANGE) <= x"000022";  -- red LEDs for register data
+                                                led_reg(COLOR_RANGE) <= x"000004";  -- red LEDs for register data
                                         end case;
                                     end if;
                                 when 13 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         if led_index = 16 then
-                                            led_reg(COLOR_RANGE) <= x"220000";      -- blue LED for Zero detect
+                                            led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for Zero detect
                                         else
-                                            led_reg(COLOR_RANGE) <= x"001122";      -- Register A Output is all orange LEDs
+                                            led_reg(COLOR_RANGE) <= x"000204";      -- Register A Output is all orange LEDs
                                         end if;
                                     end if;
                                 when 12 =>
                                     if set_reg(led_index) = '1' then
-                                        led_reg(COLOR_RANGE) <= x"002200";          -- Register B Output is all green LEDs
+                                        led_reg(COLOR_RANGE) <= x"000400";          -- Register B Output is all green LEDs
                                     end if;
                                 when 10 | 11 =>
                                     if led_index = 16 then      -- asel or bsel flag
                                         if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"002222";      -- yellow LED for ASEL = 1 (CONST or PC+2 input)
+                                            led_reg(COLOR_RANGE) <= x"000404";      -- yellow LED for ASEL = 1 (CONST or PC+2 input)
                                         else
-                                            led_reg(COLOR_RANGE) <= x"220022";      -- magenta LED for ASEL = 0 (Register Channel input)
+                                            led_reg(COLOR_RANGE) <= x"040004";      -- magenta LED for ASEL = 0 (Register Channel input)
                                         end if;
                                     else
                                         if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"002200";      -- green LEDs for ALU inputs
+                                            led_reg(COLOR_RANGE) <= x"004000";      -- green LEDs for ALU inputs
                                         end if;
                                     end if;
                                 when 9 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         case led_index is
                                             when 0 =>
-                                                led_reg(COLOR_RANGE) <= x"222222";  -- white LED for ARITH selected
+                                                led_reg(COLOR_RANGE) <= x"040404";  -- white LED for ARITH selected
                                             when 17 =>
-                                                led_reg(COLOR_RANGE) <= x"220022";  -- magenta for subtraction
+                                                led_reg(COLOR_RANGE) <= x"040004";  -- magenta for subtraction
                                             when others =>
-                                                led_reg(COLOR_RANGE) <= x"220000";  -- red LEDs for ARITH result
+                                                led_reg(COLOR_RANGE) <= x"040000";  -- red LEDs for ARITH result
                                         end case;
                                     elsif led_index = 17 then   -- addition (flag = '0')
-                                        led_reg(COLOR_RANGE) <= x"222200";          -- cyan for addition
+                                        led_reg(COLOR_RANGE) <= x"040000";          -- cyan for addition
                                     end if;
                                 when 8 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         case led_index is
                                             when 0 =>
-                                                led_reg(COLOR_RANGE) <= x"222222";  -- white LED for BOOL selected
+                                                led_reg(COLOR_RANGE) <= x"040404";  -- white LED for BOOL selected
                                             when 17 to 20 =>
-                                                led_reg(COLOR_RANGE) <= x"220000";  -- blue LED for BOOL truth table
+                                                led_reg(COLOR_RANGE) <= x"040000";  -- blue LED for BOOL truth table
                                             when others =>
-                                                led_reg(COLOR_RANGE) <= x"220000";  -- red LEDs for BOOL result
+                                                led_reg(COLOR_RANGE) <= x"000004";  -- red LEDs for BOOL result
                                         end case;
                                     end if;
                                 when 7 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         case led_index is
                                             when 0 =>
-                                                led_reg(COLOR_RANGE) <= x"222222";  -- white LED for SHIFT selected
+                                                led_reg(COLOR_RANGE) <= x"040404";  -- white LED for SHIFT selected
                                             when 17 =>
-                                                led_reg(COLOR_RANGE) <= x"220000";  -- blue LED for SHIFT extend
+                                                led_reg(COLOR_RANGE) <= x"040000";  -- blue LED for SHIFT extend
                                             when 18 =>
-                                                led_reg(COLOR_RANGE) <= x"000022";  -- blue LED for shift right 
+                                                led_reg(COLOR_RANGE) <= x"040000";  -- blue LED for shift right 
                                             when others =>
-                                                led_reg(COLOR_RANGE) <= x"220000";  -- red LEDs for SHIFT result
+                                                led_reg(COLOR_RANGE) <= x"000004";  -- red LEDs for SHIFT result
                                         end case;
                                     elsif led_index = 18 then   -- shift left (flag = '0')
-                                        led_reg(COLOR_RANGE) <= x"002200";          -- green LED for shift left
+                                        led_reg(COLOR_RANGE) <= x"002200040000";          -- green LED for shift left
                                     end if;
                                 when 6 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         case led_index is
                                             when 0 =>
-                                                led_reg(COLOR_RANGE) <= x"222222";  -- white LED for CMP selected
+                                                led_reg(COLOR_RANGE) <= x"040404";  -- white LED for CMP selected
                                             when 1 =>
-                                                led_reg(COLOR_RANGE) <= x"000022";  -- red LED for CMP result
+                                                led_reg(COLOR_RANGE) <= x"000004";  -- red LED for CMP result
                                             when 2 =>
-                                                led_reg(COLOR_RANGE) <= x"220022";  -- magenta LED for N
+                                                led_reg(COLOR_RANGE) <= x"040004";  -- magenta LED for N
                                             when 3 =>
-                                                led_reg(COLOR_RANGE) <= x"002222";  -- yellow LED for V
+                                                led_reg(COLOR_RANGE) <= x"000404";  -- yellow LED for V
                                             when 4 =>
-                                                led_reg(COLOR_RANGE) <= x"222200";  -- cyan LED for Z
+                                                led_reg(COLOR_RANGE) <= x"040400";  -- cyan LED for Z
                                             when others =>
                                                 case ALU_CMP(6 downto 5) is -- select color for the cmpfn LED from the two cmpfn bits
                                                     when "00" =>
-                                                        led_reg(COLOR_RANGE) <= x"222222";  -- white LED for CMPEQ  (0b00)
+                                                        led_reg(COLOR_RANGE) <= x"040404";  -- white LED for CMPEQ  (0b00)
                                                     when "01" =>
-                                                        led_reg(COLOR_RANGE) <= x"000022";  -- red LED for CMPUL    (0b01)
+                                                        led_reg(COLOR_RANGE) <= x"000004";  -- red LED for CMPUL    (0b01)
                                                     when "10" =>
-                                                        led_reg(COLOR_RANGE) <= x"002200";  -- green LED for CMPLT  (0b10)
+                                                        led_reg(COLOR_RANGE) <= x"000400";  -- green LED for CMPLT  (0b10)
                                                     when others =>
-                                                        led_reg(COLOR_RANGE) <= x"220000";  -- blue LED for CMPLE   (0b11)
+                                                        led_reg(COLOR_RANGE) <= x"040000";  -- blue LED for CMPLE   (0b11)
                                             end case;
                                         end case;
                                     end if;
                                 when 3 | 4 | 5 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
-                                        led_reg(COLOR_RANGE) <= x"000022";          -- INST and CONST, and ALU Output are all red LEDs
+                                        led_reg(COLOR_RANGE) <= x"000004";          -- INST and CONST, and ALU Output are all red LEDs
                                     end if;
                                 when 2 =>
                                     if led_index = 16 then      -- msb of MDATA is read/write signal
                                         if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"220022";      -- magenta LED for write (1)
+                                            led_reg(COLOR_RANGE) <= x"040004";      -- magenta LED for write (1)
                                         else
-                                            led_reg(COLOR_RANGE) <= x"002200";      -- green LED for read (0)
+                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for read (0)
                                         end if;
                                     elsif set_reg(led_index) = '1' then
-                                        led_reg(COLOR_RANGE) <= x"000022";          -- MDATA is all red LEDs
+                                        led_reg(COLOR_RANGE) <= x"000004";          -- MDATA is all red LEDs
                                     end if;
                                 when 1 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         if led_index = 16 then  -- msb of PC is JT signal
-                                            led_reg(COLOR_RANGE) <= x"220000";      -- blue LED for JT
+                                            led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for JT
                                         else
-                                            led_reg(COLOR_RANGE) <= x"000022";      -- PC is all red LEDs
+                                            led_reg(COLOR_RANGE) <= x"000004";      -- PC is all red LEDs
                                         end if;
                                     elsif led_index = 16 then
-                                            led_reg(COLOR_RANGE) <= x"002200";      -- green LED for PC_INC
+                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for PC_INC
                                     end if;
                                 when others =>
                                     null;  -- keep default NO_COLOR

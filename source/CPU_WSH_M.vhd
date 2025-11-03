@@ -32,21 +32,21 @@ entity CPU_WSH_M is
         PC_DISP         : out std_logic_vector(15 downto 0); -- 4 [16] *
 
         -- These go after DotStar implemented
-        JT              : out std_logic;                            -- *
-        REGSTAT_DISP    : out std_logic_vector(15 downto 0); -- 5 [11 or 13 depending on WDSEL inclusion]
-        WDINPUT_DISP    : out std_logic_vector(15 downto 0); -- 6 [16 or 18 depending on WDSEL inclusion]
-        REGS_DISP       : out RARRAY;                        -- 7-13 [7x19 including a, b, w signals]   *
-        REGA_DISP       : out std_logic_vector(15 downto 0);    -- *
-        REGB_DISP       : out std_logic_vector(15 downto 0);    -- *
-        ALU_FNLEDS_DISP : out std_logic_vector(15 downto 0); -- 16 [15 or 17 depending on ASEL/BSEL 1 bit or 2 bit signals] *
-        ALUA_DISP       : out std_logic_vector(15 downto 0); -- 17 [16] *
-        ALUB_DISP       : out std_logic_vector(15 downto 0); -- 18 [16] *
-        ALUARITH_DISP   : out std_logic_vector(15 downto 0); -- 19 [16] *
-        ALUBOOL_DISP    : out std_logic_vector(15 downto 0); -- 20 [16] *
-        ALUSHIFT_DISP   : out std_logic_vector(15 downto 0); -- 21 [16] *
-        ALUCMPF_DISP    : out std_logic_vector(15 downto 0);    -- *
-        ALUOUT_DISP     : out std_logic_vector(15 downto 0);    -- *
-        PHASE_DISP      : out std_logic_vector(2 downto 0)  -- 24 [2] - or maybe this, clock, and bank select are separate LEDs?
+        -- JT              : out std_logic;                            -- *
+        -- REGSTAT_DISP    : out std_logic_vector(15 downto 0); -- 5 [11 or 13 depending on WDSEL inclusion]
+        -- WDINPUT_DISP    : out std_logic_vector(15 downto 0); -- 6 [16 or 18 depending on WDSEL inclusion]
+        -- REGS_DISP       : out RARRAY;                        -- 7-13 [7x19 including a, b, w signals]   *
+        -- REGA_DISP       : out std_logic_vector(15 downto 0);    -- *
+        -- REGB_DISP       : out std_logic_vector(15 downto 0);    -- *
+        -- ALU_FNLEDS_DISP : out std_logic_vector(15 downto 0); -- 16 [15 or 17 depending on ASEL/BSEL 1 bit or 2 bit signals] *
+        -- ALUA_DISP       : out std_logic_vector(15 downto 0); -- 17 [16] *
+        -- ALUB_DISP       : out std_logic_vector(15 downto 0); -- 18 [16] *
+        -- ALUARITH_DISP   : out std_logic_vector(15 downto 0); -- 19 [16] *
+        -- ALUBOOL_DISP    : out std_logic_vector(15 downto 0); -- 20 [16] *
+        -- ALUSHIFT_DISP   : out std_logic_vector(15 downto 0); -- 21 [16] *
+        -- ALUCMPF_DISP    : out std_logic_vector(15 downto 0);    -- *
+        -- ALUOUT_DISP     : out std_logic_vector(15 downto 0);    -- *
+        -- PHASE_DISP      : out std_logic_vector(2 downto 0)  -- 24 [2] - or maybe this, clock, and bank select are separate LEDs?
     );
 end CPU_WSH_M;
 
@@ -98,9 +98,10 @@ architecture Behavioral of CPU_WSH_M is
     signal reg_w_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- received register Channel to write   -- 7-13
     signal reg_w_disp     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write   -- 7-13
 
+    -- DotStar Control
     signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
     signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
-
+    
     signal cyc_sig     : std_logic := '0';                                   -- wishbone cycle signal from cpu
     signal last_cyc_sig : std_logic := '0';
 	 
@@ -111,18 +112,18 @@ begin
     CONST_DISP      <= const_out;
     MDATA_DISP      <= mdata_sig;
     PC_DISP         <= pc_disp_sig;
-    REGSTAT_DISP    <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
-    WDINPUT_DISP    <= regin_sig;
-    REGA_DISP       <= rega_out;
-    REGB_DISP       <= regb_out;
-    REGS_DISP       <= allregs_sig;
-    ALUCMPF_DISP    <= alu_fnleds(6 downto 5) & "00000000000000";  -- pad to 16 bits
-    ALUOUT_DISP     <= s_alu_out;
-    ALUSHIFT_DISP   <= alu_shift_sig;
-    ALUBOOL_DISP    <= alu_bool_sig;
-    ALUARITH_DISP   <= alu_arith_sig;
-    ALU_FNLEDS_DISP <= asel_out & alu_fnleds & bsel_out & "0";  -- pad to 16 bits
-    JT              <= jt_sig;
+    -- REGSTAT_DISP    <= opa_out & opb_out & opc_out & "0" & werf_out & rbsel_out & wdsel_out & "0" & azero_out;    -- to display regfile controls/Z
+    -- WDINPUT_DISP    <= regin_sig;
+    -- REGA_DISP       <= rega_out;
+    -- REGB_DISP       <= regb_out;
+    -- REGS_DISP       <= allregs_sig;
+    -- ALUCMPF_DISP    <= alu_fnleds(6 downto 5) & "00000000000000";  -- pad to 16 bits
+    -- ALUOUT_DISP     <= s_alu_out;
+    -- ALUSHIFT_DISP   <= alu_shift_sig;
+    -- ALUBOOL_DISP    <= alu_bool_sig;
+    -- ALUARITH_DISP   <= alu_arith_sig;
+    -- ALU_FNLEDS_DISP <= asel_out & alu_fnleds & bsel_out & "0";  -- pad to 16 bits
+    -- JT              <= jt_sig;
 
     -- signal logic to send to DotStar display
     jt_sig          <= '1' when ((inst_out(9) = '1') AND                    -- Calculate value of JT flag (1 = jump, 0 = use pc_inc)
@@ -221,7 +222,7 @@ begin
         MWDATA      => regb_out,                -- RegFile Channel B input to Control Logic for memory writing
         Z           => azero_out,               -- Zero flag input (from RegFile) to Control Logic
 
-        PHASE       => PHASE_DISP               -- PHASE output for display only
+        -- PHASE       => PHASE_DISP               -- PHASE output for display only
     );
 
     -- RegFile Instance

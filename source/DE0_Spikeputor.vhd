@@ -63,22 +63,22 @@ architecture Structural of DE0_Spikeputor is
     signal pc_out      : std_logic_vector(15 downto 0) := (others => '0');           -- 4 [16]
 
     -- Regsiter File
-    signal reg_stat    : std_logic_vector(15 downto 0) := (others => '0');           -- 5 [15]
-    signal wd_input    : std_logic_vector(15 downto 0) := (others => '0');           -- 6 [16]
-    signal reg_index   : integer range 1 to 7 := 1;                                  -- to select which register to display
-    signal all_regs    : RARRAY := (others => (others => '0'));                      -- 7-13
-    signal rega_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 14 [17]
-    signal regb_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 15 [16]
+    -- signal reg_stat    : std_logic_vector(15 downto 0) := (others => '0');           -- 5 [15]
+    -- signal wd_input    : std_logic_vector(15 downto 0) := (others => '0');           -- 6 [16]
+    -- signal reg_index   : integer range 1 to 7 := 1;                                  -- to select which register to display
+    -- signal all_regs    : RARRAY := (others => (others => '0'));                      -- 7-13
+    -- signal rega_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 14 [17]
+    -- signal regb_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 15 [16]
 
     -- ALU
-    signal alu_fn_leds : std_logic_vector(15 downto 0) := (others => '0');           -- 16 [17 or 19 depending on ASEL/BSEL 1 bit or 2 bit signals]
-    signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');           -- 17 [16]
-    signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');           -- 18 [16]
-    signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');           -- 19 [16]
-    signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');           -- 20 [16]
-    signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');           -- 21 [16]
-    signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');           -- 22 [4]
-    signal s_alu_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 23 [16]
+    -- signal alu_fn_leds : std_logic_vector(15 downto 0) := (others => '0');           -- 16 [17 or 19 depending on ASEL/BSEL 1 bit or 2 bit signals]
+    -- signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');           -- 17 [16]
+    -- signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');           -- 18 [16]
+    -- signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');           -- 19 [16]
+    -- signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');           -- 20 [16]
+    -- signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');           -- 21 [16]
+    -- signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');           -- 22 [4]
+    -- signal s_alu_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 23 [16]
 
     -- clock logic
     signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
@@ -143,7 +143,7 @@ begin
 
         cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
 
-    -- Spikeputor CPU as Wishbone master
+    -- Spikeputor CPU as Wishbone master (M0)
     CPU : entity work.CPU_WSH_M port map (
         -- Timing
         CLK       => CLOCK_50,
@@ -163,29 +163,31 @@ begin
         DISP_DATA => GPIO0_D(0),                    -- DotStar Data
         DISP_CLK  => GPIO0_D(1),                    -- DotStar Clock
 
-        -- Direct Display Values (temporary - will eventually all be DotStar ouput)
+        -- Direct Display Values
         INST_DISP       => inst_out,
         CONST_DISP      => const_out,
         MDATA_DISP      => mdata_out,
         PC_DISP         => pc_out,
-        JT              => LEDG(8),
-        REGSTAT_DISP    => reg_stat,
-        WDINPUT_DISP    => wd_input,
-        REGS_DISP       => all_regs,
-        REGA_DISP       => rega_out,
-        REGB_DISP       => regb_out,
-        ALU_FNLEDS_DISP => alu_fn_leds,
-        ALUA_DISP       => alu_a,
-        ALUB_DISP       => alu_b,
-        ALUARITH_DISP   => alu_arith,
-        ALUBOOL_DISP    => alu_bool,
-        ALUSHIFT_DISP   => alu_shift,
-        ALUCMPF_DISP    => alu_cmpf,
-        ALUOUT_DISP     => s_alu_out,
-        PHASE_DISP      => LEDG(2 downto 0)
+
+        -- -- Direct Display Values (temporary - will eventually all be DotStar ouput)
+        -- JT              => LEDG(8),
+        -- REGSTAT_DISP    => reg_stat,
+        -- WDINPUT_DISP    => wd_input,
+        -- REGS_DISP       => all_regs,
+        -- REGA_DISP       => rega_out,
+        -- REGB_DISP       => regb_out,
+        -- ALU_FNLEDS_DISP => alu_fn_leds,
+        -- ALUA_DISP       => alu_a,
+        -- ALUB_DISP       => alu_b,
+        -- ALUARITH_DISP   => alu_arith,
+        -- ALUBOOL_DISP    => alu_bool,
+        -- ALUSHIFT_DISP   => alu_shift,
+        -- ALUCMPF_DISP    => alu_cmpf,
+        -- ALUOUT_DISP     => s_alu_out,
+        -- PHASE_DISP      => LEDG(2 downto 0)
     );
 
-    -- Spikeputor CPU Clock Control as Wishbone Master
+    -- Spikeputor CPU Clock Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M
     port map (
         CLK        => CLOCK_50,
@@ -200,6 +202,7 @@ begin
         CPU_CLOCK  => LEDG(9)
     );
 
+    -- TODO: this can be replaced with a wishbone provider so it can be set from software
     WITH (sw_sync(6 downto 4)) SELECT   -- select CPU speed via switches 6 through 4
         clk_speed <=                                                        -- clock values assuming a 50MHz system clock
             std_logic_vector(to_unsigned(100_000_000, 32)) when "000",      -- 0.5 Hz
@@ -212,10 +215,10 @@ begin
             std_logic_vector(to_unsigned(10, 32)) when "111",               -- 5 MHz
             std_logic_vector(to_unsigned(10_000_000, 32)) when others;
 
-    -- TODO: Address comparator to select the proper Wishbone provider based on WBS_ADDR_I and bank select register
+    -- TODO: Address comparator to select the proper Wishbone provider based on WBS_ADDR_I, WBS_WE_I and bank select register
 
 
-    -- RAM Instance as Wishbone provider
+    -- RAM Instance as Wishbone provider (P0)
     RAM : entity work.RAMTest_WSH_P port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
         -- SYSCON inputs
         CLK         => CLOCK_50,
@@ -253,19 +256,21 @@ begin
     HEX2_DP <= '1';
     HEX3_DP <= '1';
 
-    reg_index <= to_integer(unsigned(sw_sync(3 downto 1)));  -- select register index from switches 3-1
+    -- reg_index <= to_integer(unsigned(sw_sync(3 downto 1)));  -- select register index from switches 3-1
 
-    WITH (sw_sync(9 downto 7)) SELECT                               -- output various values to upper 16 bits of GPIO1 based on switches 9-7
-        GPIO1_D(31 downto 16) <= inst_out    WHEN "000",            -- INST output
-                                 s_alu_out   WHEN "001",            -- CONST output
-                                 rega_out    WHEN "010",            -- RegFile Channel A
-                                 regb_out    WHEN "011",            -- RegFile Channel B
-                                 mdata_out   WHEN "100",            -- MRDATA output or MWDATA input (when a ST command)
-                                 reg_stat    WHEN "101",            -- RegFile control signals and Zero flag
-                                 wd_input    WHEN "110",            -- RegFile selected write data
-                                 all_regs(reg_index) WHEN "111",    -- register at current index (1 to 7)
-                                 inst_out    WHEN others;           -- INST output (should never happen)
-
+    -- WITH (sw_sync(9 downto 7)) SELECT                               -- output various values to upper 16 bits of GPIO1 based on switches 9-7
+    --     GPIO1_D(31 downto 16) <= inst_out    WHEN "000",            -- INST output
+    --                              s_alu_out   WHEN "001",            -- CONST output
+    --                              rega_out    WHEN "010",            -- RegFile Channel A
+    --                              regb_out    WHEN "011",            -- RegFile Channel B
+    --                              mdata_out   WHEN "100",            -- MRDATA output or MWDATA input (when a ST command)
+    --                              reg_stat    WHEN "101",            -- RegFile control signals and Zero flag
+    --                              wd_input    WHEN "110",            -- RegFile selected write data
+    --                              all_regs(reg_index) WHEN "111",    -- register at current index (1 to 7)
+    --                              inst_out    WHEN others;           -- INST output (should never happen)
+    
+    -- TODO: send these to the LED driver, along with PC and MDATA
+    GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
     GPIO1_D(15 downto 0) <= const_out;                              -- output const_out to lower 16 bits of GPIO1
 
     -- WITH (sw_sync(6 downto 4)) SELECT

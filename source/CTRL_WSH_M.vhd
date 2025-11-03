@@ -48,7 +48,7 @@ use work.Types.all;
 
 entity CTRL_WSH_M is
     generic (
-        RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000"  -- reset vector address
+        RESET_VECTOR : std_logic_vector(15 downto 0) := x"0000"  -- reset vector address
     );
     port (
         -- SYSCON inputs
@@ -92,9 +92,9 @@ entity CTRL_WSH_M is
             -- Inputs to Control Logic from other modules
         ALU_OUT : in std_logic_vector(15 downto 0);                       -- ALU output
         MWDATA  : in std_logic_vector(15 downto 0);                       -- memory write data - Register Channel B output
-        Z       : in std_logic;                                           -- Zero flag from RegFile Channel A
+        Z       : in std_logic                                            -- Zero flag from RegFile Channel A
 
-        PHASE   : out std_logic_vector(2 downto 0)                        -- current phase of instruction cycle
+        -- PHASE   : out std_logic_vector(2 downto 0)                        -- current phase of instruction cycle
     );
 end CTRL_WSH_M;
 
@@ -143,16 +143,16 @@ begin
 
 
     -- Generate PHASE signal for display purposes
-    WITH (st_main) SELECT                       -- current phase of instruction cycle for display purposes
-        PHASE <= 
-            "000" when ST_FETCH_I,
-            "001" when ST_FETCH_I_WAIT,
-            "010" when ST_FETCH_C,
-            "011" when ST_FETCH_C_WAIT,
-            "100" when ST_EXECUTE,
-            "101" when ST_EXECUTE_RW,
-            "111" when ST_EXECUTE_RW_WAIT,
-            "000" when others;  -- should never occur, default to fetch instruction phase
+    -- WITH (st_main) SELECT                       -- current phase of instruction cycle for display purposes
+    --     PHASE <= 
+    --         "000" when ST_FETCH_I,
+    --         "001" when ST_FETCH_I_WAIT,
+    --         "010" when ST_FETCH_C,
+    --         "011" when ST_FETCH_C_WAIT,
+    --         "100" when ST_EXECUTE,
+    --         "101" when ST_EXECUTE_RW,
+    --         "111" when ST_EXECUTE_RW_WAIT,
+    --         "000" when others;  -- should never occur, default to fetch instruction phase
 
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
 
@@ -178,12 +178,12 @@ begin
                 if STALL_I = '0' then              -- only proceed if not stalled for debugging, otherwise hold current state and do nothing
                     case st_main is
                         when ST_FETCH_I =>
-                            -- fetch instruction from memory at address PC
+                            -- fetch instruction from memory at address PC - state machine waits here if clock manager is holding the bus
                             if WBS_ACK_I = '0' then             -- confirm that acknowledgement is clear and we're not stalled for debugging
                                 WBS_CYC_O <= '1';               -- initiate wishbone cycle
                                 WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                                 st_main <= ST_FETCH_I_WAIT;	    -- go to wait for instruction (may take more than one clock cycle for non-RAM)
-                                prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
+                                -- prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
                             else
                                 st_main <= ST_FETCH_I;          -- keep waiting until ready
                             end if;
@@ -191,6 +191,7 @@ begin
                         when ST_FETCH_I_WAIT =>
                             -- wait for memory to return instruction
                             if WBS_ACK_I = '1' then             -- wait for ack indicating memory read is valid
+                                prev_PC <= PC_reg;              -- set pipeline for PC for display so we get the address of the command that has executed
                                 WBS_STB_O <= '0';               -- deassert strobe - end read phase
                                 INST_reg <= WBS_DATA_I;         -- latch instruction
 
