@@ -20,21 +20,21 @@ entity FREQ_CLOCK is
 end FREQ_CLOCK;
 
 architecture Behavior of FREQ_CLOCK is
-    signal COUNTER : Integer := 0;
+    signal counter : Integer := 0;
 
 begin
     CLK_DIV : process(CLK_IN)
     begin
         if rising_edge(CLK_IN) then
-            if (COUNTER >= SRC_FREQ/FREQUENCY) then
-                COUNTER <= 0;
+            if (counter >= SRC_FREQ/FREQUENCY) then
+                counter <= 0;
             else
-                COUNTER <= COUNTER + 1;
+                counter <= counter + 1;
             end if;
         end if;
     end process CLK_DIV;
 
-    CLK_OUT <= '1' when (COUNTER < ((SRC_FREQ/FREQUENCY) * DUTY_CYC / 100)) else '0';
+    CLK_OUT <= '1' when (counter < ((SRC_FREQ/FREQUENCY) * DUTY_CYC / 100)) else '0';
 end Behavior;
 
 ------------------------------------------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ use ieee.numeric_std.all;
 
 entity CLK_ENABLE is
     generic (
-        QUANTA_MAX : Integer := 4;
+        QUANTA_MAX    : Integer := 4;
         QUANTA_ENABLE : Integer := 1
     );
 
@@ -60,21 +60,21 @@ entity CLK_ENABLE is
 end CLK_ENABLE;
 
 architecture Behavior of CLK_ENABLE is
-    signal QUANTA : Integer := 0;
+    signal quanta : Integer := 0;
 
 begin
     CLK_TICK : process(CLK_IN)
     begin
         if rising_edge(CLK_IN) then
-            if (QUANTA < QUANTA_MAX - 1) then
-                QUANTA <= QUANTA + 1;
+            if (quanta < QUANTA_MAX - 1) then
+                quanta <= quanta + 1;
             else
-                QUANTA <= 0;
+                quanta <= 0;
             end if;
         end if;
     end process CLK_TICK;
 
-    CLK_EN <= '1' when QUANTA = QUANTA_ENABLE - 1 else '0';
+    CLK_EN <= '1' when quanta = QUANTA_ENABLE - 1 else '0';
 end Behavior;
 
 ------------------------------------------------------------------------------------------------------------------
@@ -89,52 +89,52 @@ use ieee.numeric_std.all;
 entity PULSE_GEN is
     generic (
         PULSE_WIDTH : Integer := 10; -- Pulse width in clock ticks
-        RESET_LOW : Boolean := true   -- If true, pulse can be reset by bringing START_PULSE low before pulse is finished
+        RESET_LOW   : Boolean := true   -- If true, pulse can be reset by bringing START_PULSE low before pulse is finished
     );
 
     port (
         START_PULSE : in std_logic; -- Signal to start the pulse
-        CLK_IN : in std_logic;
-        PULSE_OUT : out std_logic
+        CLK_IN      : in std_logic;
+        PULSE_OUT   : out std_logic
     );
 end PULSE_GEN;
 
 architecture Behavior of PULSE_GEN is
-    signal COUNTER : Integer := 0;
-    signal PULSE_ACTIVE : std_logic := '0';
-    signal previous_start : std_logic := '0';
+    signal counter      : Integer := 0;
+    signal pulse_active : std_logic := '0';
+    signal prev_start : std_logic := '0';
 
 begin
     PULSE_GEN_PROCESS : process(CLK_IN)
     begin
         if rising_edge(CLK_IN) then
-            if previous_start = '0' and START_PULSE = '1' then
-                PULSE_ACTIVE <= '1';    -- start pulse on rising edge of START_PULSE
+            if prev_start = '0' and START_PULSE = '1' then
+                pulse_active <= '1';    -- start pulse on rising edge of START_PULSE
             end if;
 
-            if previous_start = '1' and START_PULSE = '0' and RESET_LOW = true then
-                PULSE_ACTIVE <= '0';    -- reset pulse if RESET_LOW is true and START_PULSE goes low
+            if prev_start = '1' and START_PULSE = '0' and RESET_LOW = true then
+                pulse_active <= '0';    -- reset pulse if RESET_LOW is true and START_PULSE goes low
             end if;
 
-            if PULSE_ACTIVE = '1' then
-                if COUNTER < PULSE_WIDTH then
-                    COUNTER <= COUNTER + 1;     -- increment the counter if pulse active and counter not done
+            if pulse_active = '1' then
+                if counter < PULSE_WIDTH then
+                    counter <= counter + 1;     -- increment the counter if pulse active and counter not done
                 else 
-                    PULSE_ACTIVE <= '0';        -- end the pulse when counter reaches pulse width
-                    COUNTER <= 0;               -- reset counter
+                    pulse_active <= '0';        -- end the pulse when counter reaches pulse width
+                    counter <= 0;               -- reset counter
                 end if;
             else
-                if PULSE_ACTIVE = '0' then
-                    COUNTER <= 0;               -- Reset counter when pulse_active goes low
+                if pulse_active = '0' then
+                    counter <= 0;               -- Reset counter when pulse_active goes low
                 end if;
             end if;
 
-            previous_start <= START_PULSE;      -- store previous state of START_PULSE for edge detection
+            prev_start <= START_PULSE;      -- store previous state of START_PULSE for edge detection
         end if;
     end process PULSE_GEN_PROCESS;
 
     -- PULSE_OUT is 1 when the counter is less than the pulse width and START_PULSE is high
-    PULSE_OUT <= '1' when (COUNTER < PULSE_WIDTH AND PULSE_ACTIVE = '1') else '0';
+    PULSE_OUT <= '1' when (counter < PULSE_WIDTH AND pulse_active = '1') else '0';
 
 end Behavior;
 
@@ -161,10 +161,10 @@ end AUTO_MANUAL_CLOCK;
 
 architecture RTL of AUTO_MANUAL_CLOCK is
  --signals for clock logic
-    signal previous_man : std_logic := '1';
-    signal clock_counter : integer := 0;
+    constant MAX_COUNT   : integer := SYS_FREQ/AUTO_FREQ;
 
-    constant MAX_COUNT : integer := SYS_FREQ/AUTO_FREQ;
+    signal previous_man  : std_logic := '1';
+    signal clock_counter : integer := 0;
 
     begin
         -- Select between automatic and manual clock based on SW(0) - manual clock is KEY(1)

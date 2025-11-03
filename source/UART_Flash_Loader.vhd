@@ -53,20 +53,20 @@ architecture behavioral of uart_flash_loader is
     signal bytes_seen  : unsigned(16 downto 0) := (others => '0');          -- number of bytes recieved so far (extra bit for xfer of 64 KBytes)
     signal word_buf    : std_logic_vector(15 downto 0) := (others => '0');  -- buffer for the word to write to flash
 
-    signal activity_flasher : integer range 0 to 50_000_000 := 0;           -- counter to flash activity indicator during flash chip erase
+    signal act_flasher : integer range 0 to 50_000_000 := 0;                -- counter to flash activity indicator during flash chip erase
    
 
 begin
     -- flicker activity when the process is running, show completed when process is over and ready for next session
-    ACTIVITY <= '0' when (activity_flasher < 25_000_000) else '1';
-    COMPLETED <= '1' when (p_state = ACK_DONE or p_state = WAIT_START) else '0';
+    ACTIVITY  <= '0' when (act_flasher < 25_000_000) else '1';
+    COMPLETED <= '1' when (p_state = ACK_DONE OR p_state = WAIT_START) else '0';
 
     -- wire ADDR_OUT:
     ---    ADDR[21] is always 0
     ---    full sector address is 0 & ADDR[20:15] & 00000000000000
     ---    full address is 0 & sector address & (byte address/2)
-    ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH or p_state = WAIT_ERASE)
-        else ("0" & SECTOR_ADDR & address);                              -- set address to write to or sector to erase (when erase_flash was selected)
+    ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE)
+        else ("0" & SECTOR_ADDR & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
 
     -- wire DATA_OUT, WR_OUT and ERASE_OUT connections
     DATA_OUT  <= word_buf;                                                  -- set data to write
@@ -158,7 +158,7 @@ begin
     -- WAIT_FLASH: wait for flash to be ready after it has written the word
                     when WAIT_FLASH =>
                         if FLASH_RDY = '1' then                             -- wait for flash idle
-                            p_state <= NEXT_ADDRESS;                        -- move to next state to notify that flash has been written                    
+                            p_state <= NEXT_ADDRESS;                        -- move to next state to notify that flash has been written
                         end if;
 
     -- NEXT_ADDRESS: update address and byte counters, and check for end of data
@@ -181,14 +181,14 @@ begin
 
     -- WAIT_ERASE: wait for flash to be ready after it erases the chip - increment counter so ACTIVITY light flashes at 1 Hz
                     when WAIT_ERASE =>
-                        activity_flasher <= activity_flasher + 1;           -- increment activity counter, > 25_000_000 == ACTIVITY on
+                        act_flasher <= activity_flasher + 1;                -- increment activity counter, > 25_000_000 == ACTIVITY on
 
-                        if activity_flasher = 50_000_000 then
-                            activity_flasher <= 0;                          -- reset activity flasher at 50_000_000
+                        if act_flasher = 50_000_000 then
+                            act_flasher <= 0;                               -- reset activity flasher at 50_000_000
                         end if;
 
                         if FLASH_RDY = '1' then                             -- wait for flash idle
-                            activity_flasher <= 0;                          -- reset the activity flasher counter
+                            act_flasher <= 0;                               -- reset the activity flasher counter
                             p_state <= ACK_DONE;                            -- move to next state to acknowledge completion
                         end if;
 

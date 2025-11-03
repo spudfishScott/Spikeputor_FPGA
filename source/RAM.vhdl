@@ -42,8 +42,8 @@ USE altera_mf.altera_mf_components.all;
 
 ENTITY RAM IS
     GENERIC (
-        NUM_WORDS  : INTEGER := 16384;          -- 32K bytes = 16K words of 16 bits each
-        ADDR_WIDTH : INTEGER := 14              -- 14 bits to address 16K words
+        NUM_WORDS   : INTEGER := 16384;          -- 32K bytes = 16K words of 16 bits each
+        ADDR_WIDTH  : INTEGER := 14              -- 14 bits to address 16K words
     );
 
     PORT (
@@ -53,7 +53,7 @@ ENTITY RAM IS
         DATA        : IN STD_LOGIC_VECTOR (15 DOWNTO 0);
         WREN        : IN STD_LOGIC  := '0';
 
-        Q          : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
+        Q           : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
     );
 END RAM;
 

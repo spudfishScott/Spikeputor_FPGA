@@ -6,7 +6,7 @@
 
 -----------------------------------------------------------------------------------------
 -- ARITH  - add or subtract the two inputs, given a SUB flag for subtraction
---          Outputs are the Sum (M_OUT), the final carry bit (COUT), and the inverted B input (for LEDs)
+--        Outputs are the Sum (M_OUT), the final carry bit (COUT), and the inverted B input (for LEDs)
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -65,7 +65,7 @@ architecture Behavior of BOOL is
 begin
     MUXES: for m in 15 downto 0 generate   -- generate the 16 MUXes to do the bitwise boolean math
     begin
-        BA(m) <= B(m) & A(M);
+        BA(m) <= B(m) & A(m);
         with (BA(m)) select
             M_OUT(m) <=
                 BFN(3) when "11",
@@ -100,14 +100,14 @@ end SHIFT;
 
 architecture Behavior of SHIFT is
 
-    signal S8 : std_logic_vector(15 downto 0) := (others => '0');       -- 8 bit shift
-    signal S4 : std_logic_vector(15 downto 0) := (others => '0');       -- 4 bit shift
-    signal S2 : std_logic_vector(15 downto 0) := (others => '0');       -- 2 bit shift
-    signal S1 : std_logic_vector(15 downto 0) := (others => '0');       -- 1 bit shift
+    signal S8     : std_logic_vector(15 downto 0) := (others => '0');       -- 8 bit shift
+    signal S4     : std_logic_vector(15 downto 0) := (others => '0');       -- 4 bit shift
+    signal S2     : std_logic_vector(15 downto 0) := (others => '0');       -- 2 bit shift
+    signal S1     : std_logic_vector(15 downto 0) := (others => '0');       -- 1 bit shift
     signal S1_REV : std_logic_vector(15 downto 0) := (others => '0');   -- (re)reversed final result
-    signal AX : std_logic_vector(15 downto 0) := (others => '0');       -- A, possibly reversed for the shift operation
-    signal A_REV : std_logic_vector(15 downto 0) := (others => '0');    -- reversed A for the shift operation
-    signal S_EXT : std_logic_vector(7 downto 0) := (others => '0');     -- sign extension vector
+    signal AX     : std_logic_vector(15 downto 0) := (others => '0');       -- A, possibly reversed for the shift operation
+    signal A_REV  : std_logic_vector(15 downto 0) := (others => '0');    -- reversed A for the shift operation
+    signal S_EXT  : std_logic_vector(7 downto 0) := (others => '0');     -- sign extension vector
 
 begin
     REVERSE_A: entity work.REVERSE generic map(16) port map (
@@ -115,23 +115,23 @@ begin
         Q => A_REV
     );
 
-    AX <= A when DIR = '0' 
+    AX    <= A when DIR = '0' 
             else A_REV;
 
     S_EXT <= (others => '1') when EXT = '1' 
                              else (others => '0');
 
-    S8 <= AX when B(3) = '0'
-             else S_EXT(7 downto 0) & AX(15 downto 8);
+    S8    <= AX when B(3) = '0'
+                else S_EXT(7 downto 0) & AX(15 downto 8);
 
-    S4 <= S8 when B(2) = '0'
-             else S_EXT(3 downto 0) & S8(15 downto 4);
+    S4    <= S8 when B(2) = '0'
+                else S_EXT(3 downto 0) & S8(15 downto 4);
 
-    S2 <= S4 when B(1) = '0'
-             else S_EXT(1 downto 0) & S4(15 downto 2);
+    S2    <= S4 when B(1) = '0'
+                else S_EXT(1 downto 0) & S4(15 downto 2);
 
-    S1 <= S2 when B(0) = '0'
-             else S_EXT(0) & S2(15 downto 1);
+    S1    <= S2 when B(0) = '0'
+                else S_EXT(0) & S2(15 downto 1);
 
     REVERSE_S1: entity work.REVERSE generic map(16) port map (
         D => S1,
@@ -170,21 +170,21 @@ end CMP;
 architecture Behavior of CMP is
     constant ZEROS : std_logic_vector := "0000000000000000";
 
-    signal z_flag : std_logic := '0';   -- zero flag
-    signal v_flag : std_logic := '0';   -- overflow flag
-    signal n_flag : std_logic := '0';   -- negative flag
-    signal     lt : std_logic := '0';   -- less than signal
+    signal z_flag  : std_logic := '0';   -- zero flag
+    signal v_flag  : std_logic := '0';   -- overflow flag
+    signal n_flag  : std_logic := '0';   -- negative flag
+    signal     lt  : std_logic := '0';   -- less than signal
 
 begin
     z_flag <= '1' when (SUM = ZEROS) else '0';
     n_flag <= SUM(15);
     -- B15 is inverted version of what it should be for comparison
     v_flag <= (A15 AND (NOT B15) AND (NOT SUM(15))) OR ((NOT A15) AND B15 AND (SUM(15)));
-    lt <= n_flag XOR v_flag;
+    lt     <= n_flag XOR v_flag;
 
-    Z <= z_flag;
-    V <= v_flag;
-    N <= n_flag;
+    Z      <= z_flag;
+    V      <= v_flag;
+    N      <= n_flag;
 
     with (FN) select
         M_OUT <=

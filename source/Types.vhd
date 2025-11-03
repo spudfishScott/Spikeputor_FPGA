@@ -9,8 +9,8 @@ package Types is
     type RARRAY is array(1 to 7) of std_logic_vector(BIT_DEPTH-1 downto 0);
 
     -- for DotStar LED driver
-    constant MAX_LEDS_PER_SET : Integer := 32;  -- max number of LEDs in a set
-    constant MAX_LEDS_BITS :  Integer := Integer(ceil(log2(real(MAX_LEDS_PER_SET))));      -- number of bits to describe max number of LEDs in a set (2^5 = 32)
-    type LEDARRAY is array(1 to 32) of std_logic_vector(MAX_LEDS_PER_SET-1 downto 0);
-    type LEDCOUNTARRAY is array(1 to 32) of std_logic_vector(MAX_LEDS_BITS-1 downto 0);     -- number of LEDs in each set
+    -- constant MAX_LEDS_PER_SET : Integer := 32;  -- max number of LEDs in a set
+    -- constant MAX_LEDS_BITS :  Integer := Integer(ceil(log2(real(MAX_LEDS_PER_SET))));      -- number of bits to describe max number of LEDs in a set (2^5 = 32)
+    -- type LEDARRAY is array(1 to 32) of std_logic_vector(MAX_LEDS_PER_SET-1 downto 0);
+    -- type LEDCOUNTARRAY is array(1 to 32) of std_logic_vector(MAX_LEDS_BITS-1 downto 0);     -- number of LEDs in each set
 end package Types;

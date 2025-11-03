@@ -60,10 +60,10 @@ begin   -- architecture begin
 
     -- Handle Register Inputs
     REG_INS : entity work.MUX3 generic map(BIT_DEPTH) port map (
-           IN2 => IN2,
-           IN1 => IN1,
-           IN0 => IN0,
-           SEL => WDSEL,
+        IN2 => IN2,
+        IN1 => IN1,
+        IN0 => IN0,
+        SEL => WDSEL,
         MUXOUT => reg_in
     );
 
@@ -78,10 +78,10 @@ begin   -- architecture begin
     bout_sel <= OPB when RBSEL = '0' else OPC;
 
     -- Register Write selection depends on WERF, OPC is WERF is selected, Register 0 if not
-    wr_sel <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
+    wr_sel   <= OPC when WERF = '1' else "000"; -- if WERF is not set, "write" to Register 0
 
     -- Register File Outputs (for CPU)
-    AOUT <= aout_int;
+    AOUT  <= aout_int;
     AZERO <= '1' when aout_int = ZEROS else '0';   -- zero detect output
 
     -- Other Outputs (for LEDs)
@@ -111,11 +111,10 @@ begin   -- architecture begin
     REGISTERS: for r in 1 to 7 generate   -- generate the 7 registers
     begin
         RX : entity work.REG_LE generic map(BIT_DEPTH) port map (  -- Registers
-            -- RESET => RESET,
-              CLK => CLK,
-               LE => wreg_sel(r),
-                D => reg_in,
-                Q => regs_out(r)
+            CLK => CLK,
+            LE  => wreg_sel(r),
+            D   => reg_in,
+            Q   => regs_out(r)
         );
     end generate REGISTERS;
 

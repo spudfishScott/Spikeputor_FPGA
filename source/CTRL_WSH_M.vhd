@@ -106,6 +106,7 @@ architecture rtl of CTRL_WSH_M is
     signal CONST_reg   : std_logic_vector(15 downto 0) := (others => '0');   -- constant fetched from memory
     signal PC_reg      : std_logic_vector(15 downto 0) := (others => '0');   -- program counter
     signal PC_INC_calc : std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
+    signal prev_PC     : std_logic_vector(15 downto 0) := (others => '0');   -- program counter for display - the address of the instruction about to execute
     signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- MRDATA register (for display)
 
     signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
@@ -116,7 +117,7 @@ architecture rtl of CTRL_WSH_M is
 
 begin
     -- Spikeputor control outputs, including control signals for ALU and Register File
-    PC          <= PC_reg;                                                  -- program counter
+    PC          <= prev_PC;                                                 -- program counter for display - set to instruction that is about to execute during CPU halt by the clock controller
     PC_INC      <= PC_INC_calc;                                             -- incremented program counter
     INST        <= INST_reg;                                                -- instruction fetched from memory
     CONST       <= CONST_reg;                                               -- constant fetched from memory
@@ -160,15 +161,16 @@ begin
         if rising_edge(clk) then
             if RST_I = '1' then
                 -- reset state
-                st_main <= ST_FETCH_I;          -- start by fetching instruction
-                PC_reg <= RESET_VECTOR;         -- set PC to reset vector
-                WERF_sig <= '0';                -- do not write to registers during reset
-                MRDATA_reg <= (others => '0');  -- clear MRDATA registere
+                st_main    <= ST_FETCH_I;          -- start by fetching instruction
+                PC_reg     <= RESET_VECTOR;        -- set PC to reset vector
+                prev_PC    <= RESET_VECTOR;        -- set display PC to reset vector
+                WERF_sig   <= '0';                 -- do not write to registers during reset
+                MRDATA_reg <= (others => '0');     -- clear MRDATA registere
 
                  -- clear wishbone signals
-                WBS_CYC_O <= '0';               -- clear wishbone handshake signals
-                WBS_STB_O <= '0';
-                WBS_ADDR_O <= RESET_VECTOR;     -- set address to reset vector
+                WBS_CYC_O  <= '0';                 -- clear wishbone handshake signals
+                WBS_STB_O  <= '0';
+                WBS_ADDR_O <= RESET_VECTOR;        -- set address to reset vector
 
             else
                 -- normal operation
@@ -181,6 +183,7 @@ begin
                                 WBS_CYC_O <= '1';               -- initiate wishbone cycle
                                 WBS_STB_O <= '1';               -- strobe to indicate valid address and start memory read
                                 st_main <= ST_FETCH_I_WAIT;	    -- go to wait for instruction (may take more than one clock cycle for non-RAM)
+                                prev_PC <= PC_reg;              -- set PC for display now that the previous instruction has fully executed and we're back in a wishobone cycle for the CPU
                             else
                                 st_main <= ST_FETCH_I;          -- keep waiting until ready
                             end if;

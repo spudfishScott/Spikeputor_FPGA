@@ -77,8 +77,8 @@ begin
 
     uart_controller: entity work.UART
         generic map (
-            CLK_SPEED => 50_000_000,      -- 50 MHz clock speed
-            BAUD_RATE => 38400            -- Baud rate for UART communication 
+            CLK_SPEED  => 50_000_000,     -- 50 MHz clock speed
+            BAUD_RATE  => 38400           -- Baud rate for UART communication
                                           -- (where two bytes is sent in the time it takes to write a word to FLASH memory)
         )
         port map (
@@ -95,7 +95,7 @@ begin
 
     -- Word to 7 Segment Output
     SEGSOUT : entity work.WORDTO7SEGS port map (
-         WORD => flash_address(15 downto 0),   -- display the current address
+        WORD  => flash_address(15 downto 0),   -- display the current address
         SEGS3 => HEX3_D,
         SEGS2 => HEX2_D,
         SEGS1 => HEX1_D,

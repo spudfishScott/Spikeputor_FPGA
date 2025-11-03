@@ -49,8 +49,8 @@ architecture RTL of WSH_ARBITER is
     signal we_sel      : std_logic_vector(0 downto 0) := "0";
     signal m1_stb_sig  : std_logic_vector(0 downto 0) := "0";
     signal m0_stb_sig  : std_logic_vector(0 downto 0) := "0";
-    signal m1_we_sig  : std_logic_vector(0 downto 0) := "0";
-    signal m0_we_sig  : std_logic_vector(0 downto 0) := "0";
+    signal m1_we_sig   : std_logic_vector(0 downto 0) := "0";
+    signal m0_we_sig   : std_logic_vector(0 downto 0) := "0";
 begin
 
     -- output signals

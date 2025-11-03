@@ -8,23 +8,23 @@ entity DE0_Spikeputor is
         -- Clock Input
         CLOCK_50 : in std_logic;
         -- Push Button
-        BUTTON : in std_logic_vector(2 downto 0);
+        BUTTON   : in std_logic_vector(2 downto 0);
         -- DPDT Switch
-        SW : in std_logic_vector(9 downto 0);
+        SW       : in std_logic_vector(9 downto 0);
         -- 7-SEG Display
-        HEX0_D : out std_logic_vector(6 downto 0);
-        HEX0_DP : out std_logic;
-        HEX1_D : out std_logic_vector(6 downto 0);
-        HEX1_DP : out std_logic;
-        HEX2_D : out std_logic_vector(6 downto 0);
-        HEX2_DP : out std_logic;
-        HEX3_D : out std_logic_vector(6 downto 0);
-        HEX3_DP : out std_logic;
+        HEX0_D   : out std_logic_vector(6 downto 0);
+        HEX0_DP  : out std_logic;
+        HEX1_D   : out std_logic_vector(6 downto 0);
+        HEX1_DP  : out std_logic;
+        HEX2_D   : out std_logic_vector(6 downto 0);
+        HEX2_DP  : out std_logic;
+        HEX3_D   : out std_logic_vector(6 downto 0);
+        HEX3_DP  : out std_logic;
         -- LED
-        LEDG : out std_logic_vector(9 downto 0);
+        LEDG     : out std_logic_vector(9 downto 0);
         -- GPIO
-        GPIO1_D : out std_logic_vector(31 downto 0);
-        GPIO0_D : out std_logic_vector(1 downto 0)
+        GPIO1_D  : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
+        GPIO0_D  : out std_logic_vector(1 downto 0)     -- dotstar out
     );
 end DE0_Spikeputor;
 
@@ -81,7 +81,7 @@ architecture Structural of DE0_Spikeputor is
     signal s_alu_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 23 [16]
 
     -- clock logic
-    -- signal system_clk_en : std_logic := '0';
+    signal clk_speed : std_logic_vector := (31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)) -- default clock speed = 1 Hz
     
     -- Input synchronized signals
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
@@ -131,9 +131,9 @@ begin
             -- Wishbone Grant Signals
             M0_GNT      => cpu_gnt_sig,             -- CPU grant given
             M1_GNT      => open,                    -- DMA grant given
-            M2_GNT      => clk_gnt_sig,             -- clock grant given
+            M2_GNT      => clk_gnt_sig,             -- Clock Generator grant given
 
-            -- Wishbone bus signals passed out throught the arbiter
+            -- Wishbone bus granted signals passed out through the arbiter
             CYC_O       => arb_cyc,
             STB_O       => arb_stb,
             WE_O        => arb_we,
@@ -141,14 +141,14 @@ begin
             DATA_O      => arb_data_o
         );
 
-        cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for arbitrated master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
+        cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
 
     -- Spikeputor CPU as Wishbone master
     CPU : entity work.CPU_WSH_M port map (
         -- Timing
         CLK       => CLOCK_50,
         RESET     => NOT button_sync(0),            -- Button 0 is system reset (active low)
-        STALL     => '0',--NOT system_clk_en,       -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
+        STALL     => '0',                           -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
 
         -- Memory standard Wishbone interface signals
         M_DATA_I  => data_i,                        -- Wishbone Data from providers
@@ -160,8 +160,8 @@ begin
         M_WE_O    => cpu_we,                        -- Wishbone WE to providers
 
         --Display interface
-        DISP_DATA => GPIO0_D(0),
-        DISP_CLK  => GPIO0_D(1),
+        DISP_DATA => GPIO0_D(0),                    -- DotStar Data
+        DISP_CLK  => GPIO0_D(1),                    -- DotStar Clock
 
         -- Direct Display Values (temporary - will eventually all be DotStar ouput)
         INST_DISP       => inst_out,
@@ -190,13 +190,30 @@ begin
     port map (
         CLK        => CLOCK_50,
         RESET      => NOT button_sync(0),   -- Button 0 is system reset (active low)
+
         M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
         M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
-        AUTO_TICKS => std_logic_vector(to_unsigned(50000000, 32)), -- 50 million ticks at 50 MHz = 1 second period = 1 Hz clock
+
+        AUTO_TICKS => clk_speed, --std_logic_vector(to_unsigned(50000000, 32)), -- 50 million ticks at 50 MHz = 1 second period = 1 Hz clock
         MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
         MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
         CPU_CLOCK  => LEDG(9)
     );
+
+    WITH (sw_sync(6 downto 4)) SELECT   -- select CPU speed via switches 6 through 4
+        clk_speed <=                                                        -- clock values assuming a 50MHz system clock
+            std_logic_vector(to_unsigned(100_000_000, 32)) when "000",      -- 0.5 Hz
+            std_logic_vector(to_unsigned(10_000_000, 32)) when "001",       -- 5 Hz
+            std_logic_vector(to_unsigned(1_000_000, 32)) when "010",        -- 50 Hz
+            std_logic_vector(to_unsigned(100_000, 32)) when "011",          -- 500 Hz
+            std_logic_vector(to_unsigned(10_000, 32)) when "100",           -- 5 KHz
+            std_logic_vector(to_unsigned(1_000, 32)) when "101",            -- 50 KHz
+            std_logic_vector(to_unsigned(100, 32)) when "110",              -- 500 KHz
+            std_logic_vector(to_unsigned(10, 32)) when "111",               -- 5 MHz
+            std_logic_vector(to_unsigned(10_000_000, 32)) when others;
+
+    -- TODO: Address comparator to select the proper Wishbone provider based on WBS_ADDR_I and bank select register
+
 
     -- RAM Instance as Wishbone provider
     RAM : entity work.RAMTest_WSH_P port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
@@ -238,8 +255,7 @@ begin
 
     reg_index <= to_integer(unsigned(sw_sync(3 downto 1)));  -- select register index from switches 3-1
 
-    -- output various values to GPIO1 based on switches 9-7 and 6-4
-    WITH (sw_sync(9 downto 7)) SELECT
+    WITH (sw_sync(9 downto 7)) SELECT                               -- output various values to upper 16 bits of GPIO1 based on switches 9-7
         GPIO1_D(31 downto 16) <= inst_out    WHEN "000",            -- INST output
                                  s_alu_out   WHEN "001",            -- CONST output
                                  rega_out    WHEN "010",            -- RegFile Channel A
@@ -250,15 +266,17 @@ begin
                                  all_regs(reg_index) WHEN "111",    -- register at current index (1 to 7)
                                  inst_out    WHEN others;           -- INST output (should never happen)
 
-    WITH (sw_sync(6 downto 4)) SELECT
-        GPIO1_D(15 downto 0)  <= const_out   WHEN "000",            -- ALU Output
-                                 alu_shift   WHEN "001",            -- ALU shift output
-                                 alu_arith   WHEN "010",            -- ALU arithmetic output
-                                 alu_bool    WHEN "011",            -- ALU boolean output
-                                 alu_cmpf    WHEN "100",            -- ALU compare flags
-                                 alu_a       WHEN "101",            -- ALU A input
-                                 alu_b       WHEN "110",            -- ALU B input
-                                 alu_fn_leds WHEN "111",            -- ALU function control signals
-                                 const_out   WHEN others;           -- ALU output (should never happen)
+    GPIO1_D(15 downto 0) <= const_out;                              -- output const_out to lower 16 bits of GPIO1
+
+    -- WITH (sw_sync(6 downto 4)) SELECT
+    --     GPIO1_D(15 downto 0)  <= const_out   WHEN "000",            -- ALU Output
+    --                              alu_shift   WHEN "001",            -- ALU shift output
+    --                              alu_arith   WHEN "010",            -- ALU arithmetic output
+    --                              alu_bool    WHEN "011",            -- ALU boolean output
+    --                              alu_cmpf    WHEN "100",            -- ALU compare flags
+    --                              alu_a       WHEN "101",            -- ALU A input
+    --                              alu_b       WHEN "110",            -- ALU B input
+    --                              alu_fn_leds WHEN "111",            -- ALU function control signals
+    --                              const_out   WHEN others;           -- ALU output (should never happen)
 
 end Structural;

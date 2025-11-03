@@ -1,15 +1,15 @@
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-
 -- This module synthesizes a simple UART (Universal Asynchronous Receiver-Transmitter) for serial communication.
 -- It supports configurable clock speed and baud rate, and provides basic functionality for receiving and transmitting bytes.
 -- Configured for 1 start bit, 8 data bits, and 1 stop bit (8N1).
 
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
 entity UART is
     generic (
-        CLK_SPEED : Integer := 50_000_000;  -- Clock speed in Hz (default: 50 MHz)
-        BAUD_RATE : Integer := 115_200       -- Baud rate for UART communication (default: 115200)
+        CLK_SPEED  : Integer := 50_000_000;  -- Clock speed in Hz (default: 50 MHz)
+        BAUD_RATE  : Integer := 115_200       -- Baud rate for UART communication (default: 115200)
     );
 
     port (
@@ -40,7 +40,7 @@ architecture Behavioral of UART is
     signal rx_shift : std_logic_vector(7 downto 0) := (others => '0');      -- shift register to store received data
 
     signal rx_sync  : std_logic_vector(1 downto 0) := (others => '1');      -- "Double Flop" to prevent metastable states with ansynchronous signals
-    signal rx_serial_s : std_logic := '1';                                  -- Debounced version of RX_SERIAL
+    signal rx_ser_s : std_logic := '1';                                     -- Debounced version of RX_SERIAL
 
     --  UART-TX  (driven by 'tx_load')
     type TX_FSM is (TX_IDLE, TX_BITS);                                      -- state definitions for transmitting data
@@ -56,10 +56,10 @@ begin
     -- RX Input Synchronizer
     process(CLK)
     begin
-        if rising_edge(CLK) then		-- these are very important for handling outside asynchronous signals
+        if rising_edge(CLK) THEN                            -- these are very important for handling outside asynchronous signals
             rx_sync(0) <= RX_SERIAL;
             rx_sync(1) <= rx_sync(0);
-            rx_serial_s <= rx_sync(1);
+            rx_ser_s   <= rx_sync(1);
         end if;
     end process;
 
@@ -75,7 +75,7 @@ begin
             else
                 case rx_state is
                     when RX_IDLE =>
-                        if rx_serial_s = '0' then           -- start bit detected
+                        if rx_ser_s = '0' then              -- start bit detected
                             rx_cnt   <= BIT_PERIOD/2;       -- wait to sample in the middle
                             rx_state <= RX_START;           -- set next state
                         end if;
@@ -90,7 +90,7 @@ begin
 
                     when RX_BITS =>
                         if rx_cnt = 0 then                  -- wait for counter to expire
-                            rx_shift(rx_bit) <= rx_serial_s;  -- sample the serial data input line and store in current bit position of rx register
+                            rx_shift(rx_bit) <= rx_ser_s;   -- sample the serial data input line and store in current bit position of rx register
                             if rx_bit = 7 then              -- if all bits have been received, go to stop state
                                 rx_state <= RX_STOP;
                                 rx_cnt <= BIT_PERIOD;       -- reset clock counter for stop bit
@@ -105,7 +105,7 @@ begin
                     when RX_STOP =>
                         if rx_cnt = 0 then                  -- wait for counter to expire
                             rx_state <= RX_IDLE;            -- go back to idle state when it does - even if no stop bit detected
-                            if rx_serial_s = '1' then       -- check for stop bit (should be high)
+                            if rx_ser_s = '1' then          -- check for stop bit (should be high)
                                 RX_READY <= '1';            -- strobe ready flag to indicate byte is ready
                             end if;
                         else 

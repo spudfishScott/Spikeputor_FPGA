@@ -50,18 +50,17 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity REG_LE is
-    generic (width : positive := 8); -- width of register
+    generic (WIDTH : positive := 8); -- width of register
 
     port (
-        -- RESET : in std_logic;
-        CLK, LE : in std_logic; -- clock, latch enable
-        D : in std_logic_vector(width-1 downto 0);	-- input
-        Q : out std_logic_vector(width-1 downto 0)	-- output
+        CLK : in std_logic; -- clock
+        LE  : in std_logic; -- latch enable
+        D   : in std_logic_vector(width-1 downto 0);	-- input
+        Q   : out std_logic_vector(width-1 downto 0)	-- output
     );
 end REG_LE;
 
 architecture Behavior of REG_LE is
-    signal data : std_logic_vector(width-1 downto 0) := (others => '0'); -- the internal data memory
 begin
 
     P_REG_LE : process(CLK) is
@@ -73,6 +72,4 @@ begin
         end if;
     end process P_REG_LE;
 
-    -- send internal data to output - send zeros when reset, but don't zero out the register data itself
-    -- Q <= data when RESET = '0' else (others => '0');
 end Behavior;
