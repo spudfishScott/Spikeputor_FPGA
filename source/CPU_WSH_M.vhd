@@ -9,8 +9,8 @@ entity CPU_WSH_M is
         CLK       : in  std_logic;      -- System clock
         RESET     : in  std_logic;      -- System reset
         STALL     : in  std_logic;      -- CPU stall signal for debugging
-        SEGMENT   : in  std_logic_vector(7 downto 0);   -- SEGMENT register to supply M_TGA_O
-        BANK_SEL  : in  std_logic_vector(1 downto 0);   -- BANK_SEL vector for DotStar output
+--        SEGMENT   : in  std_logic_vector(7 downto 0);   -- SEGMENT register to supply M_TGA_O
+--        BANK_SEL  : in  std_logic_vector(1 downto 0);   -- BANK_SEL vector for DotStar output
 
         -- Memory interface
         M_DATA_I  : in  std_logic_vector(15 downto 0);
@@ -103,7 +103,7 @@ begin
     CONST_DISP      <= const_out;
     MDATA_DISP      <= rbsel_out & mdata_sig;
     PC_DISP         <= jt_sig & pc_disp_sig;
-    RBSEL_DISP      <= rbsel_out;
+--    RBSEL_DISP      <= rbsel_out;
 
     ALU_DISP        <= s_alu_out;
     ALU_CMP_DISP    <= alu_fnleds(6 downto 5) & alu_cmpf & alu_fnleds(7);

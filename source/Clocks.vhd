@@ -249,7 +249,7 @@ begin
     WITH (SW_INPUTS) SELECT   -- select CPU speed via switches 6 through 4
         SPEED_OUT <=                                                        -- clock values assuming a 50MHz system clock
             std_logic_vector(to_unsigned(10_000_000, 32)) when "001",       -- 5 Hz
-            std_logic_vector(to_unsigned(5_000, 32)) when "010",            -- 10 KHz
+            std_logic_vector(to_unsigned(50_000, 32)) when "010",           -- 1 KHz
             std_logic_vector(to_unsigned(1, 32)) when "100",                -- 50 MHz
             std_logic_vector(to_unsigned(100_000_000, 32)) when others;     -- 0.5 Hz
 

@@ -23,7 +23,7 @@ entity dotstar_driver is
         ALU_CMP      : in std_logic_vector(6 downto 0);   -- CMP function (2 bits), Z, V, N, Result, CMP Selected                     6
         ALU_SHIFT    : in std_logic_vector(18 downto 0);  -- SHIFT dir, SHIFT extend, Result (16 bits), SHIFT selected                7
         ALU_BOOL     : in std_logic_vector(20 downto 0);  -- BOOL truth table (4 bits), Result (16 bits), BOOL selected               8
-        ALU_ARITH    : in std_logic_vector(17 downto 0);  -- ARITH subtract flag, Result (16 bits), ARITH selected                    9
+        ALU_ARITH    : in std_logic_vector(17 downto 0);  -- ARITH subtract flag, Result (16 bits), ARITH selected                     9
         ALU_A        : in std_logic_vector(16 downto 0);  -- ASEL, ALU Input A (16 bits)                                              10
         ALU_B        : in std_logic_vector(16 downto 0);  -- BSEL, ALU Input B (16 bits)                                              11
 
@@ -48,7 +48,7 @@ end dotstar_driver;
 architecture rtl of dotstar_driver is
 
     constant NUM_SETS         : integer := 21;                                                      -- number of LED sets in the whole display array
-    constant MAX_LEDS_PER_SET : integer := 21;                                                      -- max number of LEDs in each set
+    constant MAX_LEDS_PER_SET : integer := 22;                                                      -- max number of LEDs in each set
     constant TOTAL_LEDS       : integer := 365;                                                     -- total number of LEDs (added the list above)
 
     constant START_BITS       : integer := 32;                                                      -- number of bits in start frame (all '0's)
@@ -210,8 +210,8 @@ begin
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto PC'length => '0') & PC;
                                     num_leds <= PC'length;
                                 when 0 =>
-                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto SEGMENT'length => '0') & SEGMENT;
-                                    num_leds <= SEGMENT'length;
+                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto ADDR_EXT'length => '0') & ADDR_EXT;
+                                    num_leds <= ADDR_EXT'length;
                                 when others =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto INST'length => '0') & INST;
                                     num_leds <= INST'length;

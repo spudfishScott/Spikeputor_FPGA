@@ -112,8 +112,7 @@ architecture Structural of DE0_Spikeputor is
     signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
     signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
     
-    signal cyc_sig     : std_logic := '0';                                   -- wishbone cycle signal from cpu
-    signal last_cyc_sig : std_logic := '0';
+    signal last_cyc_sig : std_logic := '0';											-- to detect edge of wishbone cycle
 
 begin
     -- Input Synchronizers
@@ -216,6 +215,13 @@ begin
             REGIN_DISP      => regin_out
         );
 
+	 -- Spikeputor clock speed selector from switches 6 to 4
+    CLK_SEL : entity work.CLK_SEL
+        port map (
+            SW_INPUTS => sw_sync(6 downto 4),
+            SPEED_OUT => clk_speed
+        );
+		  
     -- Spikeputor CPU Clock Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M
         port map (
@@ -229,13 +235,6 @@ begin
             MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
             MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
             CPU_CLOCK  => LEDG(9)
-        );
-
-    -- Spikeputor clock speed selector from switches 6 to 4
-    CLK_SEL : entity work.CLK_SEL
-        port map (
-            SW_INPUTS <= sw_sync(6 downto 4),
-            SPEED_OUT <= clk_speed
         );
 
     -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and bank select register signals
@@ -258,7 +257,7 @@ begin
             P9_DATA_O   => data9,
             P10_DATA_O  => data10,
 
-            DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
+            DATA_O      => open,--data_i,          -- selected provider data output goes to masters' data_i
             STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
         );
 
@@ -271,29 +270,29 @@ begin
             -- Wishbone signals - inputs from the arbiter, outputs as described
             -- handshaking signals
             WBS_CYC_I   => arb_cyc,
-            WBS_STB_I   => stb_sel_sig(0),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_STB_I   => arb_stb,--stb_sel_sig(0),     -- strobe signal from Address Comparitor (use other bits for other providers)
             WBS_ACK_O   => ack(0),             -- ack bit for the full set of provider acks (use other bits for other providers)
 
             -- memory read/write signals
             WBS_ADDR_I  => arb_addr,
-            WBS_DATA_O  => data0,              -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_O  => data_i,--data0,             -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
             WBS_DATA_I  => arb_data_o,
             WBS_WE_I    => arb_we
         );
 
-    refresh <= '1' when (last_cyc_sig = '1' AND cyc_sig = '0' AND led_busy = '0') else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+    refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0' AND led_busy = '0') else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
 
-    process(CLK) is
+    process(CLOCK_50) is
     begin
-        if rising_edge(CLK) then   -- falling edge of cyc_sig is the end of the CPU read/write cycle 
-            last_cyc_sig <= cyc_sig;
+        if rising_edge(CLOCK_50) then   -- falling edge of cyc_sig is the end of the CPU read/write cycle 
+            last_cyc_sig <= arb_cyc;
         end if;
     end process;
 
     DOTSTAR : entity work.dotstar_driver 
         generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
         port map (
-            CLK         => CLK,
+            CLK         => CLOCK_50,
             START       => refresh,
 
             INST        => inst_out,                                                            -- bits: Instruction (16 bits)
@@ -333,7 +332,7 @@ begin
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS 
         port map (
-            WORD  => pc_out,    -- display PC on 7-seg
+            WORD  => pc_out(15 downto 0),    -- display PC on 7-seg
             SEGS0 => HEX0_D,
             SEGS1 => HEX1_D,
             SEGS2 => HEX2_D,
