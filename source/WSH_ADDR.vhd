@@ -74,7 +74,7 @@ begin
     spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAE" OR p_addr = x"7FAC")                      -- check for a special address (more to follow)
                 else '0';
     
-    ram_e <= '1' when (seg  = "0000000" AND NOT(((ADDR_I(15) = '1' OR BANK_SEL(1) = '1') AND (ADDR_I(15) = '0' OR BANK_SEL(0) = '1')))) OR   -- no segment and bank_sel logic with primary address msb
+    ram_e <= '1' when (seg  = "0000000" AND (((ADDR_I(15) = '1' OR BANK_SEL(1) = '1') AND (ADDR_I(15) = '0' OR BANK_SEL(0) = '1')))) OR      -- no segment and bank_sel logic with primary address msb
                       (seg /= "0000000" AND ADDR_I(23) = '0')                                                                                -- segment and not a ROM address
                  else '0';
 

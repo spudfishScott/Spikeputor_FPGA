@@ -257,7 +257,7 @@ begin
             P9_DATA_O   => data9,
             P10_DATA_O  => data10,
 
-            DATA_O      => open,--data_i,          -- selected provider data output goes to masters' data_i
+            DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
             STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
         );
 
@@ -270,12 +270,12 @@ begin
             -- Wishbone signals - inputs from the arbiter, outputs as described
             -- handshaking signals
             WBS_CYC_I   => arb_cyc,
-            WBS_STB_I   => arb_stb,--stb_sel_sig(0),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_STB_I   => stb_sel_sig(0),     -- strobe signal from Address Comparitor (use other bits for other providers)
             WBS_ACK_O   => ack(0),             -- ack bit for the full set of provider acks (use other bits for other providers)
 
             -- memory read/write signals
             WBS_ADDR_I  => arb_addr,
-            WBS_DATA_O  => data_i,--data0,             -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_O  => data0,              -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
             WBS_DATA_I  => arb_data_o,
             WBS_WE_I    => arb_we
         );
