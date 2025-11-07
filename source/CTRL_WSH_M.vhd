@@ -69,6 +69,7 @@ entity CTRL_WSH_M is
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from provider
         WBS_WE_O    : out std_logic;                        -- write enable output - write when high, read when low
         WBS_TGA_O   : out std_logic;                        -- address tag for whether or not to use extended address bus
+        WBS_TGD_O   : out std_logic;                        -- data tag for whether or not data out goes to SEGMENT register
 
         -- Spikeputor Signals
             -- Data outputs from Control Logic to other modules
@@ -77,11 +78,12 @@ entity CTRL_WSH_M is
         PC      : out std_logic_vector(15 downto 0);                      -- program counter
         PC_INC  : out std_logic_vector(15 downto 0);                      -- incremented program counter
         MRDATA  : out std_logic_vector(15 downto 0);                      -- memory read data
+        SEGMENT : out std_logic_vector(7 downto 0);                       -- SEGMENT register for extended memory access
 
             -- Control signals from Control Logic to RegFile
         WERF    : out std_logic;                                          -- Write Enable Register File - '1' to write to register file
         RBSEL   : out std_logic;                                          -- Register Channel B Select - '0' for OPB, '1' for OPC
-        WDSEL   : out std_logic_vector(1 downto 0);                       -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data
+        WDSEL   : out std_logic_vector(1 downto 0);                       -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data, "11" for Segment Register
         OPA     : out std_logic_vector(2 downto 0);                       -- Register Operand A
         OPB     : out std_logic_vector(2 downto 0);                       -- Register Operand B
         OPC     : out std_logic_vector(2 downto 0);                       -- Register Operand C
@@ -124,9 +126,10 @@ begin
 
     -- Control Signal Logic
     MRDATA      <= MRDATA_reg;
-    RBSEL       <= '1' when INST_reg(9 downto 6) = "1011" else '0';         -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST and STC instructions, else '0'
+    RBSEL       <= '1' when INST_reg(9) = '1' AND INST_REG(7 downto 6) = "11" else '0'; -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST, STC and STS instructions, else '0'
     WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command)
-    WDSEL       <=  "10" when (INST_reg(9) = '1' AND INST_reg(7 downto 6) = "10") else      -- Write Data Select: use Memory Read Data as Register Input for LD and LDR instructions
+    WDSEL       <=  "11" when (INST_reg(9 downto 6) = "1110") else          -- Write Data Select:   use SEGMENT as Register Input for LDS instruction
+                    "10" when (INST_reg(9 downto 6) = "1010") else                          --      use Memory Read Data as Register Input for LD instruction
                     "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0') else                --      use PC+2 as Register Input for Branch Instructions
                     "01";                                                                   --      else use ALU output as Register Input for all other instructions
     OPA         <= INST_reg(2 downto 0);                                    -- OPA is always bits 2-0
@@ -137,11 +140,12 @@ begin
     BSEL        <= INST_reg(10);                                            -- BSEL = 1 for CONST (for instructions that get a constant), else 0 for RegFile Channel B
 
     WBS_DATA_O  <= MWDATA;                                                  -- data output is directly from Register File Channel B output
-    WBS_WE_O    <= '1'  when INST_reg(9 downto 6) = "1011" AND
-                             (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND
-                             RST_I = '0' else '0';                          -- write enable high for ST and STC instructions during execute with r/w phase
+    WBS_WE_O    <= '1'  when ((INST_reg(9 downto 6) = "1011" AND (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT)) OR
+                              (INST_reg(9 downto 6) = "1011" AND st_main = ST_EXECUTE))
+                             AND RST_I = '0' else '0';                      -- write enable high for STS during execute phase, or ST and STC instructions during execute with r/w phase
 
-    WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';   -- ouput '1'' in TGA_O during r/w commands, but NOT for fetching instructions
+    WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';   -- output '1' in TGA_O during r/w commands, but NOT for fetching instructions
+    WBS_TGD_O <= '1' when st_main = EXECUTE AND INST_reg(9 downto 6) = "1111" else '0';       -- output '1' in TGD_O during STS command (WBS_DATA_O => SEGMENT)
 
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
 
@@ -215,10 +219,10 @@ begin
 
                         when ST_EXECUTE =>
                             -- execute instruction
-                            if (INST_reg(9) AND INST_reg(7)) = '1' then     -- operation requires memory read or write (LD, LDR, or ST commands)
+                            if INST_reg(9 downto 7) = "101" then     -- operation requires memory read or write (LD or ST commands)
                                 WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output
                                 st_main <= ST_EXECUTE_RW;                       -- go to execute_rw state
-                            else                                            -- other instructions - do not need to read or write to memory
+                            else                                                -- other instructions - do not need to read or write to memory
                                 if ((INST_reg(9) = '1') AND                     -- check to see if the branch should be taken (formerly JT = 1)
                                         ((INST_reg(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
                                         (INST_reg(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
@@ -230,8 +234,10 @@ begin
                                             PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                                             WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
                                 end if;
-
-                                WERF_sig <= '1';            -- write to register on next clock
+                                
+                                if INST_reg(9 downto 6) /= "1111" then
+                                    WERF_sig <= '1';        -- write to register on next clock if not a STS instruction
+                                end if;
                                 WBS_CYC_O <= '0';           -- end wishbone cycle
                                 st_main <= ST_FETCH_I;      -- go back to fetch next instruction, no wishbone read/write phase needed
                             end if;

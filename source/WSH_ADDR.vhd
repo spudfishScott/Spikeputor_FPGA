@@ -38,6 +38,7 @@ entity WSH_ADDR is
         WE_I        : in std_logic;                         -- write enable flag
         STB_I       : in std_logic;                         -- wishbone strobe signal
         BANK_SEL    : in std_logic_vector(1 downto 0);      -- Bank Select register to select RAM/ROM (see above for definition)
+        --TGD_I (TODO: when TGD_I and WE_I are high, route to P9, SEGMENT write)
 
         -- Data out from providers
         P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0)

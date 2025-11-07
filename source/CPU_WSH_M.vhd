@@ -150,6 +150,7 @@ begin
         WBS_DATA_I  => M_DATA_I, -- data input to master, output from providers
         WBS_WE_O    => M_WE_O,   -- write enable output from master, input to providers
         WBS_TGA_O   => M_TGA_O,  -- tag for whether to use extended address bus from segment register
+        WBS_TGD_O   => open,     -- tag for whether to use data to store in memory or in segment register
 
         -- Internal Spikeputor signals
         -- Data outputs from Control Logic to other modules
@@ -181,6 +182,7 @@ begin
         IN0         => pcinc_out,       -- Register Input: PC + 2
         IN1         => s_alu_out,       -- Register Input: ALU output
         IN2         => mrdata_out,      -- Register Input: Memory Read Data
+        --IN3 (TODO: SEGMENT)
         WDSEL       => wdsel_out,       -- WDSEL from Control Logic
         OPA         => opa_out,         -- OPA from INST
         OPB         => opb_out,         -- OPB from INST
