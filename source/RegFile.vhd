@@ -22,7 +22,7 @@ entity REG_FILE is
     port (
         -- register file inputs
         CLK           : in std_logic;   
-        IN0, IN1, IN2 : in std_logic_vector(BIT_DEPTH-1 downto 0);
+        IN0, IN1, IN2, IN3 : in std_logic_vector(BIT_DEPTH-1 downto 0);
         WDSEL         : in std_logic_vector(1 downto 0);
         OPA, OPB, OPC : in std_logic_vector(2 downto 0);
         WERF, RBSEL   : in std_logic;
@@ -60,7 +60,8 @@ architecture RTL of REG_FILE is
 begin   -- architecture begin
 
     -- Handle Register Inputs
-    REG_INS : entity work.MUX3 generic map(BIT_DEPTH) port map (
+    REG_INS : entity work.MUX4 generic map(BIT_DEPTH) port map (
+        IN3 => IN3,
         IN2 => IN2,
         IN1 => IN1,
         IN0 => IN0,

@@ -78,7 +78,6 @@ entity CTRL_WSH_M is
         PC      : out std_logic_vector(15 downto 0);                      -- program counter
         PC_INC  : out std_logic_vector(15 downto 0);                      -- incremented program counter
         MRDATA  : out std_logic_vector(15 downto 0);                      -- memory read data
-        SEGMENT : out std_logic_vector(7 downto 0);                       -- SEGMENT register for extended memory access
 
             -- Control signals from Control Logic to RegFile
         WERF    : out std_logic;                                          -- Write Enable Register File - '1' to write to register file
@@ -144,8 +143,8 @@ begin
                               (INST_reg(9 downto 6) = "1011" AND st_main = ST_EXECUTE))
                              AND RST_I = '0' else '0';                      -- write enable high for STS during execute phase, or ST and STC instructions during execute with r/w phase
 
-    WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';   -- output '1' in TGA_O during r/w commands, but NOT for fetching instructions
-    WBS_TGD_O <= '1' when st_main = EXECUTE AND INST_reg(9 downto 6) = "1111" else '0';       -- output '1' in TGD_O during STS command (WBS_DATA_O => SEGMENT)
+    WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';      -- output '1' in TGA_O during r/w commands, but NOT for fetching or branching instructions
+    WBS_TGD_O <= '1' when st_main = ST_EXECUTE AND INST_reg(9 downto 6) = "1111" else '0';       -- output '1' in TGD_O during STS command (WBS_DATA_O => SEGMENT)
 
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
 

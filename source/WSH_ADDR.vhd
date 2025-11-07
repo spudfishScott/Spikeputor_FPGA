@@ -4,12 +4,14 @@
 --  ADDR_I - from the master arbiter
 --  WE_I   - from the master arbiter
 --  STB_I  - from the master arbiter
---  BANK_SEL register: - works with both ADDR_I and possible TGA_I to select RAM/ROM or SDRAM/ROM providers
---      Bank Select = "X00": All access to RAM, ROM not available, 0xFC00-0xFFFF not available
---                  = "X01": (Default) 0x0000-0x7FFF - RAM read, 0x8000-0xFFFF ROM read, always write to RAM (except 0xFC00-0xFFFF, for which there is no RAM)
---                  = "X10": 0x0000-0x7FFF - ROM read, 0x8000-0xFBFF RAM read, 0xFC00-0xFFFF reads as 0, always write to RAM (except for 0xFC00-0xFFFF)
---                  = "X11": 0x0000-0xFFFF - ROM read, always write to RAM (except for 0xFC00-0xFFFF)
---      If TGA_I is not 0, RAM?ROM is determined by msb of TGA_I (1 = ROM, 0 = RAM)
+--  TGD_I  - route the data bus to update the SEGMENT register
+        -- This is no longer used
+        --  BANK_SEL register: - works with both ADDR_I and possible TGA_I to select RAM/ROM or SDRAM/ROM providers
+        --      Bank Select = "X00": All access to RAM, ROM not available, 0xFC00-0xFFFF not available
+        --                  = "X01": (Default) 0x0000-0x7FFF - RAM read, 0x8000-0xFFFF ROM read, always write to RAM (except 0xFC00-0xFFFF, for which there is no RAM)
+        --                  = "X10": 0x0000-0x7FFF - ROM read, 0x8000-0xFBFF RAM read, 0xFC00-0xFFFF reads as 0, always write to RAM (except for 0xFC00-0xFFFF)
+        --                  = "X11": 0x0000-0xFFFF - ROM read, always write to RAM (except for 0xFC00-0xFFFF)
+        --      If TGA_I is not 0, RAM?ROM is determined by msb of TGA_I (1 = ROM, 0 = RAM)
 --  Px_DATA_O - data output from each provider
 --
 -- In addition to standard RAM (P0), SDRAM (P10), and ROM (P1), the following providers are accessed through specific addresses, which override the above:
@@ -37,8 +39,7 @@ entity WSH_ADDR is
         ADDR_I      : in std_logic_vector(23 downto 0);     -- standard address bus - bottom 16 bits is on Segment 0, msb = ROM/RAM for extended memory, bits 22->16 = segment number
         WE_I        : in std_logic;                         -- write enable flag
         STB_I       : in std_logic;                         -- wishbone strobe signal
-        BANK_SEL    : in std_logic_vector(1 downto 0);      -- Bank Select register to select RAM/ROM (see above for definition)
-        --TGD_I (TODO: when TGD_I and WE_I are high, route to P9, SEGMENT write)
+        TGD_I       : in std_logic;                         -- (TODO: when TGD_I and WE_I are high, route to P9, SEGMENT write)
 
         -- Data out from providers
         P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0)
@@ -75,9 +76,12 @@ begin
     spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAE" OR p_addr = x"7FAC")                      -- check for a special address (more to follow)
                 else '0';
     
-    ram_e <= '1' when (seg  = "0000000" AND (((ADDR_I(15) = '1' OR BANK_SEL(1) = '1') AND (ADDR_I(15) = '0' OR BANK_SEL(0) = '1')))) OR      -- no segment and bank_sel logic with primary address msb
+    ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 10) /= "111111") OR                                                             -- no segment and in range 0x0000-0xFBFF
                       (seg /= "0000000" AND ADDR_I(23) = '0')                                                                                -- segment and not a ROM address
                  else '0';
+    -- ram_e <= '1' when (seg  = "0000000" AND (((ADDR_I(15) = '1' OR BANK_SEL(1) = '1') AND (ADDR_I(15) = '0' OR BANK_SEL(0) = '1')))) OR      -- no segment and bank_sel logic with primary address msb
+    --                   (seg /= "0000000" AND ADDR_I(23) = '0')                                                                                -- segment and not a ROM address
+    --              else '0';
 
     -- assign p_sel based on addressing logic described above
     p_sel <=    0 when seg  = "0000000" AND spec = '0' AND (ram_e = '1' OR WE_I = '1')    -- standard RAM when segment is 0 and not a special location and either a RAM location or writing

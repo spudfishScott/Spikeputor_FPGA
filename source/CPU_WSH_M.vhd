@@ -9,6 +9,7 @@ entity CPU_WSH_M is
         CLK       : in  std_logic;      -- System clock
         RESET     : in  std_logic;      -- System reset
         STALL     : in  std_logic;      -- CPU stall signal for debugging
+        SEGMENT   : in  std_logic_vector(7 downto 0);
 
         -- Memory interface
         M_DATA_I  : in  std_logic_vector(15 downto 0);
@@ -20,6 +21,7 @@ entity CPU_WSH_M is
         M_STB_O   : out std_logic;
         M_WE_O    : out std_logic;
         M_TGA_O   : out std_logic;
+        M_TGD_O   : out std_logic;
 
         -- Direct Display Values
         INST_DISP       : out std_logic_vector(15 downto 0);
@@ -150,7 +152,7 @@ begin
         WBS_DATA_I  => M_DATA_I, -- data input to master, output from providers
         WBS_WE_O    => M_WE_O,   -- write enable output from master, input to providers
         WBS_TGA_O   => M_TGA_O,  -- tag for whether to use extended address bus from segment register
-        WBS_TGD_O   => open,     -- tag for whether to use data to store in memory or in segment register
+        WBS_TGD_O   => M_TGD_O,  -- tag for whether to use data to store in memory or in segment register
 
         -- Internal Spikeputor signals
         -- Data outputs from Control Logic to other modules
@@ -182,7 +184,7 @@ begin
         IN0         => pcinc_out,       -- Register Input: PC + 2
         IN1         => s_alu_out,       -- Register Input: ALU output
         IN2         => mrdata_out,      -- Register Input: Memory Read Data
-        --IN3 (TODO: SEGMENT)
+        IN3         => SEGMENT,         -- Register Input: Segment register
         WDSEL       => wdsel_out,       -- WDSEL from Control Logic
         OPA         => opa_out,         -- OPA from INST
         OPB         => opb_out,         -- OPB from INST

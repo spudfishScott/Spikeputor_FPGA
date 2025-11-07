@@ -32,7 +32,6 @@ architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
     -- constants now, later will be registers set by special memory locations
     constant SEGMENT   : std_logic_vector(7 downto 0) := "00000000";
-    constant BANK_SEL  : std_logic_vector(1 downto 0) := "10";
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
@@ -43,6 +42,7 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_data_o  : std_logic_vector(15 downto 0) := (others => '0');
     signal cpu_we      : std_logic := '0';
     signal cpu_tga     : std_logic := '0';
+    signal cpu_tgd     : std_logic := '0';
     signal cpu_gnt_sig : std_logic := '0';
 
     -- CPU display signals
@@ -180,6 +180,7 @@ begin
             CLK             => CLOCK_50,
             RESET           => NOT button_sync(0),            -- Button 0 is system reset (active low)
             STALL           => '0',                           -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
+            SEGMENT         => SEGMENT,                       -- Segment Register input to CPU (so it can store in a register)
 
             -- Memory standard Wishbone interface signals
             M_DATA_I        => data_i,                        -- Wishbone Data from providers (from address comparitor)
@@ -190,6 +191,7 @@ begin
             M_STB_O         => cpu_stb,                       -- Wishbone STB to providers
             M_WE_O          => cpu_we,                        -- Wishbone WE to providers
             M_TGA_O         => cpu_tga,                       -- Wishbone user address tag to use extended address (1 = use segment register)
+            M_TGD_O         => cpu_tgd,                       -- Wishbone user data tag to write to SEGMENT register or to a normal memory address
 
             -- Direct Display Values
             INST_DISP       => inst_out,
@@ -243,7 +245,7 @@ begin
             ADDR_I      => arb_addr,        -- full 24 bit address
             WE_I        => arb_we,
             STB_I       => arb_stb,
-            BANK_SEL    => BANK_SEL,
+            TGD_I       => cpu_tgd,         -- flag to write data bus to SEGMENT register
 
             P0_DATA_O   => data0,           -- map each provider data output into the address comparator
             P1_DATA_O   => data1,
