@@ -215,13 +215,13 @@ begin
             REGIN_DISP      => regin_out
         );
 
-	 -- Spikeputor clock speed selector from switches 6 to 4
+    -- Spikeputor clock speed selector from switches 6 to 4
     CLK_SEL : entity work.CLK_SEL
         port map (
             SW_INPUTS => sw_sync(6 downto 4),
             SPEED_OUT => clk_speed
         );
-		  
+
     -- Spikeputor CPU Clock Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M
         port map (
@@ -231,7 +231,7 @@ begin
             M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
-            AUTO_TICKS => clk_speed, --std_logic_vector(to_unsigned(50000000, 32)), -- 50 million ticks at 50 MHz = 1 second period = 1 Hz clock
+            AUTO_TICKS => clk_speed,            -- clock speed for auto mode (selected by CLK_SEL)
             MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
             MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
             CPU_CLOCK  => LEDG(9)
