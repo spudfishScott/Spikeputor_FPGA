@@ -230,3 +230,27 @@ begin
 end RTL;
 
 ------------------------------------------------------------------------------------------------------------------
+-- This is a simple module to convert a one hot signal into a 32 bit number used as a delay for clock management
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity CLK_SEL is
+    port (
+        SW_INPUTS : in std_logic_vector(2 downto 0);    -- one-hot speed setting (slow, med, fast for now)
+        SPEED_OUT : out std_logic_vector(31 downto 0)   -- 32 bit number to delay the clock
+    );
+end CLK_SEL;
+
+architecture Behavior of CLK_SEL is
+begin
+
+    WITH (SW_INPUTS) SELECT   -- select CPU speed via switches 6 through 4
+        SPEED_OUT <=                                                        -- clock values assuming a 50MHz system clock
+            std_logic_vector(to_unsigned(10_000_000, 32)) when "001",       -- 5 Hz
+            std_logic_vector(to_unsigned(5_000, 32)) when "010",            -- 10 KHz
+            std_logic_vector(to_unsigned(1, 32)) when "100",                -- 50 MHz
+            std_logic_vector(to_unsigned(100_000_000, 32)) when others;     -- 0.5 Hz
+
+end Behavior;

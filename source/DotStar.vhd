@@ -13,6 +13,7 @@ entity dotstar_driver is
         START        : in  std_logic;
 
         -- DotStar Signals in reverse display order
+        ADDR_EXT     : in std_logic_vector(9 downto 0);   -- Bank Select and Segment register (to extend address bus)                 0
         PC           : in std_logic_vector(16 downto 0);  -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)       1
         MDATA        : in std_logic_vector(16 downto 0);  -- Memory Data, prepended with R/W signal (0 = read, 1 = write)             2
         CONST        : in std_logic_vector(15 downto 0);  -- Constant                                                                 3
@@ -60,7 +61,7 @@ architecture rtl of dotstar_driver is
     signal start_bit_index    : integer range 0 to START_BITS := 0;                                 -- bit index within start frame
     signal end_bit_index      : integer range 0 to END_BITS := 0;                                   -- bit index within end frame
 
-    signal set_index          : integer range 1 to NUM_SETS+1 := 1;                                 -- index of current LED set being transmitted
+    signal set_index          : integer range 0 to NUM_SETS+1 := 1;                                 -- index of current LED set being transmitted
     signal set_reg            : std_logic_vector(MAX_LEDS_PER_SET-1 downto 0) := (others => '0');   -- stores the on/off values for the current LED set
     signal num_leds           : integer range 0 to MAX_LEDS_PER_SET;                                -- number of LEDs in current set
 
@@ -135,7 +136,7 @@ begin
                                     start_bit_index <= start_bit_index - 1; -- decrement bit index
                                     state <= SEND_START;                    -- remain in send_start state
                                 else                                        -- finished sending start frame
-                                    set_index <= 14;                         -- set up counter for LED data sets
+                                    set_index <= 0;                         -- set up counter for LED data sets
                                     state <= LOAD_SET;                      -- go to load_LED state to get next LED to send
                                 end if;
                             end if;
@@ -208,6 +209,9 @@ begin
                                 when 1 =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto PC'length => '0') & PC;
                                     num_leds <= PC'length;
+                                when 0 =>
+                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto SEGMENT'length => '0') & SEGMENT;
+                                    num_leds <= SEGMENT'length;
                                 when others =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto INST'length => '0') & INST;
                                     num_leds <= INST'length;
@@ -369,6 +373,20 @@ begin
                                         end if;
                                     elsif led_index = 16 then
                                             led_reg(COLOR_RANGE) <= x"000400";      -- green LED for PC_INC
+                                    end if;
+                                when 0 =>
+                                    if led_index = 7 then       -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                        if set_reg(led_index) = '1' AND set_reg(7 downto 0) /= "00000000" then
+                                            led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
+                                        else
+                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                        end if;
+                                    elsif set_reg(led_index) = '1' then
+                                        if led_index > 7 then
+                                            led_reg(COLOR_RANGE) <= x"040400";      -- BANK_SEL is all cyan LEDs
+                                        else
+                                            led_reg(COLOR_RANGE) <= x"000004";      -- SEGMENT is all red LEDs
+                                        end if;
                                     end if;
                                 when others =>
                                     null;  -- keep default NO_COLOR

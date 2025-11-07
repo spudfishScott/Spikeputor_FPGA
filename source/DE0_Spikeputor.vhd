@@ -30,19 +30,50 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
+    -- constants now, later will be registers set by special memory locations
+    constant SEGMENT   : std_logic_vector(7 downto 0) := "00000000";
+    constant BANK_SEL  : std_logic_vector(1 downto 0) := "10";
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
     signal cpu_stb     : std_logic := '0';
     signal cpu_ack     : std_logic := '0';
     signal cpu_addr    : std_logic_vector(15 downto 0) := (others => '0');
+    signal cpu_ext     : std_logic_vector(7 downto 0) := (others => '0');
     signal cpu_data_o  : std_logic_vector(15 downto 0) := (others => '0');
     signal cpu_we      : std_logic := '0';
+    signal cpu_tga     : std_logic := '0';
     signal cpu_gnt_sig : std_logic := '0';
+
+    -- CPU display signals
+    signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');
+    signal const_out   : std_logic_vector(15 downto 0) := (others => '0');
+    signal mdata_out   : std_logic_vector(16 downto 0) := (others => '0');
+    signal pc_out      : std_logic_vector(16 downto 0) := (others => '0');
+    signal alu_out     : std_logic_vector(15 downto 0) := (others => '0');
+    signal alu_cmp_out : std_logic_vector(6 downto 0) := (others => '0');
+    signal alu_sh_out  : std_logic_vector(18 downto 0) := (others => '0');
+    signal alu_boo_out : std_logic_vector(20 downto 0) := (others => '0');
+    signal alu_ar_out  : std_logic_vector(17 downto 0) := (others => '0');
+    signal alu_a_out   : std_logic_vector(16 downto 0) := (others => '0');
+    signal alu_b_out   : std_logic_vector(16 downto 0) := (others => '0');
+    signal regb_out    : std_logic_vector(15 downto 0) := (others => '0');
+    signal rega_out    : std_logic_vector(16 downto 0) := (others => '0');
+    signal reg1_out    : std_logic_vector(18 downto 0) := (others => '0');
+    signal reg2_out    : std_logic_vector(18 downto 0) := (others => '0');
+    signal reg3_out    : std_logic_vector(18 downto 0) := (others => '0');
+    signal reg4_out    : std_logic_vector(18 downto 0) := (others => '0');
+    signal reg5_out    : std_logic_vector(18 downto 0) := (others => '0');
+    signal reg6_out    : std_logic_vector(18 downto 0) := (others => '0');
+    signal reg7_out    : std_logic_vector(18 downto 0) := (others => '0');
+    signal regin_out   : std_logic_vector(17 downto 0) := (others => '0');
+
+    -- TODO: DMA interface signals
     
-    -- Memory output signals - will eventually be multiplexed when multiple Wishbone providers are implemented
+    -- Memory output signals
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
-    signal ack         : std_logic := '0';
+    signal ack         : std_logic_vector(10 downto 0) := (others => '0');  -- all of the ack signals from the providers
+    signal all_acks    : std_logic := '0';                                  -- OR all of the ack signals together for input into masters
 
     -- CPU clock control related signals
     signal clk_gnt_req : std_logic := '0';
@@ -52,33 +83,23 @@ architecture Structural of DE0_Spikeputor is
     signal arb_cyc     : std_logic := '0';
     signal arb_stb     : std_logic := '0';
     signal arb_we      : std_logic := '0';
-    signal arb_addr    : std_logic_vector(15 downto 0) := (others => '0');
+    signal arb_addr    : std_logic_vector(23 downto 0) := (others => '0');
     signal arb_data_o  : std_logic_vector(15 downto 0) := (others => '0');
 
-    -- Registers and Signals to Display (will be replaced with DotStar output eventually)
-    -- Special Registers                                                            -- number of LED group for dotstar module [bits]
-    signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 1 [16]
-    signal const_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 2 [16]
-    signal mdata_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 3 [16]
-    signal pc_out      : std_logic_vector(15 downto 0) := (others => '0');           -- 4 [16]
+    -- Adress comparitor-related signals
+    signal data0       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data1       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data2       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data3       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data4       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data5       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data6       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data7       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data8       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data9       : std_logic_vector(15 downto 0) := (others => '0');
+    signal data10      : std_logic_vector(15 downto 0) := (others => '0');
 
-    -- Regsiter File
-    -- signal reg_stat    : std_logic_vector(15 downto 0) := (others => '0');           -- 5 [15]
-    -- signal wd_input    : std_logic_vector(15 downto 0) := (others => '0');           -- 6 [16]
-    -- signal reg_index   : integer range 1 to 7 := 1;                                  -- to select which register to display
-    -- signal all_regs    : RARRAY := (others => (others => '0'));                      -- 7-13
-    -- signal rega_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 14 [17]
-    -- signal regb_out    : std_logic_vector(15 downto 0) := (others => '0');           -- 15 [16]
-
-    -- ALU
-    -- signal alu_fn_leds : std_logic_vector(15 downto 0) := (others => '0');           -- 16 [17 or 19 depending on ASEL/BSEL 1 bit or 2 bit signals]
-    -- signal alu_a       : std_logic_vector(15 downto 0) := (others => '0');           -- 17 [16]
-    -- signal alu_b       : std_logic_vector(15 downto 0) := (others => '0');           -- 18 [16]
-    -- signal alu_arith   : std_logic_vector(15 downto 0) := (others => '0');           -- 19 [16]
-    -- signal alu_bool    : std_logic_vector(15 downto 0) := (others => '0');           -- 20 [16]
-    -- signal alu_shift   : std_logic_vector(15 downto 0) := (others => '0');           -- 21 [16]
-    -- signal alu_cmpf    : std_logic_vector(15 downto 0) := (others => '0');           -- 22 [4]
-    -- signal s_alu_out   : std_logic_vector(15 downto 0) := (others => '0');           -- 23 [16]
+    signal stb_sel_sig : std_logic_vector(10 downto 0) := (others => '0');
 
     -- clock logic
     signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
@@ -86,6 +107,13 @@ architecture Structural of DE0_Spikeputor is
     -- Input synchronized signals
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
     signal button_sync : std_logic_vector(2 downto 0) := (others => '0');
+
+    -- DotStar Control
+    signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
+    signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
+    
+    signal cyc_sig     : std_logic := '0';                                   -- wishbone cycle signal from cpu
+    signal last_cyc_sig : std_logic := '0';
 
 begin
     -- Input Synchronizers
@@ -116,14 +144,14 @@ begin
             M0_STB_O    => cpu_stb,
             M0_WE_O     => cpu_we,
             M0_DATA_O   => cpu_data_o,
-            M0_ADDR_O   => cpu_addr,
+            M0_ADDR_O   => cpu_ext & cpu_addr,
 
             -- Master 1 (DMA) signals - not yet implemented
             M1_CYC_O    => '0',
             M1_STB_O    => '0',
             M1_WE_O     => '0',
             M1_DATA_O   => X"0000",
-            M1_ADDR_O   => X"0000",
+            M1_ADDR_O   => X"000000",
 
             -- Master 2 (Clock Generator) signals
             M2_CYC_O    => clk_gnt_req,             -- clock grant request
@@ -141,147 +169,184 @@ begin
             DATA_O      => arb_data_o
         );
 
-        cpu_ack <= cpu_gnt_sig AND ack;             -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
+        cpu_ext <= SEGMENT when cpu_tga = '1' else x"00";   -- cpu_tga determines if the SEGMENT register should be used to extend the address coming out of the CPU
+
+        all_acks <= ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
+        cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
 
     -- Spikeputor CPU as Wishbone master (M0)
-    CPU : entity work.CPU_WSH_M port map (
-        -- Timing
-        CLK       => CLOCK_50,
-        RESET     => NOT button_sync(0),            -- Button 0 is system reset (active low)
-        STALL     => '0',                           -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
+    CPU : entity work.CPU_WSH_M 
+        port map (
+            -- Timing
+            CLK             => CLOCK_50,
+            RESET           => NOT button_sync(0),            -- Button 0 is system reset (active low)
+            STALL           => '0',                           -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
 
-        -- Memory standard Wishbone interface signals
-        M_DATA_I  => data_i,                        -- Wishbone Data from providers
-        M_ACK_I   => cpu_ack,                       -- Wishbone ACK from providers
-        M_DATA_O  => cpu_data_o,                    -- Wishbone Data to providers
-        M_ADDR_O  => cpu_addr,                      -- Wishbone Address to providers
-        M_CYC_O   => cpu_cyc,                       -- Wishbone CYC to providers
-        M_STB_O   => cpu_stb,                       -- Wishbone STB to providers
-        M_WE_O    => cpu_we,                        -- Wishbone WE to providers
+            -- Memory standard Wishbone interface signals
+            M_DATA_I        => data_i,                        -- Wishbone Data from providers (from address comparitor)
+            M_ACK_I         => cpu_ack,                       -- Wishbone ACK from providers
+            M_DATA_O        => cpu_data_o,                    -- Wishbone Data to providers
+            M_ADDR_O        => cpu_addr,                      -- Wishbone Address to providers (16 bit)
+            M_CYC_O         => cpu_cyc,                       -- Wishbone CYC to providers
+            M_STB_O         => cpu_stb,                       -- Wishbone STB to providers
+            M_WE_O          => cpu_we,                        -- Wishbone WE to providers
+            M_TGA_O         => cpu_tga,                       -- Wishbone user address tag to use extended address (1 = use segment register)
 
-        --Display interface
-        DISP_DATA => GPIO0_D(0),                    -- DotStar Data
-        DISP_CLK  => GPIO0_D(1),                    -- DotStar Clock
-
-        -- Direct Display Values
-        INST_DISP       => inst_out,
-        CONST_DISP      => const_out,
-        MDATA_DISP      => mdata_out,
-        PC_DISP         => pc_out
-
-        -- -- Direct Display Values (temporary - will eventually all be DotStar ouput)
-        -- JT              => LEDG(8),
-        -- REGSTAT_DISP    => reg_stat,
-        -- WDINPUT_DISP    => wd_input,
-        -- REGS_DISP       => all_regs,
-        -- REGA_DISP       => rega_out,
-        -- REGB_DISP       => regb_out,
-        -- ALU_FNLEDS_DISP => alu_fn_leds,
-        -- ALUA_DISP       => alu_a,
-        -- ALUB_DISP       => alu_b,
-        -- ALUARITH_DISP   => alu_arith,
-        -- ALUBOOL_DISP    => alu_bool,
-        -- ALUSHIFT_DISP   => alu_shift,
-        -- ALUCMPF_DISP    => alu_cmpf,
-        -- ALUOUT_DISP     => s_alu_out,
-        -- PHASE_DISP      => LEDG(2 downto 0)
-    );
+            -- Direct Display Values
+            INST_DISP       => inst_out,
+            CONST_DISP      => const_out,
+            MDATA_DISP      => mdata_out,
+            PC_DISP         => pc_out,
+            ALU_DISP        => alu_out,
+            ALU_CMP_DISP    => alu_cmp_out,
+            ALU_SHIFT_DISP  => alu_sh_out,
+            ALU_BOOL_DISP   => alu_boo_out,
+            ALU_ARITH_DISP  => alu_ar_out,
+            ALU_A_DISP      => alu_a_out,
+            ALU_B_DISP      => alu_b_out,
+            REGB_OUT_DISP   => regb_out,
+            REGA_OUT_DISP   => rega_out,
+            REG1_DISP       => reg1_out,
+            REG2_DISP       => reg2_out,
+            REG3_DISP       => reg3_out,
+            REG4_DISP       => reg4_out,
+            REG5_DISP       => reg5_out,
+            REG6_DISP       => reg6_out,
+            REG7_DISP       => reg7_out,
+            REGIN_DISP      => regin_out
+        );
 
     -- Spikeputor CPU Clock Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M
-    port map (
-        CLK        => CLOCK_50,
-        RESET      => NOT button_sync(0),   -- Button 0 is system reset (active low)
+        port map (
+            CLK        => CLOCK_50,
+            RESET      => NOT button_sync(0),   -- Button 0 is system reset (active low)
 
-        M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
-        M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
+            M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
+            M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
-        AUTO_TICKS => clk_speed, --std_logic_vector(to_unsigned(50000000, 32)), -- 50 million ticks at 50 MHz = 1 second period = 1 Hz clock
-        MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
-        MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
-        CPU_CLOCK  => LEDG(9)
-    );
+            AUTO_TICKS => clk_speed, --std_logic_vector(to_unsigned(50000000, 32)), -- 50 million ticks at 50 MHz = 1 second period = 1 Hz clock
+            MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
+            MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
+            CPU_CLOCK  => LEDG(9)
+        );
 
-    -- TODO: this can be replaced with a wishbone provider so it can be set from software
-    WITH (sw_sync(6 downto 4)) SELECT   -- select CPU speed via switches 6 through 4
-        clk_speed <=                                                        -- clock values assuming a 50MHz system clock
-            std_logic_vector(to_unsigned(100_000_000, 32)) when "000",      -- 0.5 Hz
-            std_logic_vector(to_unsigned(10_000_000, 32)) when "001",       -- 5 Hz
-            std_logic_vector(to_unsigned(1_000_000, 32)) when "010",        -- 50 Hz
-            std_logic_vector(to_unsigned(100_000, 32)) when "011",          -- 500 Hz
-            std_logic_vector(to_unsigned(10_000, 32)) when "100",           -- 5 KHz
-            std_logic_vector(to_unsigned(1_000, 32)) when "101",            -- 50 KHz
-            std_logic_vector(to_unsigned(100, 32)) when "110",              -- 500 KHz
-            std_logic_vector(to_unsigned(10, 32)) when "111",               -- 5 MHz
-            std_logic_vector(to_unsigned(10_000_000, 32)) when others;
+    -- Spikeputor clock speed selector from switches 6 to 4
+    CLK_SEL : entity work.CLK_SEL
+        port map (
+            SW_INPUTS <= sw_sync(6 downto 4),
+            SPEED_OUT <= clk_speed
+        );
 
-    -- TODO: Address comparator to select the proper Wishbone provider based on WBS_ADDR_I, WBS_WE_I and bank select register
+    -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and bank select register signals
+    ADDR_CMP : entity work.WSH_ADDR
+        port map (
+            ADDR_I      => arb_addr,        -- full 24 bit address
+            WE_I        => arb_we,
+            STB_I       => arb_stb,
+            BANK_SEL    => BANK_SEL,
 
+            P0_DATA_O   => data0,           -- map each provider data output into the address comparator
+            P1_DATA_O   => data1,
+            P2_DATA_O   => data2,
+            P3_DATA_O   => data3,
+            P4_DATA_O   => data4,
+            P5_DATA_O   => data5,
+            P6_DATA_O   => data6,
+            P7_DATA_O   => data7,
+            P8_DATA_O   => data8,
+            P9_DATA_O   => data9,
+            P10_DATA_O  => data10,
+
+            DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
+            STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
+        );
 
     -- RAM Instance as Wishbone provider (P0)
-    RAM : entity work.RAMTest_WSH_P port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
-        -- SYSCON inputs
-        CLK         => CLOCK_50,
+    RAM : entity work.RAMTest_WSH_P 
+        port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
+            -- SYSCON inputs
+            CLK         => CLOCK_50,
 
-        -- Wishbone signals - inputs from the arbiter, outputs as described
-        -- handshaking signals
-        WBS_CYC_I   => arb_cyc,
-        WBS_STB_I   => arb_stb,     -- Later, this is derived from arb_stb AND address comparator (to select a specific type of memory to interface with based on address and bank select register)
-        WBS_ACK_O   => ack,         -- Later, just OR all the memory ack signals together
+            -- Wishbone signals - inputs from the arbiter, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(0),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(0),             -- ack bit for the full set of provider acks (use other bits for other providers)
 
-        -- memory read/write signals
-        WBS_ADDR_I  => arb_addr,
-        WBS_DATA_O  => data_i,      -- Later, this will be sent to a multiplexer input. MUX selection based on address and bank select register
-        WBS_DATA_I  => arb_data_o,
-        WBS_WE_I    => arb_we
-    );
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data0,              -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we
+        );
+
+    refresh <= '1' when (last_cyc_sig = '1' AND cyc_sig = '0' AND led_busy = '0') else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+
+    process(CLK) is
+    begin
+        if rising_edge(CLK) then   -- falling edge of cyc_sig is the end of the CPU read/write cycle 
+            last_cyc_sig <= cyc_sig;
+        end if;
+    end process;
+
+    DOTSTAR : entity work.dotstar_driver 
+        generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
+        port map (
+            CLK         => CLK,
+            START       => refresh,
+
+            INST        => inst_out,                                                            -- bits: Instruction (16 bits)
+            CONST       => const_out,                                                           -- bits: Constant (16 bits)
+            MDATA       => mdata_out,                                                           -- bits: write flag, Memory read/write (16 bits)
+            PC          => pc_out,                                                              -- bits: JT flag, Program Counter (16 bits)
+            ADDR_EXT    => BANK_SEL & SEGMENT,                                                  -- bits: BANK_SEL register (2 bits), SEGMENT register (8 bits)
+
+            ALU_OUT     => alu_out,                                                             -- bits: ALU Output (16 bits)
+            ALU_CMP     => alu_cmp_out,                                                         -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
+            ALU_SHIFT   => alu_sh_out,                                                          -- bits: shift dir, shift extend, shift result (16 bits), SHIFT selected
+            ALU_BOOL    => alu_boo_out,                                                         -- bits: bool truth table (4 bits), bool result (16 bits), BOOL selected
+            ALU_ARITH   => alu_ar_out,                                                          -- bits: subtract flag, arith result (16 bits), ARITH selected
+            ALU_A       => alu_a_out,                                                           -- bits: ASEL, ALU A Input (16 bits)
+            ALU_B       => alu_b_out,                                                           -- bits: BSEL, ALU B Input (16 bits)
+
+            REGB_OUT    => regb_out,                                                            -- bits: Register B out (16 bits)
+            REGA_OUT    => rega_out,                                                            -- bits: Zero detect, Register A out (16 bits)
+            REG1        => reg1_out,                                                            -- bits: Reg 1 to Channel A Out, Reg 1 to Channel B Out, Write to Register 1, Register 1 (16 bits)
+            REG2        => reg2_out,                                                            -- bits: Reg 2 to Channel A Out, Reg 2 to Channel B Out, Write to Register 2, Register 2 (16 bits)
+            REG3        => reg3_out,                                                            -- bits: Reg 3 to Channel A Out, Reg 3 to Channel B Out, Write to Register 3, Register 3 (16 bits)
+            REG4        => reg4_out,                                                            -- bits: Reg 4 to Channel A Out, Reg 4 to Channel B Out, Write to Register 4, Register 4 (16 bits)
+            REG5        => reg5_out,                                                            -- bits: Reg 5 to Channel A Out, Reg 5 to Channel B Out, Write to Register 5, Register 5 (16 bits)
+            REG6        => reg6_out,                                                            -- bits: Reg 6 to Channel A Out, Reg 6 to Channel B Out, Write to Register 6, Register 6 (16 bits)
+            REG7        => reg7_out,                                                            -- bits: Reg 7 to Channel A Out, Reg 7 to Channel B Out, Write to Register 7, Register 7 (16 bits)
+            REGIN       => regin_out,                                                           -- bits: WDSEL (2 bits), Reg Input (16 bits)
+
+            DATA_OUT    => GPIO0_D(0),
+            CLK_OUT     => GPIO0_D(1),
+            BUSY        => led_busy
+        );
+
+    -- TODO: send these to the 20x4 LCD driver, along with BANK_SEL, SEGMENT, PC, and MDATA
+    GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
+    GPIO1_D(15 downto 0)  <= const_out;                             -- output const_out to lower 16 bits of GPIO1
 
     -- 7 Segment display decoder instance
-    DISPLAY : entity work.WORDTO7SEGS port map (
-        WORD  => pc_out,    -- display PC on 7-seg
-        SEGS0 => HEX0_D,
-        SEGS1 => HEX1_D,
-        SEGS2 => HEX2_D,
-        SEGS3 => HEX3_D
-    );
+    DISPLAY : entity work.WORDTO7SEGS 
+        port map (
+            WORD  => pc_out,    -- display PC on 7-seg
+            SEGS0 => HEX0_D,
+            SEGS1 => HEX1_D,
+            SEGS2 => HEX2_D,
+            SEGS3 => HEX3_D
+        );
 
-    -- LED output logic
-    LEDG(7 downto 3) <= (others => '0');
-
-    -- Set default output states
+    -- LEDs
+    LEDG(8 downto 0) <= (others => '0');
 
     -- 7-SEG Display
     HEX0_DP <= '1';
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-
-    -- reg_index <= to_integer(unsigned(sw_sync(3 downto 1)));  -- select register index from switches 3-1
-
-    -- WITH (sw_sync(9 downto 7)) SELECT                               -- output various values to upper 16 bits of GPIO1 based on switches 9-7
-    --     GPIO1_D(31 downto 16) <= inst_out    WHEN "000",            -- INST output
-    --                              s_alu_out   WHEN "001",            -- CONST output
-    --                              rega_out    WHEN "010",            -- RegFile Channel A
-    --                              regb_out    WHEN "011",            -- RegFile Channel B
-    --                              mdata_out   WHEN "100",            -- MRDATA output or MWDATA input (when a ST command)
-    --                              reg_stat    WHEN "101",            -- RegFile control signals and Zero flag
-    --                              wd_input    WHEN "110",            -- RegFile selected write data
-    --                              all_regs(reg_index) WHEN "111",    -- register at current index (1 to 7)
-    --                              inst_out    WHEN others;           -- INST output (should never happen)
-    
-    -- TODO: send these to the LED driver, along with PC and MDATA
-    GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
-    GPIO1_D(15 downto 0) <= const_out;                              -- output const_out to lower 16 bits of GPIO1
-
-    -- WITH (sw_sync(6 downto 4)) SELECT
-    --     GPIO1_D(15 downto 0)  <= const_out   WHEN "000",            -- ALU Output
-    --                              alu_shift   WHEN "001",            -- ALU shift output
-    --                              alu_arith   WHEN "010",            -- ALU arithmetic output
-    --                              alu_bool    WHEN "011",            -- ALU boolean output
-    --                              alu_cmpf    WHEN "100",            -- ALU compare flags
-    --                              alu_a       WHEN "101",            -- ALU A input
-    --                              alu_b       WHEN "110",            -- ALU B input
-    --                              alu_fn_leds WHEN "111",            -- ALU function control signals
-    --                              const_out   WHEN others;           -- ALU output (should never happen)
 
 end Structural;

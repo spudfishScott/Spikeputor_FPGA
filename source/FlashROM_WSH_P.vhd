@@ -7,7 +7,8 @@ use work.Types.all;
 
 entity FlashROM_WSH_P is
     generic (
-        SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000010" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
+        SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000001" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
+        -- TODO - replace this logic with a WBS_TGA_I value to select the 64KB sector to use - Add 1 to reserve "000001" for segment = 0 operations (page 0 of 64KBytes).
     );
 
     port (

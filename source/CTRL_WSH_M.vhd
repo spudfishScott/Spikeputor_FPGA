@@ -1,6 +1,7 @@
 -- Spikeputor Control Logic and Memory Wishbone Interface Master
 -- Data and ADDRESS buses are 16 bits wide
 -- Each CPU instruction cycle can be up to three read/writes, so execute them in a single wishbone BLOCK READ/WRITE cycle
+-- TGA_O is used as a custom tag to show whether or not the SEGMENT register should be added to the address bus to extend the address space of the computer
 -- ACK_I is the only termination signal currently supported. RTY_I and ERR_I are not supported.
 
 -- Contains the INST, CONST, and PC registers
@@ -67,6 +68,7 @@ entity CTRL_WSH_M is
         WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to provider
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from provider
         WBS_WE_O    : out std_logic;                        -- write enable output - write when high, read when low
+        WBS_TGA_O   : out std_logic;                        -- address tag for whether or not to use extended address bus
 
         -- Spikeputor Signals
             -- Data outputs from Control Logic to other modules
@@ -93,8 +95,6 @@ entity CTRL_WSH_M is
         ALU_OUT : in std_logic_vector(15 downto 0);                       -- ALU output
         MWDATA  : in std_logic_vector(15 downto 0);                       -- memory write data - Register Channel B output
         Z       : in std_logic                                            -- Zero flag from RegFile Channel A
-
-        -- PHASE   : out std_logic_vector(2 downto 0)                        -- current phase of instruction cycle
     );
 end CTRL_WSH_M;
 
@@ -141,18 +141,7 @@ begin
                              (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND
                              RST_I = '0' else '0';                          -- write enable high for ST and STC instructions during execute with r/w phase
 
-
-    -- Generate PHASE signal for display purposes
-    -- WITH (st_main) SELECT                       -- current phase of instruction cycle for display purposes
-    --     PHASE <= 
-    --         "000" when ST_FETCH_I,
-    --         "001" when ST_FETCH_I_WAIT,
-    --         "010" when ST_FETCH_C,
-    --         "011" when ST_FETCH_C_WAIT,
-    --         "100" when ST_EXECUTE,
-    --         "101" when ST_EXECUTE_RW,
-    --         "111" when ST_EXECUTE_RW_WAIT,
-    --         "000" when others;  -- should never occur, default to fetch instruction phase
+    WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';   -- ouput '1'' in TGA_O during r/w commands, but NOT for fetching instructions
 
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
 

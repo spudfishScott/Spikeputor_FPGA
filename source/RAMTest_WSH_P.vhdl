@@ -21,7 +21,7 @@ entity RAMTest_WSH_P is
         WBS_ACK_O   : out std_logic;
 
         -- memory read/write signals
-        WBS_ADDR_I  : in std_logic_vector(15 downto 0);     -- lsb is ignored, but it is still part of the address bus
+        WBS_ADDR_I  : in std_logic_vector(23 downto 0);     -- lsb is ignored, but it is still part of the address bus
         WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to master
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
         WBS_WE_I    : in std_logic                          -- write enable input - when high, master is writing, when low, master is reading
