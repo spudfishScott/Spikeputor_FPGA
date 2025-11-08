@@ -123,6 +123,7 @@ begin
     REG7_DISP       <= reg_a_addr(7) & reg_b_addr(7) & reg_w_disp(7) & allregs_sig(7);
     REGIN_DISP      <= wdsel_out & regin_sig;
 
+    -- these two intermediate signals are not necessary and shoul be incorporated into the MDATA_DISP and PC_DISP outputs, above
     mdata_sig       <= mrdata_out when rbsel_out = '0' else regb_out;       -- get mdata from memory read or write (rbsel = 1 on ST commands only)
 
     jt_sig          <= '1' when ((inst_out(9) = '1') AND                    -- Calculate value of JT flag (1 = jump, 0 = use pc_inc)
@@ -184,7 +185,7 @@ begin
         IN0         => pcinc_out,       -- Register Input: PC + 2
         IN1         => s_alu_out,       -- Register Input: ALU output
         IN2         => mrdata_out,      -- Register Input: Memory Read Data
-        IN3         => SEGMENT,         -- Register Input: Segment register
+        IN3         => x"00" & SEGMENT, -- Register Input: Segment register (zero padded)
         WDSEL       => wdsel_out,       -- WDSEL from Control Logic
         OPA         => opa_out,         -- OPA from INST
         OPB         => opb_out,         -- OPB from INST

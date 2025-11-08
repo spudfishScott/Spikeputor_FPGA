@@ -39,7 +39,7 @@ entity WSH_ADDR is
         ADDR_I      : in std_logic_vector(23 downto 0);     -- standard address bus - bottom 16 bits is on Segment 0, msb = ROM/RAM for extended memory, bits 22->16 = segment number
         WE_I        : in std_logic;                         -- write enable flag
         STB_I       : in std_logic;                         -- wishbone strobe signal
-        TGD_I       : in std_logic;                         -- (TODO: when TGD_I and WE_I are high, route to P9, SEGMENT write)
+        TGD_I       : in std_logic;                         -- TGD_I and WE_I are high, route to P9, SEGMENT write
 
         -- Data out from providers
         P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0)
@@ -73,25 +73,25 @@ begin
     seg    <= ADDR_I(22 downto 16);   -- extract segment identifier from full address
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
 
+    -- TODO: replace addresses with constant defined above (they'll be in 0xFFxx)
     spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAE" OR p_addr = x"7FAC")                      -- check for a special address (more to follow)
                 else '0';
     
     ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 10) /= "111111") OR                                                             -- no segment and in range 0x0000-0xFBFF
                       (seg /= "0000000" AND ADDR_I(23) = '0')                                                                                -- segment and not a ROM address
                  else '0';
-    -- ram_e <= '1' when (seg  = "0000000" AND (((ADDR_I(15) = '1' OR BANK_SEL(1) = '1') AND (ADDR_I(15) = '0' OR BANK_SEL(0) = '1')))) OR      -- no segment and bank_sel logic with primary address msb
-    --                   (seg /= "0000000" AND ADDR_I(23) = '0')                                                                                -- segment and not a ROM address
-    --              else '0';
 
     -- assign p_sel based on addressing logic described above
-    p_sel <=    0 when seg  = "0000000" AND spec = '0' AND (ram_e = '1' OR WE_I = '1')    -- standard RAM when segment is 0 and not a special location and either a RAM location or writing
+    p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, pre-empts all other
+        else    0 when seg  = "0000000" AND spec = '0' AND (ram_e = '1' OR WE_I = '1')    -- standard RAM when segment is 0 and not a special location and either a RAM location or writing
         else    1 when spec = '0' AND ram_e = '0' AND WE_I = '0'                          -- ROM if not a special location and not a RAM location and not writing
         else    2 when seg  = "0000000" AND p_addr = x"7FFC"                                  -- read/write GPO register
         else    3 when seg  = "0000000" AND p_addr = x"7FFE"                                  -- read only GPI
         else    4 when seg  = "0000000" AND p_addr = x"7FAE"                                  -- read/write BANK_SEL register
         else    5 when seg  = "0000000" AND p_addr = x"7FAC"                                  -- read/write sound register (this may be expanded)
         -- to do the rest 6 through 9
-        else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here
+        -- else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here
+        else    0 when ram_e = '1'                                                        -- for testing - normal RAM when ram_e is '1' and we get here (with SEGMENT /= "00000000")
         else    3;                                                                        -- default to read only GPI
 
     -- output the correct data based on p_sel

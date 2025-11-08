@@ -1,24 +1,24 @@
--- tb_wsh_addr.vhd
--- Self-checking test bench for WSH_ADDR (VHDL-93)
+-- tb_wsh_addr_v2.vhd
+-- Self-checking test bench for updated WSH_ADDR (VHDL-93)
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- Keep if your project has this package (DUT references work.Types)
+-- Keep if the project provides this package
 use work.Types.all;
 
 entity wsh_addr_tb is
 end wsh_addr_tb;
 
 architecture sim of wsh_addr_tb is
-  -- DUT-facing signals
+  -- DUT I/O
   signal ADDR_I     : std_logic_vector(23 downto 0) := (others => '0');
   signal WE_I       : std_logic := '0';
   signal STB_I      : std_logic := '0';
-  signal BANK_SEL   : std_logic_vector(1 downto 0) := "01";  -- default 01
+  signal TGD_I      : std_logic := '0';
 
-  -- Provider data signatures (distinct so mux selection is obvious)
+  -- Provider data signatures (distinct so the mux result is obvious)
   signal P0_DATA_O  : std_logic_vector(15 downto 0) := x"0000"; -- RAM
   signal P1_DATA_O  : std_logic_vector(15 downto 0) := x"1111"; -- ROM
   signal P2_DATA_O  : std_logic_vector(15 downto 0) := x"2222"; -- GPO
@@ -34,93 +34,41 @@ architecture sim of wsh_addr_tb is
   signal DATA_O     : std_logic_vector(15 downto 0);
   signal STB_SEL    : std_logic_vector(10 downto 0);
 
-  subtype slv16 is std_logic_vector(15 downto 0);
-
   constant STEP : time := 10 ns;
 
-  -- Build the expected one-hot strobe vector by provider index (pure: no signals read)
-  function strobe_by_p(p : integer) return std_logic_vector is
-    variable s : std_logic_vector(10 downto 0) := (others => '0');
+  -- One-hot helper (pure, no signals read)
+  function onehot_p(p : integer) return std_logic_vector is
+    variable v : std_logic_vector(10 downto 0) := (others => '0');
   begin
-    if p >= 0 and p <= 10 then
-      s(p) := '1';
+    if (p >= 0) and (p <= 10) then
+      v(p) := '1';
     end if;
-    return s;
+    return v;
   end function;
 
-  -- Read current DUT strobes (impure: reads signals)
---   impure function current_strobes return std_logic_vector is
---     variable s : std_logic_vector(10 downto 0);
---   begin
---     s(0)  := P0_STB_I;
---     s(1)  := P1_STB_I;
---     s(2)  := P2_STB_I;
---     s(3)  := P3_STB_I;
---     s(4)  := P4_STB_I;
---     s(5)  := P5_STB_I;
---     s(6)  := P6_STB_I;
---     s(7)  := P7_STB_I;
---     s(8)  := P8_STB_I;
---     s(9)  := P9_STB_I;
---     s(10) := P10_STB_I;
---     return s;
---   end function;
-
-  -- Single vector driver + checker
-  procedure drive_and_check(
-    -- >>> Signals to drive must be formal signal parameters <<<
-    signal ADDR_s     : out std_logic_vector(23 downto 0);
-    signal WE_s       : out std_logic;
-    signal STB_s      : out std_logic;
-    signal BANK_s     : out std_logic_vector(1 downto 0);
-    -- Vector contents + expectations
-    constant name_in     : in string;
-    constant addr_in     : in std_logic_vector(23 downto 0);
-    constant we_in       : in std_logic;
-    constant stb_in      : in std_logic;
-    constant bank_in     : in std_logic_vector(1 downto 0);
-    constant exp_p       : in integer;               -- expected provider index (0..10)
-    constant exp_data    : in slv16;                 -- expected DATA_O value
-    constant exp_stb_on  : in boolean                -- whether any strobe should assert
-  ) is
-    variable exp_strobes : std_logic_vector(10 downto 0);
-    variable got_strobes : std_logic_vector(10 downto 0);
+  -- Build 24-bit address from fields: [23]=ROM/SDRAM select for seg!=0, [22:16]=seg, [15:0]=offset
+  function mk_addr(msb : std_logic; seg : std_logic_vector(6 downto 0); offs : std_logic_vector(15 downto 0))
+    return std_logic_vector is
+    variable a : std_logic_vector(23 downto 0);
   begin
-    -- drive via formal signal parameters
-    ADDR_s <= addr_in;
-    WE_s   <= we_in;
-    STB_s  <= stb_in;
-    BANK_s <= bank_in;
+    a(23)            := msb;
+    a(22 downto 16)  := seg;
+    a(15 downto 0)   := offs;
+    return a;
+  end function;
 
-    wait for STEP; -- allow combinational settle
-
-    -- data check
-    assert DATA_O = exp_data
-      report "FAIL[" & name_in & "]: DATA_O mismatch."
-      severity error;
-
-    -- strobe check
-    if exp_stb_on then
-      exp_strobes := strobe_by_p(exp_p);
-    else
-      exp_strobes := (others => '0');
-    end if;
-
-    assert STB_SEL = exp_strobes
-      report "FAIL[" & name_in & "]: strobe vector mismatch."
-      severity error;
-
-    report "PASS[" & name_in & "]";
-  end procedure;
+  -- Handy constants
+  constant SEG0  : std_logic_vector(6 downto 0) := "0000000";
+  constant SEG1  : std_logic_vector(6 downto 0) := "0000001";
 
 begin
-  -- DUT instantiation
+  -- DUT
   dut: entity work.WSH_ADDR
     port map (
       ADDR_I     => ADDR_I,
       WE_I       => WE_I,
       STB_I      => STB_I,
-      BANK_SEL   => BANK_SEL,
+      TGD_I      => TGD_I,
 
       P0_DATA_O  => P0_DATA_O,
       P1_DATA_O  => P1_DATA_O,
@@ -138,106 +86,100 @@ begin
       STB_SEL    => STB_SEL
     );
 
-  -- Test sequence (same vectors)
+  -- Test sequence
   stimulus: process
+    procedure check(constant name : in string;
+                    constant exp_p : in integer;
+                    constant exp_data : in std_logic_vector(15 downto 0);
+                    constant stb_on : in boolean) is
+      variable exp_stb : std_logic_vector(10 downto 0);
+    begin
+      wait for STEP; -- allow settle
+      -- DATA_O check
+      assert DATA_O = exp_data
+        report "FAIL[" & name & "]: DATA_O mismatch"
+        severity error;
+      -- STB one-hot check
+      if stb_on then
+        exp_stb := onehot_p(exp_p);
+      else
+        exp_stb := (others => '0');
+      end if;
+      assert STB_SEL = exp_stb
+        report "FAIL[" & name & "]: STB_SEL mismatch"
+        severity error;
+      report "PASS[" & name & "]";
+    end procedure;
   begin
-    BANK_SEL <= "01";  -- X01
-    wait for STEP;
+    ---------------------------------------------------------------------------
+    -- seg=0 (ADDR_I(22:16)=0): RAM for 0x0000–0xFBFF; ROM for 0xFC00–0xFFFF; writes->RAM
+    ---------------------------------------------------------------------------
+    STB_I <= '1'; TGD_I <= '0'; WE_I <= '0';
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "A:read RAM, X01",
-      x"001234", '0', '1', "01",
-      0, x"0000", true);
+    -- A) seg0, read RAM addr 0x1234 -> p=0 (RAM)
+    ADDR_I <= mk_addr('0', SEG0, x"1234");
+    check("A seg0 read RAM 0x1234", 0, x"0000", true);
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "B:read ROM, X01",
-      x"009000", '0', '1', "01",
-      1, x"1111", true);
+    -- B) seg0, read RAM addr 0x9000 -> p=0 (still RAM, since 0x9000 < 0xFC00)
+    ADDR_I <= mk_addr('0', SEG0, x"9000");
+    check("B seg0 read RAM 0x9000", 0, x"0000", true);
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "C:write in ROM addr -> RAM, X01",
-      x"009000", '1', '1', "01",
-      0, x"0000", true);
+    -- C) seg0, read ROM addr 0xFE00 (in 0xFC00–0xFFFF) -> p=1 (ROM)
+    ADDR_I <= mk_addr('0', SEG0, x"FE00");
+    check("C seg0 read ROM 0xFE00", 1, x"1111", true);
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "D:STB low, read ROM, X01",
-      x"008000", '0', '0', "01",
-      1, x"1111", false);
+    -- D) seg0, write to 0xFE00 -> writes go to RAM (p=0)
+    WE_I   <= '1';
+    ADDR_I <= mk_addr('0', SEG0, x"FE00");
+    check("D seg0 write 0xFE00 -> RAM", 0, x"0000", true);
+    WE_I   <= '0';
 
-    -- Specials (override)
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "E:GPO @7FFC",
-      x"007FFC", '0', '1', "01",
-      2, x"2222", true);
+    -- E-H) Specials at seg0: 7FFC (GPO=2), 7FFE (GPI=3), 7FAE (BANK_SEL=4), 7FAC (SOUND=5)
+    ADDR_I <= mk_addr('0', SEG0, x"7FFC"); -- GPO
+    check("E seg0 special GPO 0x7FFC", 2, x"2222", true);
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "F:GPI @7FFE",
-      x"007FFE", '0', '1', "01",
-      3, x"3333", true);
+    ADDR_I <= mk_addr('0', SEG0, x"7FFE"); -- GPI
+    check("F seg0 special GPI 0x7FFE", 3, x"3333", true);
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "G:BANK_SEL @7FAE",
-      x"007FAE", '1', '1', "01",
-      4, x"4444", true);
+    ADDR_I <= mk_addr('0', SEG0, x"7FAE"); -- BANK_SEL
+    WE_I   <= '1';
+    check("G seg0 special BANK_SEL 0x7FAE", 4, x"4444", true);
+    WE_I   <= '0';
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "H:SOUND @7FAC",
-      x"007FAC", '0', '1', "01",
-      5, x"5555", true);
+    ADDR_I <= mk_addr('0', SEG0, x"7FAC"); -- SOUND
+    check("H seg0 special SOUND 0x7FAC", 5, x"5555", true);
 
-    -- X10
-    BANK_SEL <= "10";
-    wait for STEP;
+    -- STB gating check (no strobes; data still reflects provider)
+    STB_I  <= '0';
+    ADDR_I <= mk_addr('0', SEG0, x"1234");
+    check("I STB low seg0 read RAM", 0, x"0000", false);
+    STB_I  <= '1';
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "I:X10 read low -> ROM",
-      x"001234", '0', '1', "10",
-      1, x"1111", true);
+    ---------------------------------------------------------------------------
+    -- seg != 0 (extended): ADDR_I(23)=0 -> SDRAM (p=10), ADDR_I(23)=1 -> ROM (p=1) on reads
+    ---------------------------------------------------------------------------
+    -- J) seg1, msb=0 (RAM path) -> SDRAM (p=10)
+    ADDR_I <= mk_addr('0', SEG1, x"2000");
+    check("J seg1 msb0 -> SDRAM", 10, x"AAAA", true);
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "J:X10 read mid -> RAM",
-      x"009000", '0', '1', "10",
-      0, x"0000", true);
+    -- K) seg1, msb=1 -> ROM (p=1)
+    ADDR_I <= mk_addr('1', SEG1, x"2000");
+    check("K seg1 msb1 -> ROM", 1, x"1111", true);
 
-    -- X11
-    BANK_SEL <= "11";
-    wait for STEP;
+    ---------------------------------------------------------------------------
+    -- TGD_I + WE_I write path:
+    -- Your RTL sets p_sel=6 when (TGD_I='1' and WE_I='1'). That selects VIDEO (index 6).
+    -- If you intended SEGMENT (index 9), change the RTL; the TB checks current RTL behavior.
+    ---------------------------------------------------------------------------
+    TGD_I  <= '1';
+    WE_I   <= '1';
+    ADDR_I <= mk_addr('0', SEG1, x"0000"); -- address don't-care per your rule
+    check("L TGD&WE -> p=9 (SEGMENT))", 9, x"9999", true);
+    TGD_I  <= '0';
+    WE_I   <= '0';
 
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "K:X11 read anywhere -> ROM",
-      x"000002", '0', '1', "11",
-      1, x"1111", true);
-
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "L:X11 write anywhere -> RAM",
-      x"008000", '1', '1', "11",
-      0, x"0000", true);
-
-    -- Segment/TGA with SDRAM
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "M:Segment+SDRAM",
-      x"011234", '0', '1', "01",
-      10, x"AAAA", true);
-
-    -- Segment but no SDRAM -> ROM
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "N:Segment no SDRAM -> ROM",
-      x"811234", '0', '1', "01",
-      1, x"1111", true);
-
-    -- Segment + special
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "O:Segment+Special GPO",
-      x"207FFC", '1', '1', "01",
-      10, x"AAAA", true);
-
-    -- STB gating on SDRAM path
-    drive_and_check(ADDR_I, WE_I, STB_I, BANK_SEL,
-      "P:SDRAM STB low -> no strobes",
-      x"012000", '0', '0', "00",
-      10, x"AAAA", false);
-
-    report "All test vectors completed." severity note;
+    report "All vectors completed." severity note;
     wait;
   end process;
+
 end sim;

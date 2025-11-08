@@ -17,9 +17,9 @@ entity CLOCK_WSH_M is
         M_CYC_O    : out std_logic;      -- wishbone cycle output - set high to request bus, low to release bus
         M_ACK_I    : in  std_logic;      -- aribiter grant signal - kicks off bus stall process
 
-        AUTO_TICKS : in std_logic_vector(31 downto 0); -- Automatic clock frequency pulse width in system clock ticks
-        MAN_SEL    : in std_logic;                     -- Manual/Automatic clock select
-        MAN_START  : in std_logic;                     -- Manual clock start signal
+        SPD_IN     : in std_logic_vector(2 downto 0);   -- Automatic clock frequency selection (slow/med/full based on one-hot values)
+        MAN_SEL    : in std_logic;                      -- Manual/Automatic clock select
+        MAN_START  : in std_logic;                      -- Manual clock start signal
 
         CPU_CLOCK  : out std_logic      -- CPU Clock output for display purposes (should be 50% duty cycle)
     );
@@ -27,6 +27,7 @@ end CLOCK_WSH_M;
 
 architecture Behavioral of CLOCK_WSH_M is
     -- Signals for clock logic
+    signal auto_ticks     : std_logic_vector(31 downto 0)   -- 32 bit number to delay the clock
     signal counter        : Integer := 0;
     signal previous_man   : std_logic := '1';
     signal holding_bus    : std_logic := '0';
@@ -34,6 +35,13 @@ architecture Behavioral of CLOCK_WSH_M is
 
 begin
     M_CYC_O <= bus_req;     -- bus request in the form of a wishbone master cycle signal
+
+    -- Spikeputor clock speed selector from three one-hot switches
+    CLK_SEL : entity work.CLK_SEL
+        port map (
+            SW_INPUTS => SPD_IN,
+            SPEED_OUT => auto_ticks
+        );
 
     clock : process(CLK) is
     begin
@@ -59,9 +67,9 @@ begin
 
                 else    -- holding bus, counting ticks or waiting for manual button press
                     if MAN_SEL = '0' then
-                        if counter < to_integer(unsigned(AUTO_TICKS)) then  -- increment counter until complete
+                        if counter < to_integer(unsigned(auto_ticks)) then  -- increment counter until complete
                             counter <= counter + 1;
-                            if counter > to_integer(unsigned(AUTO_TICKS))/2 then
+                            if counter > to_integer(unsigned(auto_ticks))/2 then
                                 CPU_CLOCK <= '1';   -- set CPU clock display high at half of the cycle
                             end if;
                         else                        -- counter complete

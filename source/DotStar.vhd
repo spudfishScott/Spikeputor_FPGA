@@ -13,7 +13,7 @@ entity dotstar_driver is
         START        : in  std_logic;
 
         -- DotStar Signals in reverse display order
-        ADDR_EXT     : in std_logic_vector(9 downto 0);   -- Bank Select and Segment register (to extend address bus)                 0
+        SEGMENT      : in std_logic_vector(7 downto 0);   -- Segment register (to extend address bus)                                 0
         PC           : in std_logic_vector(16 downto 0);  -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)       1
         MDATA        : in std_logic_vector(16 downto 0);  -- Memory Data, prepended with R/W signal (0 = read, 1 = write)             2
         CONST        : in std_logic_vector(15 downto 0);  -- Constant                                                                 3
@@ -210,8 +210,8 @@ begin
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto PC'length => '0') & PC;
                                     num_leds <= PC'length;
                                 when 0 =>
-                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto ADDR_EXT'length => '0') & ADDR_EXT;
-                                    num_leds <= ADDR_EXT'length;
+                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto SEGMENT'length => '0') & SEGMENT;
+                                    num_leds <= SEGMENT'length;
                                 when others =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto INST'length => '0') & INST;
                                     num_leds <= INST'length;
@@ -382,11 +382,7 @@ begin
                                             led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
                                         end if;
                                     elsif set_reg(led_index) = '1' then
-                                        if led_index > 7 then
-                                            led_reg(COLOR_RANGE) <= x"040400";      -- BANK_SEL is all cyan LEDs
-                                        else
-                                            led_reg(COLOR_RANGE) <= x"000004";      -- SEGMENT is all red LEDs
-                                        end if;
+                                        led_reg(COLOR_RANGE) <= x"000004";      -- SEGMENT is all red LEDs
                                     end if;
                                 when others =>
                                     null;  -- keep default NO_COLOR

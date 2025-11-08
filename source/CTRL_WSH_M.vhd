@@ -218,8 +218,8 @@ begin
 
                         when ST_EXECUTE =>
                             -- execute instruction
-                            if INST_reg(9 downto 7) = "101" then     -- operation requires memory read or write (LD or ST commands)
-                                WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output
+                            if INST_reg(9 downto 7) = "101" or INST_reg(9 downto 6) = "1111" then     -- operation requires memory read or write or segment write (LD or ST commands, STS but not LDS)
+                                WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for LDS, but doesn't matter to set it)
                                 st_main <= ST_EXECUTE_RW;                       -- go to execute_rw state
                             else                                                -- other instructions - do not need to read or write to memory
                                 if ((INST_reg(9) = '1') AND                     -- check to see if the branch should be taken (formerly JT = 1)
@@ -234,9 +234,8 @@ begin
                                             WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
                                 end if;
                                 
-                                if INST_reg(9 downto 6) /= "1111" then
-                                    WERF_sig <= '1';        -- write to register on next clock if not a STS instruction
-                                end if;
+                                WERF_sig <= '1';        -- write to register on next clock if not a STS instruction
+
                                 WBS_CYC_O <= '0';           -- end wishbone cycle
                                 st_main <= ST_FETCH_I;      -- go back to fetch next instruction, no wishbone read/write phase needed
                             end if;
@@ -253,8 +252,8 @@ begin
                         when ST_EXECUTE_RW_WAIT =>
                             -- wait for memory read or write operation to complete
                             if WBS_ACK_I = '1' then         -- wait for acknowledge from memory and handle read or write completion
-                                if (INST_reg(9 downto 6) /= "1011") then
-                                    WERF_sig <= '1';                -- write to register on next clock if not a ST command
+                                if (INST_reg(9) /= '1' OR INST_reg(7 downto 6) /= "11") then
+                                    WERF_sig <= '1';                -- write to register on next clock if not a ST nor STS command
                                     MRDATA_reg <= WBS_DATA_I;       -- store data read into register for display
                                 end if;
 

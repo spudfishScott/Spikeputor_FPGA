@@ -30,8 +30,7 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
-    -- constants now, later will be registers set by special memory locations
-    constant SEGMENT   : std_logic_vector(7 downto 0) := "00000000";
+    constant SEGMENT   : std_logic_vector(7 downto 0) := "00000000"; -- TODO: change this, try a LDS command, then implement STS command, then turn this into a wishbone provider for SEGMENT register
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
@@ -69,7 +68,8 @@ architecture Structural of DE0_Spikeputor is
     signal regin_out   : std_logic_vector(17 downto 0) := (others => '0');
 
     -- TODO: DMA interface signals
-    
+    signal cpu_gnt_sig : std_logic := '0';
+
     -- Memory output signals
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
     signal ack         : std_logic_vector(10 downto 0) := (others => '0');  -- all of the ack signals from the providers
@@ -111,8 +111,7 @@ architecture Structural of DE0_Spikeputor is
     -- DotStar Control
     signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
     signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
-    
-    signal last_cyc_sig : std_logic := '0';											-- to detect edge of wishbone cycle
+    signal last_cyc_sig : std_logic := '0';                                  -- to detect edge of wishbone cycle for wishbone update request
 
 begin
     -- Input Synchronizers
@@ -132,6 +131,7 @@ begin
             SYNC_OUT => button_sync
         );
 
+    -- WISHBONE ROUTING ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- Round Robin Wishbone Bus Arbiter
     ARBITER : entity work.WSH_ARBITER 
         port map (
@@ -157,7 +157,7 @@ begin
 
             -- Wishbone Grant Signals
             M0_GNT      => cpu_gnt_sig,             -- CPU grant given
-            M1_GNT      => open,                    -- DMA grant given
+            M1_GNT      => dma_gnt_sig,             -- DMA grant given
             M2_GNT      => clk_gnt_sig,             -- Clock Generator grant given
 
             -- Wishbone bus granted signals passed out through the arbiter
@@ -170,16 +170,43 @@ begin
 
         cpu_ext <= SEGMENT when cpu_tga = '1' else x"00";   -- cpu_tga determines if the SEGMENT register should be used to extend the address coming out of the CPU
 
+    -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and bank select register signals
+    ADDR_CMP : entity work.WSH_ADDR
+        port map (
+            ADDR_I      => arb_addr,        -- full 24 bit address
+            WE_I        => arb_we,
+            STB_I       => arb_stb,
+            TGD_I       => cpu_tgd,         -- flag to write data bus to SEGMENT register
+
+            P0_DATA_O   => data0,           -- map each provider data output into the address comparator
+            P1_DATA_O   => data1,
+            P2_DATA_O   => data2,
+            P3_DATA_O   => data3,
+            P4_DATA_O   => data4,
+            P5_DATA_O   => data5,
+            P6_DATA_O   => data6,
+            P7_DATA_O   => data7,
+            P8_DATA_O   => data8,
+            P9_DATA_O   => data9,
+            P10_DATA_O  => data10,
+
+            DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
+            STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
+        );
+
+        -- Wishbone ACK signal logic
         all_acks <= ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
         cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
+        --dma_ack <= dma_gnt_sig AND all_acks;
 
+    -- WISHBONE MASTERS ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- Spikeputor CPU as Wishbone master (M0)
     CPU : entity work.CPU_WSH_M 
         port map (
             -- Timing
             CLK             => CLOCK_50,
             RESET           => NOT button_sync(0),            -- Button 0 is system reset (active low)
-            STALL           => '0',                           -- Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
+            STALL           => '0',                           -- Temp Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
             SEGMENT         => SEGMENT,                       -- Segment Register input to CPU (so it can store in a register)
 
             -- Memory standard Wishbone interface signals
@@ -217,12 +244,8 @@ begin
             REGIN_DISP      => regin_out
         );
 
-    -- Spikeputor clock speed selector from switches 6 to 4
-    CLK_SEL : entity work.CLK_SEL
-        port map (
-            SW_INPUTS => sw_sync(6 downto 4),
-            SPEED_OUT => clk_speed
-        );
+    -- Spikeputor DMA as Wishbone master (M1)
+    -- TBD
 
     -- Spikeputor CPU Clock Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M
@@ -233,36 +256,13 @@ begin
             M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
-            AUTO_TICKS => clk_speed,            -- clock speed for auto mode (selected by CLK_SEL)
+            SPD_IN     => sw_sync(6 downto 4),  -- input for clock speed for auto mode
             MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
             MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
             CPU_CLOCK  => LEDG(9)
         );
 
-    -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and bank select register signals
-    ADDR_CMP : entity work.WSH_ADDR
-        port map (
-            ADDR_I      => arb_addr,        -- full 24 bit address
-            WE_I        => arb_we,
-            STB_I       => arb_stb,
-            TGD_I       => cpu_tgd,         -- flag to write data bus to SEGMENT register
-
-            P0_DATA_O   => data0,           -- map each provider data output into the address comparator
-            P1_DATA_O   => data1,
-            P2_DATA_O   => data2,
-            P3_DATA_O   => data3,
-            P4_DATA_O   => data4,
-            P5_DATA_O   => data5,
-            P6_DATA_O   => data6,
-            P7_DATA_O   => data7,
-            P8_DATA_O   => data8,
-            P9_DATA_O   => data9,
-            P10_DATA_O  => data10,
-
-            DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
-            STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
-        );
-
+    -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- RAM Instance as Wishbone provider (P0)
     RAM : entity work.RAMTest_WSH_P 
         port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
@@ -282,12 +282,13 @@ begin
             WBS_WE_I    => arb_we
         );
 
-    refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0' AND led_busy = '0') else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+    -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
 
     process(CLOCK_50) is
     begin
-        if rising_edge(CLOCK_50) then   -- falling edge of cyc_sig is the end of the CPU read/write cycle 
-            last_cyc_sig <= arb_cyc;
+        if rising_edge(CLOCK_50) then 
+            last_cyc_sig <= arb_cyc;    -- to detect falling edge of CYC_O signal for DotStar update requests
         end if;
     end process;
 
@@ -301,7 +302,7 @@ begin
             CONST       => const_out,                                                           -- bits: Constant (16 bits)
             MDATA       => mdata_out,                                                           -- bits: write flag, Memory read/write (16 bits)
             PC          => pc_out,                                                              -- bits: JT flag, Program Counter (16 bits)
-            ADDR_EXT    => BANK_SEL & SEGMENT,                                                  -- bits: BANK_SEL register (2 bits), SEGMENT register (8 bits)
+            SEGMENT     => SEGMENT,                                                             -- bits: SEGMENT register (8 bits)
 
             ALU_OUT     => alu_out,                                                             -- bits: ALU Output (16 bits)
             ALU_CMP     => alu_cmp_out,                                                         -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
@@ -322,12 +323,12 @@ begin
             REG7        => reg7_out,                                                            -- bits: Reg 7 to Channel A Out, Reg 7 to Channel B Out, Write to Register 7, Register 7 (16 bits)
             REGIN       => regin_out,                                                           -- bits: WDSEL (2 bits), Reg Input (16 bits)
 
-            DATA_OUT    => GPIO0_D(0),
+            DATA_OUT    => GPIO0_D(0),                                                          -- DotStar data and clock signals
             CLK_OUT     => GPIO0_D(1),
             BUSY        => led_busy
         );
 
-    -- TODO: send these to the 20x4 LCD driver, along with BANK_SEL, SEGMENT, PC, and MDATA
+    -- TODO: send these to the 20x4 LCD driver, along with SEGMENT, PC, and MDATA
     GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
     GPIO1_D(15 downto 0)  <= const_out;                             -- output const_out to lower 16 bits of GPIO1
 
