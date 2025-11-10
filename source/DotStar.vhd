@@ -375,7 +375,7 @@ begin
                                             led_reg(COLOR_RANGE) <= x"000400";      -- green LED for PC_INC
                                     end if;
                                 when 0 =>
-                                    if led_index = 7 then AND set_reg(7 downto 0) /= "00000000"     -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                    if led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
                                         else
