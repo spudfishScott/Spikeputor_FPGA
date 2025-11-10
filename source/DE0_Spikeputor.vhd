@@ -301,6 +301,25 @@ begin
             SEGMENT     => SEGMENT             -- output of SEGMENT provider is a driect connection to the rest of the computer (not on the data bus)
         );
 
+    -- SDRAM (test) Instance as Wishbone provider (P10)
+    SDRAM : entity work.SDRAMTest_WSH_P
+        port map ( -- change to real SDRAM module when testing is complete
+            -- SYSCON inputs
+            CLK         => CLOCK_50,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(10),    -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(10),            -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data10,             -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we
+        );
+
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
 

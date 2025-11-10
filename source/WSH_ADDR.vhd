@@ -89,8 +89,8 @@ begin
         else    4 when seg  = "0000000" AND p_addr = x"7FAE"                                  -- read/write BANK_SEL register
         else    5 when seg  = "0000000" AND p_addr = x"7FAC"                                  -- read/write sound register (this may be expanded)
         -- to do the rest 6 through 9
-        -- else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here TODO: set this back
-        else    0 when ram_e = '1'                                                        -- for testing - normal RAM when ram_e is '1' and we get here (with SEGMENT /= "00000000")
+        else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0)
+        -- else    0 when ram_e = '1'                                                        -- for testing - normal RAM when ram_e is '1' and we get here (with SEGMENT /= "00000000")
         else    3;                                                                        -- default to read only GPI
 
     -- output the correct data based on p_sel
