@@ -30,8 +30,8 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
-    constant SEGMENT   : std_logic_vector(7 downto 0) := "00000000"; -- TODO: change this, try a LDS command, then implement STS command, then turn this into a wishbone provider for SEGMENT register
-
+    -- constant SEGMENT   : std_logic_vector(7 downto 0) := "00000000"; -- TODO: change this, try a LDS command, then implement STS command, then turn this into a wishbone provider for SEGMENT register
+    signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
     signal cpu_stb     : std_logic := '0';
@@ -269,7 +269,7 @@ begin
             -- SYSCON inputs
             CLK         => CLOCK_50,
 
-            -- Wishbone signals - inputs from the arbiter, outputs as described
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals
             WBS_CYC_I   => arb_cyc,
             WBS_STB_I   => stb_sel_sig(0),     -- strobe signal from Address Comparitor (use other bits for other providers)
@@ -280,6 +280,25 @@ begin
             WBS_DATA_O  => data0,              -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
             WBS_DATA_I  => arb_data_o,
             WBS_WE_I    => arb_we
+        );
+    
+    -- SEGMENT Instance as Wishbone provider (P9)
+    SEG : entity work.SEGMENT_WSH_P
+        port map (
+            CLK         => CLOCK_50,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(9),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(9),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we,
+            WBS_DATA_O  => data9,
+
+            SEGMENT     => SEGMENT             -- output of SEGMENT provider is a driect connection to the rest of the computer (not on the data bus)
         );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
