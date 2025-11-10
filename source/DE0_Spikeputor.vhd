@@ -68,7 +68,7 @@ architecture Structural of DE0_Spikeputor is
     signal regin_out   : std_logic_vector(17 downto 0) := (others => '0');
 
     -- TODO: DMA interface signals
-    signal cpu_gnt_sig : std_logic := '0';
+    signal dma_gnt_sig : std_logic := '0';
 
     -- Memory output signals
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');

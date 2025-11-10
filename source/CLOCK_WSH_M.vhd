@@ -27,7 +27,7 @@ end CLOCK_WSH_M;
 
 architecture Behavioral of CLOCK_WSH_M is
     -- Signals for clock logic
-    signal auto_ticks     : std_logic_vector(31 downto 0)   -- 32 bit number to delay the clock
+    signal auto_ticks     : std_logic_vector(31 downto 0);   -- 32 bit number to delay the clock
     signal counter        : Integer := 0;
     signal previous_man   : std_logic := '1';
     signal holding_bus    : std_logic := '0';
