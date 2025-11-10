@@ -7,10 +7,10 @@
 --  TGD_I  - route the data bus to update the SEGMENT register
         -- This is no longer used
         --  BANK_SEL register: - works with both ADDR_I and possible TGA_I to select RAM/ROM or SDRAM/ROM providers
-        --      Bank Select = "X00": All access to RAM, ROM not available, 0xFC00-0xFFFF not available
-        --                  = "X01": (Default) 0x0000-0x7FFF - RAM read, 0x8000-0xFFFF ROM read, always write to RAM (except 0xFC00-0xFFFF, for which there is no RAM)
-        --                  = "X10": 0x0000-0x7FFF - ROM read, 0x8000-0xFBFF RAM read, 0xFC00-0xFFFF reads as 0, always write to RAM (except for 0xFC00-0xFFFF)
-        --                  = "X11": 0x0000-0xFFFF - ROM read, always write to RAM (except for 0xFC00-0xFFFF)
+        --      Bank Select = "X00": All access to RAM, ROM not available, 0xE000-0xFFFF not available
+        --                  = "X01": (Default) 0x0000-0x7FFF - RAM read, 0x8000-0xFFFF ROM read, always write to RAM (except 0xE000-0xFFFF, for which there is no RAM)
+        --                  = "X10": 0x0000-0x7FFF - ROM read, 0x8000-0xFBFF RAM read, 0xE000-0xFFFF reads as 0, always write to RAM (except for 0xE000-0xFFFF)
+        --                  = "X11": 0x0000-0xFFFF - ROM read, always write to RAM (except for 0xE000-0xFFFF)
         --      If TGA_I is not 0, RAM?ROM is determined by msb of TGA_I (1 = ROM, 0 = RAM)
 --  Px_DATA_O - data output from each provider
 --
@@ -73,12 +73,11 @@ begin
     seg    <= ADDR_I(22 downto 16);   -- extract segment identifier from full address
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
 
-    -- TODO: replace addresses with constant defined above (they'll be in 0xFFxx)
-    spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAE" OR p_addr = x"7FAC")                      -- check for a special address (more to follow)
+    -- TODO: replace addresses with constants defined above (they'll be in 0xFFxx - could even expand to 0xFxxx for hardware I/O)
+    spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAE" OR p_addr = x"7FAC")     -- check for a special address (more to follow)
                 else '0';
-    
-    ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 10) /= "111111") OR                                                             -- no segment and in range 0x0000-0xFBFF
-                      (seg /= "0000000" AND ADDR_I(23) = '0')                                                                                -- segment and not a ROM address
+    ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111") OR                                               -- no segment and in range 0x0000-0xDFFF
+                      (seg /= "0000000" AND ADDR_I(23) = '0')                                                               -- segment and not a ROM address
                  else '0';
 
     -- assign p_sel based on addressing logic described above
