@@ -31,7 +31,7 @@ end SDRAMTest_WSH_P;
 architecture rtl of SDRAMTest_WSH_P is
 
     -- internal signals
-    signal addr : std_logic_vector(5 downto 0) := (others => '0');
+    signal addr : std_logic_vector(2 downto 0) := (others => '0');
 
 begin
     -- Altera Memory: 8 words x 16 bits per word, 1 port, unregistered output, registered inputs
@@ -49,7 +49,7 @@ begin
         width_a                         => 16,
         widthad_a                       => 3,         -- 2^3 = 8 locations
         width_byteena_a                 => 1,
-        init_file                       => "RAM16X8_TEST2.MIF"
+        init_file                       => "RAM8X16_TEST.MIF"
     ) port map (
         address_a => addr,
         clock0    => CLK,
