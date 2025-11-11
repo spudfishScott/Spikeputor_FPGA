@@ -74,7 +74,7 @@ begin
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
 
     -- TODO: replace addresses with constants defined above (they'll be in 0xFFxx - could even expand to 0xFxxx for hardware I/O)
-    spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAE" OR p_addr = x"7FAC")     -- check for a special address (more to follow)
+    spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAC")     -- check for a special address (more to follow)
                 else '0';
     ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111") OR                                               -- no segment and in range 0x0000-0xDFFF
                       (seg /= "0000000" AND ADDR_I(23) = '0')                                                               -- segment and not a ROM address
@@ -83,14 +83,12 @@ begin
     -- assign p_sel based on addressing logic described above
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, pre-empts all other
         else    0 when seg  = "0000000" AND spec = '0' AND (ram_e = '1' OR WE_I = '1')    -- standard RAM when segment is 0 and not a special location and either a RAM location or writing
-        else    1 when spec = '0' AND ram_e = '0' AND WE_I = '0'                          -- ROM if not a special location and not a RAM location and not writing
+        else    1 when spec = '0' AND ram_e = '0'                                         -- ROM if not a special location and not a RAM location
         else    2 when seg  = "0000000" AND p_addr = x"7FFC"                                  -- read/write GPO register
         else    3 when seg  = "0000000" AND p_addr = x"7FFE"                                  -- read only GPI
-        else    4 when seg  = "0000000" AND p_addr = x"7FAE"                                  -- read/write BANK_SEL register
-        else    5 when seg  = "0000000" AND p_addr = x"7FAC"                                  -- read/write sound register (this may be expanded)
-        -- to do the rest 6 through 9
-        else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0)
-        -- else    0 when ram_e = '1'                                                        -- for testing - normal RAM when ram_e is '1' and we get here (with SEGMENT /= "00000000")
+        else    4 when seg  = "0000000" AND p_addr = x"7FAC"                                  -- read/write sound register (this may be expanded)
+        -- to do the rest 5 through 9
+        else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    3;                                                                        -- default to read only GPI
 
     -- output the correct data based on p_sel
@@ -100,11 +98,11 @@ begin
             P1_DATA_O  when 1,      -- ROM
             P2_DATA_O  when 2,      -- GPO
             P3_DATA_O  when 3,      -- GPI
-            P4_DATA_O  when 4,      -- BANK_SEL
-            P5_DATA_O  when 5,      -- SOUND
-            P6_DATA_O  when 6,      -- VIDEO
-            P7_DATA_O  when 7,      -- SERIAL
-            P8_DATA_O  when 8,      -- STORAGE
+            P4_DATA_O  when 4,      -- SOUND
+            P5_DATA_O  when 5,      -- VIDEO
+            P6_DATA_O  when 6,      -- SERIAL
+            P7_DATA_O  when 7,      -- DISK STORAGE
+            P8_DATA_O  when 8,      -- tbd
             P9_DATA_O  when 9,      -- SEGMENT
             P10_DATA_O when 10,     -- SDRAM
             (others => '0') when others;

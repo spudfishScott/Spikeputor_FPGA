@@ -31,7 +31,7 @@ entity DE0_Spikeputor is
         FL_WP_N   : out std_logic;
         FL_ADDR   : out std_logic_vector(21 downto 0);
         FL_DQ     : in std_logic_vector(15 downto 0);
-        FL_RY     : in std_logic
+        FL_RY     : in std_logic;
         -- GPIO
         GPIO1_D   : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
         GPIO0_D   : out std_logic_vector(1 downto 0)     -- dotstar out
