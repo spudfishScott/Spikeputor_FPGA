@@ -6,25 +6,35 @@ library ieee;
 entity DE0_Spikeputor is
     port (
         -- Clock Input
-        CLOCK_50 : in std_logic;
+        CLOCK_50  : in std_logic;
         -- Push Button
-        BUTTON   : in std_logic_vector(2 downto 0);
+        BUTTON    : in std_logic_vector(2 downto 0);
         -- DPDT Switch
-        SW       : in std_logic_vector(9 downto 0);
+        SW        : in std_logic_vector(9 downto 0);
         -- 7-SEG Display
-        HEX0_D   : out std_logic_vector(6 downto 0);
-        HEX0_DP  : out std_logic;
-        HEX1_D   : out std_logic_vector(6 downto 0);
-        HEX1_DP  : out std_logic;
-        HEX2_D   : out std_logic_vector(6 downto 0);
-        HEX2_DP  : out std_logic;
-        HEX3_D   : out std_logic_vector(6 downto 0);
-        HEX3_DP  : out std_logic;
+        HEX0_D    : out std_logic_vector(6 downto 0);
+        HEX0_DP   : out std_logic;
+        HEX1_D    : out std_logic_vector(6 downto 0);
+        HEX1_DP   : out std_logic;
+        HEX2_D    : out std_logic_vector(6 downto 0);
+        HEX2_DP   : out std_logic;
+        HEX3_D    : out std_logic_vector(6 downto 0);
+        HEX3_DP   : out std_logic;
         -- LED
-        LEDG     : out std_logic_vector(9 downto 0);
+        LEDG      : out std_logic_vector(9 downto 0);
+        -- FLASH
+        FL_BYTE_N : out std_logic;
+        FL_CE_N   : out std_logic;
+        FL_OE_N   : out std_logic;
+        FL_RST_N  : out std_logic;
+        FL_WE_N   : out std_logic;
+        FL_WP_N   : out std_logic;
+        FL_ADDR   : out std_logic_vector(21 downto 0);
+        FL_DQ     : in std_logic_vector(15 downto 0);
+        FL_RY     : in std_logic
         -- GPIO
-        GPIO1_D  : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
-        GPIO0_D  : out std_logic_vector(1 downto 0)     -- dotstar out
+        GPIO1_D   : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
+        GPIO0_D   : out std_logic_vector(1 downto 0)     -- dotstar out
     );
 end DE0_Spikeputor;
 
@@ -281,7 +291,36 @@ begin
             WBS_DATA_I  => arb_data_o,
             WBS_WE_I    => arb_we
         );
-    
+
+    -- ROM Instance as Wishbone provider (P1)
+    ROM: entity work.FlashROM_WSH_P
+        port map (
+            -- SYSCON inputs
+            CLK         => CLOCK_50,
+            RST_I       => NOT button_sync(0),  -- Button 0 is system reset (active low)
+
+            -- Wishbone signals
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(1),
+            WBS_ACK_O   => ack(1),
+
+            -- memory read signals (ROM is read-only)
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data1,
+
+            -- Flash chip signals
+            WP_n        => FL_WP_N,
+            BYTE_n      => FL_BYTE_N,
+            RST_n       => FL_RST_N,
+            CE_n        => FL_CE_N,
+            OE_n        => FL_OE_N,
+            WE_n        => FL_WE_N,
+            BY_n        => FL_RY,
+            A           => FL_ADDR,
+            Q           => FL_DQ
+        );
+
     -- SEGMENT Instance as Wishbone provider (P9)
     SEG : entity work.SEGMENT_WSH_P
         port map (

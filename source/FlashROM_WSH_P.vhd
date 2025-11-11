@@ -6,11 +6,6 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity FlashROM_WSH_P is
-    generic (
-        SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000001" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
-        -- TODO - replace this logic with a WBS_TGA_I value to select the 64KB sector to use - Add 1 to reserve "000001" for segment = 0 operations (page 0 of 64KBytes).
-    );
-
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
@@ -19,7 +14,7 @@ entity FlashROM_WSH_P is
         -- Wishbone inputs
         WBS_CYC_I   : in std_logic;
         WBS_STB_I   : in std_logic;
-        WBS_ADDR_I  : in std_logic_vector(15 downto 0); -- lsb is ignored, but it is still part of the address bus
+        WBS_ADDR_I  : in std_logic_vector(23 downto 0); -- lsb is ignored, but it is still part of the address bus
         WBS_DATA_O  : out std_logic_vector(15 downto 0);
         WBS_ACK_O   : out std_logic;
 
@@ -98,7 +93,7 @@ begin
                 case (st_main) is
                     when ST_IDLE =>
                         if (WBS_CYC_I = '1' and WBS_STB_I = '1') then   -- a valid Wishbone cycle and strobe
-                            flash_addr <= "0" & SECTOR_ADDR & WBS_ADDR_I(15 downto 1);     -- form full 22 bit word address from sector and requested address (msb is ignored)
+                            flash_addr <= WBS_ADDR_I(22 downto 1);      -- form full 22 bit word address from address bus (msb is ignored)
                             flash_read <= '1';                          -- pulse read after one clock
                             st_main    <= ST_READ;                      -- go to read state
                         else
