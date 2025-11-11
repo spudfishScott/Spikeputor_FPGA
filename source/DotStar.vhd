@@ -242,10 +242,10 @@ begin
                                                 when "01" =>
                                                     led_reg(COLOR_RANGE) <= x"040400";  -- cyan LED for WDSEL = 1 (ALU)
                                                 when others =>
-                                                    led_reg(COLOR_RANGE) <= x"004040";  -- yellow LED for WDSEL = 2 (MEM)
+                                                    led_reg(COLOR_RANGE) <= x"000404";  -- yellow LED for WDSEL = 2 (MEM)
                                             end case;
                                         else
-                                            led_reg(COLOR_RANGE) <= x"004000";      -- green LEDs for register input value
+                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LEDs for register input value
                                         end if;
                                     end if;
                                 when 14 to 20 =>
