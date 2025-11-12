@@ -83,7 +83,7 @@ begin
     -- assign p_sel based on addressing logic described above
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, pre-empts all other
         else    0 when seg  = "0000000" AND spec = '0' AND (ram_e = '1' OR WE_I = '1')    -- standard RAM when segment is 0 and not a special location and either a RAM location or writing
-        else    1 when spec = '0' AND ram_e = '0'                                         -- ROM if not a special location and not a RAM location
+        else    1 when spec = '0' AND ram_e = '0'                                         -- ROM if not a special location and not a RAM location (including 0xE000-0xFFFF)
         else    2 when seg  = "0000000" AND p_addr = x"7FFC"                                  -- read/write GPO register
         else    3 when seg  = "0000000" AND p_addr = x"7FFE"                                  -- read only GPI
         else    4 when seg  = "0000000" AND p_addr = x"7FAC"                                  -- read/write sound register (this may be expanded)
@@ -96,13 +96,13 @@ begin
         DATA_O <=
             P0_DATA_O  when 0,      -- RAM
             P1_DATA_O  when 1,      -- ROM
-            P2_DATA_O  when 2,      -- GPO
+            P2_DATA_O  when 2,      -- GPO (including VFD text output?)
             P3_DATA_O  when 3,      -- GPI
             P4_DATA_O  when 4,      -- SOUND
             P5_DATA_O  when 5,      -- VIDEO
             P6_DATA_O  when 6,      -- SERIAL
             P7_DATA_O  when 7,      -- DISK STORAGE
-            P8_DATA_O  when 8,      -- tbd
+            P8_DATA_O  when 8,      -- KEYBOARD
             P9_DATA_O  when 9,      -- SEGMENT
             P10_DATA_O when 10,     -- SDRAM
             (others => '0') when others;

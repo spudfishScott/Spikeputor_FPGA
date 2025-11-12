@@ -341,11 +341,12 @@ begin
         );
 
     -- SDRAM (test) Instance as Wishbone provider (P10)
-    SDRAM : entity work.SDRAMTest_WSH_P
+    SDRAM : entity work.SDRAM_WSH_P
         port map ( -- change to real SDRAM module when testing is complete
             -- SYSCON inputs
             CLK         => CLOCK_50,
-
+            RST_I       => NOT button_sync(0),  -- Button 0 is system reset (active low)
+            
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals
             WBS_CYC_I   => arb_cyc,

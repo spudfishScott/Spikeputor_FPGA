@@ -22,7 +22,7 @@ DATA_RADIX=HEX;
 
 CONTENT BEGIN
     00  :   4420;
-    01  :   001F;
+    01  :   0015;   -- 0085: Flash ROM with pre-stored sequence of 8 words repeating: DEAD, BEEF, BADD, F00D, 0ICE, C01D, BEAD, CAFE
     02  :   43E0;
     03  :   4008;
     04  :   4010;
