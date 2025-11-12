@@ -51,7 +51,7 @@ architecture rtl of SDRAM_WSH_P is
     signal c_wdata  : std_logic_vector(15 downto 0) := (others=>'0');
     signal c_rdata  : std_logic_vector(15 downto 0);
 
-    type st_t is (IDLE, ISSUE, WAIT_RD, WAIT_WR);
+    type st_t is (IDLE, ISSUE, WAIT_RD, WAIT_WR, WAIT_BUSY);
     signal st    : st_t := IDLE;
     signal ack   : std_logic := '0';
     signal dat_r : std_logic_vector(15 downto 0) := (others=>'0');
@@ -112,7 +112,7 @@ begin
                         if c_busy = '0' then    -- only act if SDRAM controller ready for new request, otherwise stay in ISSUE state
                             c_req <= '1';   -- assert request
                             if WBS_WE_I = '1' then
-                                st <= WAIT_WR;  -- wait for write to be finished (c_busy = '0' again)
+                                st <= WAIT_BUSY;  -- wait for write to start (c_busy goes high), then complete
                             else
                                 st <= WAIT_RD;  -- wait for read data to be valid (c_rvalid = '1') 
                             end if;
@@ -125,8 +125,13 @@ begin
                             st    <= IDLE;      -- go back to IDLE state
                         end if;                 -- stay in WAIT_RD until data is valid
 
+                    when WAIT_BUSY =>           -- wait for write: first c_busy goes high, then low
+                        if c_busy = '1' then
+                            st <= WAIT_WR;      -- write has started, now wait for it to complete
+                        end if;
+
                     when WAIT_WR =>
-                        if c_busy = '0' then    -- wait for WRITE to complete
+                        if c_busy = '0' then    -- wait for WRITE to complete (controller returns to idle)
                             ack <= '1';         -- assert ack signal 
                             st  <= IDLE;        -- go back to IDLE state
                         end if;                 -- stay in WAIT_WR until write is done
