@@ -44,7 +44,7 @@ entity DE0_Spikeputor is
         DRAM_ADDR  : out std_logic_vector(11 downto 0);
         DRAM_DQ    : inout std_logic_vector(15 downto 0);
         DRAM_UDQM  : out std_logic;
-        DRAM_LDQM  : out std_logic
+        DRAM_LDQM  : out std_logic;
         -- GPIO
         GPIO1_D    : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
         GPIO0_D    : out std_logic_vector(1 downto 0)     -- dotstar out
@@ -373,7 +373,7 @@ begin
             WBS_WE_I    => arb_we,
 
             -- DRAM pins
-            DRAM_CLK     => CLOCK_50,
+            DRAM_CLK     => DRAM_CLK,
             DRAM_CKE     => DRAM_CKE,
             DRAM_CS_N    => DRAM_CS_N,
             DRAM_RAS_N   => DRAM_RAS_N,

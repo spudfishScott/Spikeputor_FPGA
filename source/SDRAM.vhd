@@ -72,7 +72,7 @@ architecture rtl of SDRAM is
 
     type state_t is ( -- SDRAM state machine states
         ST_BOOT_WAIT, ST_PREALL, ST_AR, ST_tRFC, ST_LMR, ST_IDLE,
-        ST_tRCD, ST_CASLAT, ST_WREC, ST_REF_WAIT
+        ST_tRCD, ST_CASLAT, ST_WREC, ST_REF_WAIT, ST_WDATA
     );
     signal st : state_t := ST_BOOT_WAIT;
 
@@ -264,19 +264,22 @@ architecture rtl of SDRAM is
                                 st         <= ST_CASLAT;                            -- go to delay and output
                             else 
                                 dq_out <= wdata;                                    -- set DQ to write data
-                                dq_oe  <= '1';                                      -- set correct direction for data to input into DRAM
-                                -- WRITE with precharge
-                                DRAM_CS_N  <= '0';
-                                DRAM_RAS_N <= '1';
-                                DRAM_CAS_N <= '0';
-                                DRAM_WE_N  <= '0';
-                                DRAM_BA_0  <= bank(0);
-                                DRAM_BA_1  <= bank(1);
-                                DRAM_ADDR  <= "0010" & std_logic_vector(col);
-                                timer      <= tWR_CYC;                              -- set delay to tWR
-                                st         <= ST_WREC;                              -- go to delay and finish write
+                                dq_oe  <= '1';                                      -- enable output (data setup phase)
+                                st     <= ST_WDATA;                                 -- wait one cycle for data to stabilize, then issue write command
                             end if;
                         end if;
+                                        
+                        when ST_WDATA =>                                                -- wait one cycle for write data to stabilize on bus
+                        -- WRITE with precharge command (issued after data setup)
+                        DRAM_CS_N  <= '0';
+                        DRAM_RAS_N <= '1';
+                        DRAM_CAS_N <= '0';
+                        DRAM_WE_N  <= '0';
+                        DRAM_BA_0  <= bank(0);
+                        DRAM_BA_1  <= bank(1);
+                        DRAM_ADDR  <= "0010" & std_logic_vector(col);
+                        timer      <= tWR_CYC;                                      -- preload timer for write recovery delay
+                        st         <= ST_WREC;                                      -- proceed to write recovery delay
 
                     when ST_CASLAT =>                                               -- delay, then latch the DRAM output from the read
                         if timer > 0 then 
