@@ -346,7 +346,7 @@ begin
             -- SYSCON inputs
             CLK         => CLOCK_50,
             RST_I       => NOT button_sync(0),  -- Button 0 is system reset (active low)
-            
+
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals
             WBS_CYC_I   => arb_cyc,
@@ -358,6 +358,20 @@ begin
             WBS_DATA_O  => data10,             -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
             WBS_DATA_I  => arb_data_o,
             WBS_WE_I    => arb_we
+
+            -- DRAM pins
+            DRAM_CLK     => DRAM_CLK,
+            DRAM_CKE     => DRAM_CKE,
+            DRAM_CS_N    => DRAM_CS_N,
+            DRAM_RAS_N   => DRAM_RAS_N,
+            DRAM_CAS_N   => DRAM_CAS_N,
+            DRAM_WE_N    => DRAM_WE_N,
+            DRAM_BA_0    => DRAM_BA_0,
+            DRAM_BA_1    => DRAM_BA_1,
+            DRAM_ADDR    => DRAM_ADDR,
+            DRAM_DQ      => DRAM_DQ,
+            DRAM_UDQM    => DRAM_UDQM,
+            DRAM_LDQM    => DRAM_LDQM
         );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

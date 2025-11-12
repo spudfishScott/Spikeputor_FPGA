@@ -24,7 +24,7 @@ entity SDRAM_WSH_P is
     WBS_ADDR_I  : in std_logic_vector(23 downto 0);     -- lsb is ignored, but it is still part of the address bus
     WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to master
     WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
-    WBS_WE_I    : in std_logic                          -- write enable input - when high, master is writing, when low, master is reading
+    WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
 
     -- SDRAM pins
     DRAM_CLK     : out std_logic;
@@ -130,7 +130,7 @@ begin
                             ack <= '1';         -- assert ack signal 
                             st  <= IDLE;        -- go back to IDLE state
                         end if;                 -- stay in WAIT_WR until write is done
-                        
+
                     when others =>
                         st <= IDLE;             -- should never happen, go to IDLE
                 end case;
