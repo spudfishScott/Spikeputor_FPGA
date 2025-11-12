@@ -6,35 +6,48 @@ library ieee;
 entity DE0_Spikeputor is
     port (
         -- Clock Input
-        CLOCK_50  : in std_logic;
+        CLOCK_50   : in std_logic;
         -- Push Button
-        BUTTON    : in std_logic_vector(2 downto 0);
+        BUTTON     : in std_logic_vector(2 downto 0);
         -- DPDT Switch
-        SW        : in std_logic_vector(9 downto 0);
+        SW         : in std_logic_vector(9 downto 0);
         -- 7-SEG Display
-        HEX0_D    : out std_logic_vector(6 downto 0);
-        HEX0_DP   : out std_logic;
-        HEX1_D    : out std_logic_vector(6 downto 0);
-        HEX1_DP   : out std_logic;
-        HEX2_D    : out std_logic_vector(6 downto 0);
-        HEX2_DP   : out std_logic;
-        HEX3_D    : out std_logic_vector(6 downto 0);
-        HEX3_DP   : out std_logic;
+        HEX0_D     : out std_logic_vector(6 downto 0);
+        HEX0_DP    : out std_logic;
+        HEX1_D     : out std_logic_vector(6 downto 0);
+        HEX1_DP    : out std_logic;
+        HEX2_D     : out std_logic_vector(6 downto 0);
+        HEX2_DP    : out std_logic;
+        HEX3_D     : out std_logic_vector(6 downto 0);
+        HEX3_DP    : out std_logic;
         -- LED
-        LEDG      : out std_logic_vector(9 downto 0);
+        LEDG       : out std_logic_vector(9 downto 0);
         -- FLASH
-        FL_BYTE_N : out std_logic;
-        FL_CE_N   : out std_logic;
-        FL_OE_N   : out std_logic;
-        FL_RST_N  : out std_logic;
-        FL_WE_N   : out std_logic;
-        FL_WP_N   : out std_logic;
-        FL_ADDR   : out std_logic_vector(21 downto 0);
-        FL_DQ     : in std_logic_vector(15 downto 0);
-        FL_RY     : in std_logic;
+        FL_BYTE_N  : out std_logic;
+        FL_CE_N    : out std_logic;
+        FL_OE_N    : out std_logic;
+        FL_RST_N   : out std_logic;
+        FL_WE_N    : out std_logic;
+        FL_WP_N    : out std_logic;
+        FL_ADDR    : out std_logic_vector(21 downto 0);
+        FL_DQ      :  in std_logic_vector(15 downto 0);
+        FL_RY      : in std_logic;
+        --SDRAM
+        DRAM_CLK   : out std_logic;
+        DRAM_CKE   : out std_logic;
+        DRAM_CS_N  : out std_logic;
+        DRAM_RAS_N : out std_logic;
+        DRAM_CAS_N : out std_logic;
+        DRAM_WE_N  : out std_logic;
+        DRAM_BA_0  : out std_logic;
+        DRAM_BA_1  : out std_logic;
+        DRAM_ADDR  : out std_logic_vector(11 downto 0);
+        DRAM_DQ    : inout std_logic_vector(15 downto 0);
+        DRAM_UDQM  : out std_logic;
+        DRAM_LDQM  : out std_logic
         -- GPIO
-        GPIO1_D   : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
-        GPIO0_D   : out std_logic_vector(1 downto 0)     -- dotstar out
+        GPIO1_D    : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
+        GPIO0_D    : out std_logic_vector(1 downto 0)     -- dotstar out
     );
 end DE0_Spikeputor;
 
@@ -357,10 +370,10 @@ begin
             WBS_ADDR_I  => arb_addr,
             WBS_DATA_O  => data10,             -- data out from P0 to Address Comparitor, which provides the wishbone data_o via a mux
             WBS_DATA_I  => arb_data_o,
-            WBS_WE_I    => arb_we
+            WBS_WE_I    => arb_we,
 
             -- DRAM pins
-            DRAM_CLK     => DRAM_CLK,
+            DRAM_CLK     => CLOCK_50,
             DRAM_CKE     => DRAM_CKE,
             DRAM_CS_N    => DRAM_CS_N,
             DRAM_RAS_N   => DRAM_RAS_N,
