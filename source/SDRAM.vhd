@@ -128,6 +128,7 @@ architecture rtl of SDRAM is
                 busy        <= '1';
             else
                 -- Default to NOP each clock cycle
+                DRAM_CKE    <= '1';                                             -- keep clock enabled for normal operation
                 DRAM_CS_N   <= '0';
                 DRAM_RAS_N  <= '1';
                 DRAM_CAS_N  <= '1';
@@ -150,6 +151,7 @@ architecture rtl of SDRAM is
 
                 case st is
                     when ST_BOOT_WAIT =>    -- count down timer after a reset - 10000 cycles
+                        DRAM_CKE <= '0';                                        -- keep CKE low during power-up initialization
                         if timer > 0 then 
                             timer   <= timer - 1;
                         else 
@@ -265,6 +267,7 @@ architecture rtl of SDRAM is
                             else 
                                 dq_out <= wdata;                                    -- set DQ to write data
                                 dq_oe  <= '1';                                      -- enable output (data setup phase)
+                                timer  <= 0;                                        -- timer will be preloaded to tWR_CYC in ST_WDATA
                                 st     <= ST_WDATA;                                 -- wait one cycle for data to stabilize, then issue write command
                             end if;
                         end if;
@@ -287,15 +290,14 @@ architecture rtl of SDRAM is
                         else
                             RDATA  <= DRAM_DQ;                                      -- set data from DRAM
                             RVALID <= '1';                                          -- set the rvalid flag for one cycle
-                            timer  <= timer - 1;
                             st     <= ST_IDLE;                                      -- return to IDLE
                         end if;
 
                     when ST_WREC =>                                                 -- delay for writing, then back to IDLE
-                        dq_oe <= '0';                                               -- data has been latched to memory, switch dq_oe
                         if timer > 0 then 
-                            timer <= timer - 1; 
+                            timer <= timer - 1;                                     -- wait for write recovery time
                         else 
+                            dq_oe <= '0';                                           -- release bus after tWR is satisfied
                             st    <= ST_IDLE;                                       -- return to IDLE
                         end if;
 
