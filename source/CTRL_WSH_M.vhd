@@ -200,78 +200,44 @@ begin
                             -- fetch constant from memory at now incremented PC
                             if WBS_ACK_I = '0' then             -- confirm that acknowledgement is clear
                                 WBS_STB_O <= '1';                   -- strobe to indicate valid address and start memory read
-                                st_main <= ST_EXECUTE;
-                                -- st_main <= ST_FETCH_C_WAIT;         -- go to wait for constant (may take more than one clock cycle for non-RAM)
+                                st_main <= ST_FETCH_C_WAIT;         -- go to wait for constant (may take more than one clock cycle for non-RAM)
                             else
                                 st_main <= ST_FETCH_C;              -- keep waiting until ready
                             end if;
-
-                        when ST_EXECUTE =>
-                            if (INST_REG(10) = '1' and WBS_ACK_I = '1') OR INST_REG(10) = '0' then  -- wait for ACK if coming from ST_FETCH_C, otherwise just continue
-                                if INST_REG(10) = '1' then                                          -- if coming from ST_FETCH_C, deassert strobe and latch CONSTANT
-                                    WBS_STB_O <= '0';               -- deassert strobe - end read phase
-                                    CONST_reg <= WBS_DATA_I;        -- latch constant - this may drive ALU_OUT, so maybe we do need to wait a tick?
-                                end if;
-                                -- continue execute phase
-                                if INST_reg(9 downto 7) = "101" OR INST_reg(9 downto 6) = "1111" then     -- operation requires memory read or write or segment write (LD or ST commands, STS but not LDS)
-                                    WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for STS, but doesn't matter to set it)
-                                    st_main <= ST_EXECUTE_RW;                       -- go to execute_rw state
-                                else                                                -- other instructions - do not need to read or write to memory
-                                    if ((INST_reg(9) = '1') AND                     -- check to see if the branch should be taken (formerly JT = 1)
-                                            ((INST_reg(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
-                                            (INST_reg(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
-                                            (INST_reg(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
-
-                                                PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
-                                                WBS_ADDR_O <= ALU_OUT;      -- set address of next instruction to ALU_OUT
-                                    else
-                                                PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
-                                                WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
-                                    end if;
-                                    
-                                    WERF_sig <= '1';        -- write to register on next clock
-
-                                    WBS_CYC_O <= '0';       -- end wishbone cycle
-                                    st_main <= ST_FETCH_I;  -- go back to fetch next instruction, no wishbone read/write phase needed
-                                end if;
+ 
+                        when ST_FETCH_C_WAIT => -- TODO: might be able to put execute code right here, change this state to execute, and save a cycle!
+                            -- wait for memory to return constant
+                            if WBS_ACK_I = '1' then             -- wait for ack indicating memory read is valid
+                                WBS_STB_O <= '0';                   -- deassert strobe - end read phase
+                                CONST_reg <= WBS_DATA_I;            -- latch constant (TODO: skip this step if INST_reg(10) = '0')
+                                st_main <= ST_EXECUTE;              -- proceed to execute instruction (TODO: insert execute code here)
                             else
-                                st_main <= ST_EXECUTE;      -- wait until ack received
+                                st_main <= ST_FETCH_C_WAIT;     -- wait until ack received
                             end if;
 
- 
-                        -- when ST_FETCH_C_WAIT => -- TODO: might be able to put execute code right here, change this state to execute, and save a cycle!
-                        --     -- wait for memory to return constant
-                        --     if WBS_ACK_I = '1' then             -- wait for ack indicating memory read is valid
-                        --         WBS_STB_O <= '0';                   -- deassert strobe - end read phase
-                        --         CONST_reg <= WBS_DATA_I;            -- latch constant (TODO: skip this step if INST_reg(10) = '0')
-                        --         st_main <= ST_EXECUTE;              -- proceed to execute instruction (TODO: insert execute code here)
-                        --     else
-                        --         st_main <= ST_FETCH_C_WAIT;     -- wait until ack received
-                        --     end if;
+                        when ST_EXECUTE =>
+                            -- execute instruction
+                            if INST_reg(9 downto 7) = "101" OR INST_reg(9 downto 6) = "1111" then     -- operation requires memory read or write or segment write (LD or ST commands, STS but not LDS)
+                                WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for STS, but doesn't matter to set it)
+                                st_main <= ST_EXECUTE_RW;                       -- go to execute_rw state
+                            else                                                -- other instructions - do not need to read or write to memory
+                                if ((INST_reg(9) = '1') AND                     -- check to see if the branch should be taken (formerly JT = 1)
+                                        ((INST_reg(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
+                                        (INST_reg(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
+                                        (INST_reg(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
 
-                        -- when ST_EXECUTE =>
-                        --     -- execute instruction
-                        --     if INST_reg(9 downto 7) = "101" OR INST_reg(9 downto 6) = "1111" then     -- operation requires memory read or write or segment write (LD or ST commands, STS but not LDS)
-                        --         WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for STS, but doesn't matter to set it)
-                        --         st_main <= ST_EXECUTE_RW;                       -- go to execute_rw state
-                        --     else                                                -- other instructions - do not need to read or write to memory
-                        --         if ((INST_reg(9) = '1') AND                     -- check to see if the branch should be taken (formerly JT = 1)
-                        --                 ((INST_reg(8 downto 6) = "000") OR                    -- unconditional jump (JMP)
-                        --                 (INST_reg(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
-                        --                 (INST_reg(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
-
-                        --                     PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
-                        --                     WBS_ADDR_O <= ALU_OUT;      -- set address of next instruction to ALU_OUT
-                        --         else
-                        --                     PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
-                        --                     WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
-                        --         end if;
+                                            PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
+                                            WBS_ADDR_O <= ALU_OUT;      -- set address of next instruction to ALU_OUT
+                                else
+                                            PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
+                                            WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
+                                end if;
                                 
-                        --         WERF_sig <= '1';        -- write to register on next clock
+                                WERF_sig <= '1';        -- write to register on next clock if not a STS instruction
 
-                        --         WBS_CYC_O <= '0';           -- end wishbone cycle
-                        --         st_main <= ST_FETCH_I;      -- go back to fetch next instruction, no wishbone read/write phase needed
-                        --     end if;
+                                WBS_CYC_O <= '0';           -- end wishbone cycle
+                                st_main <= ST_FETCH_I;      -- go back to fetch next instruction, no wishbone read/write phase needed
+                            end if;
 
                         when ST_EXECUTE_RW =>
                             -- execute instruction with memory read or write phase
