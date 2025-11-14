@@ -40,7 +40,7 @@ architecture behavioral of uart_flash_loader is
         WAIT_START, ACK_UPLOAD, ACK_ERASE,
         HDR_0, HDR_1, HDR_2, HDR_3, HDR_4,
         LOAD_L, LOAD_H,
-        ERASE_FLASH, WAIT_ERASE,
+        GET_SECTOR, ERASE_FLASH, WAIT_ERASE,
         WRITE_FLASH, WAIT_FLASH,
         NEXT_ADDRESS,
         ACK_DONE
@@ -112,10 +112,10 @@ begin
                         if TX_BUSY = '0' then
                             TX_DATA <= C_BANG;
                             TX_LOAD <= '1';                                 -- strobe load signal (TX_DATA set above)
-                            p_state <= ERASE_FLASH;                         -- start erase
+                            p_state <= GET_SECTOR;                          -- start erase
                         end if;
 
-    --  HDR_x: Read the 6 byte header (address, length) - address is byte address (22 bits), but low bit is ignored
+    --  HDR_x: Read the 5 byte header (address, length) - address is byte address (22 bits), but low bit is ignored
                     when HDR_0 =>
                         if RX_READY = '1' then                              -- wait for RX_ready to get high byte of address
                             address(20 downto 15) <= RX_DATA(5 downto 0);   -- store top 6 bits of byte address/2 = word address
@@ -183,6 +183,13 @@ begin
                            p_state <= LOAD_H;                               -- otherwise, fetch next word
                     end if;
 
+    -- GET_SECTOR: get sector to erase
+                    when GET_SECTOR =>
+                        if RX_READY = '1' then                              -- wait for RX_ready to get the 6 bit sector to erase
+                            address(20 downto 15) <= RX_DATA(5 downto 0);   -- store top 6 bits of byte address/2 = word address
+                            p_state <= ERASE_FLASH;                         -- move to next header read state
+                        end if;
+
     -- ERASE_FLASH: send the command to erase the entire flash card
                     when ERASE_FLASH =>
                         if FLASH_RDY = '1' then
@@ -191,7 +198,7 @@ begin
 
     -- WAIT_ERASE: wait for flash to be ready after it erases the chip - increment counter so ACTIVITY light flashes at 1 Hz
                     when WAIT_ERASE =>
-                        act_flasher <= activity_flasher + 1;                -- increment activity counter, > 25_000_000 == ACTIVITY on
+                        act_flasher <= act_flasher + 1;                -- increment activity counter, > 25_000_000 == ACTIVITY on
 
                         if act_flasher = 50_000_000 then
                             act_flasher <= 0;                               -- reset activity flasher at 50_000_000

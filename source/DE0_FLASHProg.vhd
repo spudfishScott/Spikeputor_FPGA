@@ -102,7 +102,7 @@ begin
         SEGS0 => HEX0_D
     );
     
-    LEDG(7 downto 2) <= flash_address(21 downto 16) -- leds 7 to 2 show top 6 bits of address
+    LEDG(7 downto 2) <= flash_address(21 downto 16); -- leds 7 to 2 show top 6 bits of address
 
     -- Flash Controller
     flash_ctrl: entity work.FLASH_RAM
