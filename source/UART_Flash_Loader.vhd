@@ -69,8 +69,8 @@ begin
 
     -- ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE)
     --     else ("0" & SECTOR_ADDR & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
-    ADDR_OUT  <= ("0" & address(20 downto 15) & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE AND address(20 downto 15) /= "000000")
-            else "0000000111000000000000" when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE AND address(20 downto 15) = "000000")
+    ADDR_OUT  <= ("0" & address(20 downto 15) & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE) AND address(20 downto 15) /= "000000"
+            else "0000000111000000000000" when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE) AND address(20 downto 15) = "000000"
             else ("0" & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
 
     -- wire DATA_OUT, WR_OUT and ERASE_OUT connections
