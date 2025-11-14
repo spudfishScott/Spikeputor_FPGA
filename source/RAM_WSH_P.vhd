@@ -87,7 +87,7 @@ begin
     WBS_DATA_O  <= wbs_data32K when WBS_ADDR_I(15) = '0' else               -- 32K block for addresses 0x0000-0x7FFF
                    wbs_data16K when WBS_ADDR_I(15 downto 14) = "10" else    -- 16K block for addresses 0x8000-0xBFFF
                    wbs_data8K  when WBS_ADDR_I(15 downto 13) = "110" else   -- 8K block  for addresses 0xC000-0xDFFF
-                   zero16;                                                  -- return zero for addresses 0xE000-0xFFFF
+                   zero16;                                                  -- return zero for addresses 0xE000-0xFFFF (will not get here - comparitor routes to ROM for 0xE000-0xFFFF)
 
     -- internal address select and write enable logic
     we_32K <= WBS_WE_I when WBS_ADDR_I(15) = '0' else '0';                  -- only write to 32K block when address is in range 0x0000-0x7FFF

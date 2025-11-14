@@ -53,8 +53,8 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
-    -- constant SEGMENT   : std_logic_vector(7 downto 0) := "00000000"; -- TODO: change this, try a LDS command, then implement STS command, then turn this into a wishbone provider for SEGMENT register
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
+
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
     signal cpu_stb     : std_logic := '0';
@@ -287,7 +287,7 @@ begin
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- RAM Instance as Wishbone provider (P0)
-    RAM : entity work.RAMTest_WSH_P 
+    RAM : entity work.RAM_WSH_P 
         port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
             -- SYSCON inputs
             CLK         => CLOCK_50,

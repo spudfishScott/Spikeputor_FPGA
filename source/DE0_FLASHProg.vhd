@@ -95,7 +95,7 @@ begin
 
     -- Word to 7 Segment Output
     SEGSOUT : entity work.WORDTO7SEGS port map (
-        WORD  => flash_address(15 downto 0),   -- display the current 15 bit address
+        WORD  => flash_address(14 downto 0) & "0",   -- display the current 16 bit (byte) address
         SEGS3 => HEX3_D,
         SEGS2 => HEX2_D,
         SEGS1 => HEX1_D,

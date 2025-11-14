@@ -135,7 +135,9 @@ begin
     reg_w_disp <= reg_w_addr when rbsel_out = '0' else (others => '0'); -- display register write unless rbsel is 1
 
      -- Control Logic Instance
-    CTRL : entity work.CTRL_WSH_M port map (
+    CTRL : entity work.CTRL_WSH_M
+    generic map ( RESET_VECTOR => x"F000" )     -- set reset vector to ROM
+    port map (
         -- SYSCON inputs
         CLK         => CLK,
         RST_I       => RESET,
