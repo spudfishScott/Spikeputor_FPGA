@@ -55,9 +55,9 @@ architecture rtl of DE0_FLASHProg is
 begin
     -- UART Flash Loader
     uart_loader: entity work.uart_flash_loader
-        generic map (
-            SECTOR_ADDR => "000001"     -- 000001 is the first 64 KB sector
-        )
+        -- generic map (
+        --     SECTOR_ADDR => "000001"     -- 000001 is the first 64 KB sector
+        -- )
         port map (
             CLK        => CLOCK_50,       -- System clock (50 MHz)
             RST        => NOT BUTTON(0),  -- Reset on button press
@@ -95,12 +95,14 @@ begin
 
     -- Word to 7 Segment Output
     SEGSOUT : entity work.WORDTO7SEGS port map (
-        WORD  => flash_address(15 downto 0),   -- display the current address
+        WORD  => flash_address(15 downto 0),   -- display the current 15 bit address
         SEGS3 => HEX3_D,
         SEGS2 => HEX2_D,
         SEGS1 => HEX1_D,
         SEGS0 => HEX0_D
     );
+    
+    LEDG(7 downto 2) <= flash_address(21 downto 16) -- leds 7 to 2 show top 6 bits of address
 
     -- Flash Controller
     flash_ctrl: entity work.FLASH_RAM
@@ -135,6 +137,6 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-    LEDG(2) <= not BUTTON(0); -- show reset button being pushed
-    LEDG(7 downto 3) <= (others => '0');
+   -- LEDG(2) <= not BUTTON(0); -- show reset button being pushed
+  --  LEDG(7 downto 3) <= (others => '0');
 end rtl;

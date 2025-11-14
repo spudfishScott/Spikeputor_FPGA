@@ -205,12 +205,12 @@ begin
                                 st_main <= ST_FETCH_C;              -- keep waiting until ready
                             end if;
  
-                        when ST_FETCH_C_WAIT => -- TODO: might be able to put execute code right here, change this state to execute, and save a cycle!
+                        when ST_FETCH_C_WAIT =>
                             -- wait for memory to return constant
                             if WBS_ACK_I = '1' then             -- wait for ack indicating memory read is valid
                                 WBS_STB_O <= '0';                   -- deassert strobe - end read phase
-                                CONST_reg <= WBS_DATA_I;            -- latch constant (TODO: skip this step if INST_reg(10) = '0')
-                                st_main <= ST_EXECUTE;              -- proceed to execute instruction (TODO: insert execute code here)
+                                CONST_reg <= WBS_DATA_I;            -- latch constant
+                                st_main <= ST_EXECUTE;              -- proceed to execute instruction
                             else
                                 st_main <= ST_FETCH_C_WAIT;     -- wait until ack received
                             end if;

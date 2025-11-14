@@ -1,5 +1,5 @@
 -- ###########################################################################
--- INITIAL code from ChatGPT, then modified and corrected
+-- INITIAL code from ChatGPT, then considerably modified and corrected
 -- SDR SDRAM MINIMAL CONTROLLER @ 50 MHz (tCK = 20 ns)
 -- Target: Zentel A3V6S40ETP-66 (4M x 16 x 4 banks), closed-page, BL=1, CL=2
 -- Board: Terasic DE0 (Cyclone III).
@@ -281,18 +281,6 @@ architecture rtl of SDRAM is
                                 VALID      <= '1';                                          -- set valid flag (see if you can get away with this)
                             end if;
                         end if;
-                                        
-                    -- when ST_WDATA =>                                                -- wait one cycle for write data to stabilize on bus
-                    --     -- WRITE with precharge command (issued after data setup)
-                    --     DRAM_CS_N  <= '0';
-                    --     DRAM_RAS_N <= '1';
-                    --     DRAM_CAS_N <= '0';
-                    --     DRAM_WE_N  <= '0';
-                    --     DRAM_BA_0  <= bank(0);
-                    --     DRAM_BA_1  <= bank(1);
-                    --     DRAM_ADDR  <= "0100" & col;                                 -- set column write with auto-precharge (A10 = '1')
-                    --     timer      <= tWR_CYC;                                      -- preload timer for write recovery delay
-                    --     st         <= ST_WREC;                                      -- proceed to write recovery delay
 
                     when ST_CASLAT =>                                               -- delay, then latch the DRAM output from the read
                         if timer > 0 then 

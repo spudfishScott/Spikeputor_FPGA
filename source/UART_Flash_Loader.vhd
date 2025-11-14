@@ -3,9 +3,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity uart_flash_loader is
-    generic (
-        SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000001" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
-    );
+    -- generic (
+    --     SECTOR_ADDR  : std_logic_vector(5 downto 0) := "000001" -- the 64KB sector is defined in ADDR[20:15] - default is sector 8 (1st 64KB sector)
+    -- );
     port (
         CLK        : in  std_logic;  -- assumes system clock (50 MHz)
         RST        : in  std_logic;
@@ -38,7 +38,7 @@ architecture behavioral of uart_flash_loader is
     -- include preliminary values for all to help with fitter getting stuck
     type proto_fsm is (
         WAIT_START, ACK_UPLOAD, ACK_ERASE,
-        HDR_0, HDR_1, HDR_2, HDR_3,
+        HDR_0, HDR_1, HDR_2, HDR_3, HDR_4,
         LOAD_L, LOAD_H,
         ERASE_FLASH, WAIT_ERASE,
         WRITE_FLASH, WAIT_FLASH,
@@ -47,7 +47,8 @@ architecture behavioral of uart_flash_loader is
     );
     signal p_state     : proto_fsm := WAIT_START;                           -- start in WAIT_START state
 
-    signal address     : std_logic_vector(14 downto 0) := (others => '0');  -- lower 15 bits of address to write to (as a word address)
+    -- signal address     : std_logic_vector(14 downto 0) := (others => '0');  -- lower 15 bits of address to write to (as a word address)
+    signal address     : std_logic_vector(20 downto 0) := (others => '0');  -- full 21 bit word address (A20-A0)
     signal write_len   : unsigned(16 downto 0) := (others => '0');          -- number of bytes to recieve (extra bit for xfer of 64 KBytes)
 
     signal bytes_seen  : unsigned(16 downto 0) := (others => '0');          -- number of bytes recieved so far (extra bit for xfer of 64 KBytes)
@@ -65,8 +66,11 @@ begin
     ---    ADDR[21] is always 0
     ---    full sector address is 0 & ADDR[20:15] & 00000000000000
     ---    full address is 0 & sector address & (byte address/2)
-    ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE)
-        else ("0" & SECTOR_ADDR & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
+
+    -- ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE)
+    --     else ("0" & SECTOR_ADDR & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
+    ADDR_OUT  <= ("0" & address(20 downto 15) & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE)
+        else ("0" & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
 
     -- wire DATA_OUT, WR_OUT and ERASE_OUT connections
     DATA_OUT  <= word_buf;                                                  -- set data to write
@@ -111,26 +115,32 @@ begin
                             p_state <= ERASE_FLASH;                         -- start erase
                         end if;
 
-    --  HDR_x: Read the 4 byte header (address, length) - address is byte address, but low bit is ignored
+    --  HDR_x: Read the 6 byte header (address, length) - address is byte address (22 bits), but low bit is ignored
                     when HDR_0 =>
                         if RX_READY = '1' then                              -- wait for RX_ready to get high byte of address
-                            address(14 downto 7) <= RX_DATA;                -- store high byte of byte address/2 = word address
+                            address(20 downto 15) <= RX_DATA(5 downto 0);   -- store top 6 bits of byte address/2 = word address
                             p_state <= HDR_1;                               -- move to next header read state
                         end if;
 
                     when HDR_1 =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get low byte of address
-                            address(6 downto 0) <= RX_DATA(7 downto 1);     -- store low byte of byte address/2 = word address
+                        if RX_READY = '1' then                              -- wait for RX_ready to get next byte of address
+                            address(14 downto 7) <= RX_DATA;                -- store next byte of byte address/2 = word address
                             p_state <= HDR_2;                               -- move to next header read state
                         end if;
 
                     when HDR_2 =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get high byte of length of data
-                            write_len(15 downto 8) <= unsigned(RX_DATA);    -- store high byte of length
+                        if RX_READY = '1' then                              -- wait for RX_ready to get low byte of address
+                            address(6 downto 0) <= RX_DATA(7 downto 1);     -- store low byte of byte address/2 = word address
                             p_state <= HDR_3;                               -- move to next header read state
                         end if;
 
                     when HDR_3 =>
+                        if RX_READY = '1' then                              -- wait for RX_ready to get high byte of length of data
+                            write_len(15 downto 8) <= unsigned(RX_DATA);    -- store high byte of length
+                            p_state <= HDR_4;                               -- move to next header read state
+                        end if;
+
+                    when HDR_4 =>
                         if RX_READY = '1' then                              -- wait for RX_ready to get low byte of length of data
                             write_len(7 downto 0) <= unsigned(RX_DATA);     -- store low byte of length
                             p_state <= LOAD_H;                              -- move to next state to load first word
