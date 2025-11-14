@@ -226,8 +226,8 @@ begin
                                         (INST_reg(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
                                         (INST_reg(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
 
-                                            PC_reg <= ALU_OUT;          -- set PC to address in ALU output to jump
-                                            WBS_ADDR_O <= ALU_OUT;      -- set address of next instruction to ALU_OUT
+                                            PC_reg <= (ALU_OUT AND X"FFFE");          -- set PC to address in ALU output to jump (without lsb)
+                                            WBS_ADDR_O <= (ALU_OUT AND X"FFFE");      -- set address of next instruction to ALU_OUT
                                 else
                                             PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                                             WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
