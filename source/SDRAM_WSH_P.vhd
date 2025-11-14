@@ -44,34 +44,35 @@ end SDRAM_WSH_P;
 
 architecture rtl of SDRAM_WSH_P is
     signal c_req    : std_logic := '0';
-    signal c_we     : std_logic := '0';
     signal c_busy   : std_logic := '0';
-    signal c_rvalid : std_logic := '0';
+    signal c_valid : std_logic := '0';
+
+    signal c_we     : std_logic := '0';
     signal c_addr   : std_logic_vector(21 downto 0) := (others=>'0');
     signal c_wdata  : std_logic_vector(15 downto 0) := (others=>'0');
-    signal c_rdata  : std_logic_vector(15 downto 0);
+    signal c_rdata  : std_logic_vector(15 downto 0) := (others=>'0');
 
-    type st_t is (IDLE, ISSUE, WAIT_RD, WAIT_WR, WAIT_BUSY);
+    type st_t is (IDLE, ISSUE, WAIT_VALID, CLEAR);
     signal st    : st_t := IDLE;
     signal ack   : std_logic := '0';
     signal dat_r : std_logic_vector(15 downto 0) := (others=>'0');
 
+    signal reset_n : std_logic;
+
 begin
-    WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;
-    WBS_DATA_O     <= dat_r;
 
     SDRAM_core : entity work.SDRAM
     port map (
         -- Control signals
         CLK          => CLK,
-        RST_N        => not RST_I,
+        RST_N        => reset_n,
         REQ          => c_req,
         WE           => c_we,
         ADDR         => c_addr,
         WDATA        => c_wdata,
         BUSY         => c_busy,
         RDATA        => c_rdata,
-        RVALID       => c_rvalid,
+        VALID        => c_valid,
 
         -- DRAM pins - passthrough
         DRAM_CLK     => DRAM_CLK,
@@ -88,59 +89,67 @@ begin
         DRAM_LDQM    => DRAM_LDQM
     );
 
+    -- output to Wishbone interface
+    WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;
+    WBS_DATA_O     <= dat_r;
+    c_wdata        <= WBS_DATA_I;               -- data to write comes directly from Wishbone input
+    c_addr         <= WBS_ADDR_I(22 downto 1);  -- word-addressed, ignore msb (ROM/RAM selector) and lsb (byte offset)
+    reset_n        <= not RST_I;
+
     process(CLK) is 
     begin
 
         if rising_edge(CLK) then
-            c_req <= '0';   -- default req and ack are 0 each clock cycle
-            ack   <= '0';
-
-            if RST_I = '1' then -- return to IDLE state and clear output on reset
-                st    <= IDLE; 
+            if RST_I = '1' then -- return to IDLE state and clear output and control signals on reset
+                ack <= '0';
+                c_req <= '0';
                 dat_r <= (others=>'0');
+                st    <= IDLE; 
             else
                 case st is
                     when IDLE =>
-                        if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested - set address, we, and data (if write)
-                            c_addr  <= WBS_ADDR_I(22 downto 1);     -- word-addressed, ignore msb (ROM/RAM selector) and lsb (byte offset)
-                            c_we    <= WBS_WE_I;
-                            c_wdata <= WBS_DATA_I;
-                            st      <= ISSUE;                       -- proceed to ISSUE state, otherwise stay in IDLE state
+                        if (WBS_CYC_I ='1' AND WBS_STB_I = '1' AND c_busy = '0') then    -- new transaction requested - begin only if SDRAM controller is ready
+                            c_we    <= WBS_WE_I;                    -- set write enable
+                            c_req   <= '1';                         -- set request
+                            st      <= WAIT_VALID;                  -- go to WAIT state, wait for valid result from RAM controller
+                        else
+                            st      <= IDLE;                       -- stay in IDLE state
                         end if;
 
-                    when ISSUE =>
-                        if c_busy = '0' then    -- only act if SDRAM controller ready for new request, otherwise stay in ISSUE state
-                            c_req <= '1';   -- assert request
-                            if WBS_WE_I = '1' then
-                                st <= WAIT_BUSY;  -- wait for write to start (c_busy goes high), then complete
+                    when WAIT_VALID =>             -- wait for READ to complete (read data is valid)
+                        c_req <= '0';           -- clear request signal
+                        if (c_valid = '1' AND c_req = '0') then
+                            dat_r <= c_rdata;   -- latch in read data
+                            ack   <= '1';       -- assert ack signal
+                            st    <= CLEAR;     -- done, clear ack signal when wishbone transaction ends, then go back to IDLE state
+                        else
+                            if (WBS_CYC_I = '0' OR WBS_STB_I = '0') then -- if master deasserts CYC or STB, abort read
+                                ack <= '0';         -- clear ack signal
+                                st  <= IDLE;        -- go back to IDLE state
                             else
-                                st <= WAIT_RD;  -- wait for read data to be valid (c_rvalid = '1') 
+                                st <= WAIT_VALID;  -- stay in wait state until data is valid
                             end if;
                         end if;
 
-                    when WAIT_RD =>             -- wait for READ to complete (read data is valid)
-                        if c_rvalid = '1' then
-                            dat_r <= c_rdata;   -- latch in read data
-                            ack   <= '1';       -- assert ack signal
-                            st    <= IDLE;      -- go back to IDLE state
-                        end if;                 -- stay in WAIT_RD until data is valid
-
-                    when WAIT_BUSY =>           -- wait for write: first c_busy goes high, then low
-                        if c_busy = '1' then
-                            st <= WAIT_WR;      -- write has started, now wait for it to complete
+                    when CLEAR =>
+                        if (WBS_CYC_I = '0' OR WBS_STB_I = '0') then -- wait until master deasserts CYC or STB
+                            ack <= '0';             -- clear ack signal
+                            st  <= IDLE;            -- go back to IDLE state
+                        else
+                            st <= CLEAR;            -- stay here until master deasserts CYC or STB
                         end if;
 
-                    when WAIT_WR =>
-                        if c_busy = '0' then    -- wait for WRITE to complete (controller returns to idle)
-                            ack <= '1';         -- assert ack signal 
-                            st  <= IDLE;        -- go back to IDLE state
-                        end if;                 -- stay in WAIT_WR until write is done
-
                     when others =>
-                        st <= IDLE;             -- should never happen, go to IDLE
+                        ack <= '0';
+                        st <= IDLE;         -- should never happen, go to IDLE
                 end case;
+
+                if (WBS_CYC_I = '0') then   -- Break cycle if master deasserts CYC
+                    ack <= '0';
+                    st <= IDLE;
+                end if;
+
             end if;
         end if;
   end process;
-
-end architecture;
+end rtl;

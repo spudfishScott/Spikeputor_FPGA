@@ -85,8 +85,8 @@ begin
         if (rising_edge(CLK)) then
             if (RST_I = '1') then   -- synchronous RESET - clear state machine and ACK and Data
                 wbs_ack  <= '0';
-                wbs_data <= (others => '0');
                 flash_read <= '0';
+                wbs_data <= (others => '0');
                 flash_addr <= (others => '0');
                 st_main  <= ST_IDLE;
             else

@@ -186,9 +186,9 @@ begin
                                 INST_reg <= WBS_DATA_I;         -- latch instruction
 
                                 if WBS_DATA_I(10) = '1' then    -- instruction bit 10 indicates if there is a constant to fetch
-                                        st_main <= ST_FETCH_C;          -- instruction has constant - go to fetch constant state
-                                        PC_reg <= PC_INC_calc;          -- increment PC for constant
-                                        WBS_ADDR_O <= PC_INC_calc;      -- set address of constant
+                                    st_main <= ST_FETCH_C;          -- instruction has constant - go to fetch constant state
+                                    PC_reg <= PC_INC_calc;          -- increment PC for constant
+                                    WBS_ADDR_O <= PC_INC_calc;      -- set address of constant
                                 else
                                     st_main <= ST_EXECUTE;           -- no constant for this opcode, so execute directly (keeping PC unchanged)
                                 end if;
@@ -204,13 +204,13 @@ begin
                             else
                                 st_main <= ST_FETCH_C;              -- keep waiting until ready
                             end if;
-
-                        when ST_FETCH_C_WAIT =>
+ 
+                        when ST_FETCH_C_WAIT => -- TODO: might be able to put execute code right here, change this state to execute, and save a cycle!
                             -- wait for memory to return constant
                             if WBS_ACK_I = '1' then             -- wait for ack indicating memory read is valid
                                 WBS_STB_O <= '0';                   -- deassert strobe - end read phase
-                                CONST_reg <= WBS_DATA_I;            -- latch constant
-                                st_main <= ST_EXECUTE;              -- proceed to execute instruction
+                                CONST_reg <= WBS_DATA_I;            -- latch constant (TODO: skip this step if INST_reg(10) = '0')
+                                st_main <= ST_EXECUTE;              -- proceed to execute instruction (TODO: insert execute code here)
                             else
                                 st_main <= ST_FETCH_C_WAIT;     -- wait until ack received
                             end if;

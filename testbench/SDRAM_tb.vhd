@@ -18,7 +18,7 @@ architecture sim of SDRAM_tb is
 
     signal BUSY   : std_logic;
     signal RDATA  : std_logic_vector(15 downto 0);
-    signal RVALID : std_logic;
+    signal VALID : std_logic;
 
     -- SDRAM pins (connect to controller under test)
     signal DRAM_CLK   : std_logic;
@@ -60,7 +60,7 @@ begin
 
             BUSY     => BUSY,
             RDATA    => RDATA,
-            RVALID   => RVALID,
+            VALID    => VALID,
 
             DRAM_CLK  => DRAM_CLK,
             DRAM_CKE  => DRAM_CKE,
@@ -111,7 +111,7 @@ begin
             if next_read_pending = 1 and read_pending > 0 then
                 DRAM_DQ <= read_data_out;
             else
-                DRAM_DQ <= (others => 'Z');
+   --             DRAM_DQ <= (others => 'Z');
             end if;
 
             -- Decrement pending read timer
@@ -165,7 +165,7 @@ begin
         wait until BUSY = '0';
         wait for 100 ns;
 
-        -- Write transaction at address 0x000100
+        -- First WRITE transaction at address 0x000100
         -- Setup phase: set address/data/control one cycle before REQ (proper Wishbone timing)
         ADDR <= std_logic_vector(to_unsigned(16#000100#, 22));
         WDATA <= x"ABCD";
@@ -176,11 +176,28 @@ begin
         REQ <= '1';
         wait for SYS_PERIOD_NS;  -- pulse REQ for one cycle
         REQ <= '0';
-        wait until BUSY = '0'; -- wait for write operation to complete
-        WE  <= '0';
-        wait for 200 ns;
+        wait until VALID = '1'; -- wait for write operation to complete
+        wait for 100 ns;
+        
+        report "First write complete";
 
-        -- Read transaction from same address
+        -- Second WRITE transaction at address 0x000200 (different address)
+        -- Setup phase: set address/data/control one cycle before REQ
+        ADDR <= std_logic_vector(to_unsigned(16#000200#, 22));
+        WDATA <= x"1234";
+        WE <= '1';
+        wait for SYS_PERIOD_NS;  -- allow setup time
+        
+        -- Assert REQ to initiate transaction
+        REQ <= '1';
+        wait for SYS_PERIOD_NS;  -- pulse REQ for one cycle
+        REQ <= '0';
+        wait until VALID = '1'; -- wait for write operation to complete
+        wait for 100 ns;
+        
+        report "Second write complete";
+
+        -- Read transaction from first address (0x000100)
         -- Setup phase: set address/control one cycle before REQ (proper Wishbone timing)
         ADDR <= std_logic_vector(to_unsigned(16#000100#, 22));
         WE <= '0';
@@ -191,9 +208,25 @@ begin
         wait for SYS_PERIOD_NS;  -- pulse REQ for one cycle
         REQ <= '0';
 
-    -- wait for rvalid
-    wait until RVALID = '1';
-    report "Read data (decimal) = " & integer'image(to_integer(unsigned(RDATA)));
+        -- wait for valid
+        wait until VALID = '1';
+        report "Read data from 0x000100 (should be 0xABCD, decimal) = " & integer'image(to_integer(unsigned(RDATA)));
+        wait for 100 ns;
+
+        -- Read transaction from second address (0x000200)
+        -- Setup phase: set address/control one cycle before REQ
+        ADDR <= std_logic_vector(to_unsigned(16#000200#, 22));
+        WE <= '0';
+        wait for SYS_PERIOD_NS;  -- allow setup time
+        
+        -- Assert REQ to initiate transaction
+        REQ <= '1';
+        wait for SYS_PERIOD_NS;  -- pulse REQ for one cycle
+        REQ <= '0';
+
+        -- wait for valid
+        wait until VALID = '1';
+        report "Read data from 0x000200 (should be 0x1234, decimal) = " & integer'image(to_integer(unsigned(RDATA)));
 
         wait for 1 us;
         report "End of test.";
