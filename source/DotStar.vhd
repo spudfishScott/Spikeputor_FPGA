@@ -20,7 +20,7 @@ entity dotstar_driver is
         INST         : in std_logic_vector(15 downto 0);  -- Instruction                                                              4
         
         ALU_OUT      : in std_logic_vector(15 downto 0);  -- ALU Output                                                               5
-        ALU_CMP      : in std_logic_vector(5 downto 0);   -- CMP function (2 bits), Z, V, N, Result, CMP Selected                     6
+        ALU_CMP      : in std_logic_vector(6 downto 0);   -- CMP function (2 bits), Z, V, N, Result, CMP Selected                     6
         ALU_SHIFT    : in std_logic_vector(18 downto 0);  -- SHIFT dir, SHIFT extend, Result (16 bits), SHIFT selected                7
         ALU_BOOL     : in std_logic_vector(20 downto 0);  -- BOOL truth table (4 bits), Result (16 bits), BOOL selected               8
         ALU_ARITH    : in std_logic_vector(17 downto 0);  -- ARITH subtract flag, Result (16 bits), ARITH selected                    9

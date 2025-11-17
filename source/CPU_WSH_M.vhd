@@ -53,7 +53,7 @@ end CPU_WSH_M;
 architecture Behavioral of CPU_WSH_M is
     -- Register File control signals
     signal werf_out  : std_logic := '0';
-    signal wseg_out  : std_logic = '0';
+    signal wseg_out  : std_logic := '0';
     signal rbsel_out : std_logic := '0';
     signal wdsel_out : std_logic_vector(1 downto 0) := (others => '0');
     signal opa_out   : std_logic_vector(2 downto 0) := (others => '0');
@@ -65,7 +65,7 @@ architecture Behavioral of CPU_WSH_M is
     signal inst_out   : std_logic_vector(15 downto 0) := (others => '0');
     signal pcinc_out  : std_logic_vector(15 downto 0) := (others => '0');
     signal mrdata_out : std_logic_vector(15 downto 0) := (others => '0');
-    signal rwaddr_out : std_logic_vector(16 downto 0) := (others => '0');
+    signal rwaddr_out : std_logic_vector(15 downto 0) := (others => '0');
 
     -- ALU control signals
     signal alufn_out : std_logic_vector(4 downto 0) := (others => '0');
@@ -173,7 +173,7 @@ begin
         RWADDR      => rwaddr_out,              -- address of memory r/w for display only
         -- Control signals from Control Logic to other modules
         WERF        => werf_out,                -- WERF output to REG_FILE
-        WSEG        => wseg_out                 -- WSEG output to SEGMENT register
+        WSEG        => wseg_out,                -- WSEG output to SEGMENT register
         RBSEL       => rbsel_out,               -- RBSEL output to REG_FILE
         WDSEL       => wdsel_out,               -- WDSEL output to REG_FILE
         OPA         => opa_out,                 -- OPA output to REG_FILE
