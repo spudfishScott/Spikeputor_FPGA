@@ -78,10 +78,12 @@ entity CTRL_WSH_M is
         PC      : out std_logic_vector(15 downto 0);                      -- program counter
         PC_INC  : out std_logic_vector(15 downto 0);                      -- incremented program counter
         MRDATA  : out std_logic_vector(15 downto 0);                      -- memory read data
+        RWADDR  : out std_logic_vector(15 downto 0);                      -- address of memory read or write - for display only
 
             -- Control signals from Control Logic to RegFile
         WERF    : out std_logic;                                          -- Write Enable Register File - '1' to write to register file
         RBSEL   : out std_logic;                                          -- Register Channel B Select - '0' for OPB, '1' for OPC
+        WSEG    : out std_logic;                                          -- Write Segment signal
         WDSEL   : out std_logic_vector(1 downto 0);                       -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data, "11" for Segment Register
         OPA     : out std_logic_vector(2 downto 0);                       -- Register Operand A
         OPB     : out std_logic_vector(2 downto 0);                       -- Register Operand B
@@ -108,6 +110,7 @@ architecture rtl of CTRL_WSH_M is
     signal PC_reg      : std_logic_vector(15 downto 0) := (others => '0');   -- program counter
     signal PC_INC_calc : std_logic_vector(15 downto 0) := (others => '0');   -- incremented program counter
     signal prev_PC     : std_logic_vector(15 downto 0) := (others => '0');   -- program counter for display - the address of the instruction about to execute
+    signal MEMRW_reg   : std_logic_vector(15 downto 0) := (others => '0');   -- register to hold address of memory read/write operation
     signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- MRDATA register (for display)
 
     signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
@@ -125,7 +128,9 @@ begin
 
     -- Control Signal Logic
     MRDATA      <= MRDATA_reg;
+    RWADDR      <= MEMRW_reg;
     RBSEL       <= '1' when INST_reg(9) = '1' AND INST_REG(7 downto 6) = "11" else '0'; -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST, STC and STS instructions, else '0'
+    WSEG        <= '1' when  (INST_reg(9 downto 6) = "1111") else '0';      -- WSEG = 1 when writing to SEGMENT register, 0 otherwise
     WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command)
     WDSEL       <=  "11" when (INST_reg(9 downto 6) = "1110") else          -- Write Data Select:   use SEGMENT as Register Input for LDS instruction
                     "10" when (INST_reg(9 downto 6) = "1010") else                          --      use Memory Read Data as Register Input for LD instruction
@@ -157,6 +162,7 @@ begin
                 prev_PC    <= RESET_VECTOR;        -- set display PC pipeline to reset vector
                 WERF_sig   <= '0';                 -- do not write to registers during reset
                 MRDATA_reg <= (others => '0');     -- clear MRDATA registere
+                MEMRW_reg  <= (others => '0');     -- clear memory r/w address
 
                  -- clear wishbone signals
                 WBS_CYC_O  <= '0';                 -- clear wishbone handshake signals
@@ -219,6 +225,7 @@ begin
                             -- execute instruction
                             if INST_reg(9 downto 7) = "101" OR INST_reg(9 downto 6) = "1111" then     -- operation requires memory read or write or segment write (LD or ST commands, STS but not LDS)
                                 WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for STS, but doesn't matter to set it)
+                                MEMRW_reg  <= ALU_OUT;                          -- store address in a register for display
                                 st_main <= ST_EXECUTE_RW;                       -- go to execute_rw state
                             else                                                -- other instructions - do not need to read or write to memory
                                 if ((INST_reg(9) = '1') AND                     -- check to see if the branch should be taken (formerly JT = 1)

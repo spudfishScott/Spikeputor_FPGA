@@ -68,9 +68,11 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_gnt_sig : std_logic := '0';
 
     -- CPU display signals
+    signal wseg_out    : std_logic;
     signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');
     signal const_out   : std_logic_vector(15 downto 0) := (others => '0');
     signal mdata_out   : std_logic_vector(16 downto 0) := (others => '0');
+    signal rwaddr_out  : std_logic_vector(15 downto 0) := (others => '0');
     signal pc_out      : std_logic_vector(16 downto 0) := (others => '0');
     signal alu_out     : std_logic_vector(15 downto 0) := (others => '0');
     signal alu_cmp_out : std_logic_vector(6 downto 0) := (others => '0');
@@ -244,9 +246,11 @@ begin
             M_TGD_O         => cpu_tgd,                       -- Wishbone user data tag to write to SEGMENT register or to a normal memory address
 
             -- Direct Display Values
+            WSEG_DISP       => wseg_out,
             INST_DISP       => inst_out,
             CONST_DISP      => const_out,
             MDATA_DISP      => mdata_out,
+            RWADDR_DISP     => rwaddr_out,
             PC_DISP         => pc_out,
             ALU_DISP        => alu_out,
             ALU_CMP_DISP    => alu_cmp_out,
@@ -350,7 +354,7 @@ begin
             WBS_WE_I    => arb_we,
             WBS_DATA_O  => data9,
 
-            SEGMENT     => SEGMENT             -- output of SEGMENT provider is a driect connection to the rest of the computer (not on the data bus)
+            SEGMENT     => SEGMENT             -- output of SEGMENT provider is a direct connection to the rest of the computer (not on the data bus)
         );
 
     -- SDRAM (test) Instance as Wishbone provider (P10)
@@ -407,7 +411,7 @@ begin
             CONST       => const_out,                                                           -- bits: Constant (16 bits)
             MDATA       => mdata_out,                                                           -- bits: write flag, Memory read/write (16 bits)
             PC          => pc_out,                                                              -- bits: JT flag, Program Counter (16 bits)
-            SEGMENT     => SEGMENT,                                                             -- bits: SEGMENT register (8 bits)
+            SEGMENT     => wseg_out & SEGMENT,                                                  -- bits: WSEG, SEGMENT register (8 bits)
 
             ALU_OUT     => alu_out,                                                             -- bits: ALU Output (16 bits)
             ALU_CMP     => alu_cmp_out,                                                         -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
@@ -433,9 +437,12 @@ begin
             BUSY        => led_busy
         );
 
-    -- TODO: send these to the 20x4 LCD driver, along with SEGMENT, PC, and MDATA
-    GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
-    GPIO1_D(15 downto 0)  <= const_out;                             -- output const_out to lower 16 bits of GPIO1
+    -- TODO: send these to the 20x4 LCD driver, along with SEGMENT, PC, and MDATA, and RWADDR
+    -- the LCD driver shows INST/CONST, instruction interpreted, Next PC, and SEGMENT:RWADDR (-> or <-) MDATA during r/w operations
+    -- GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
+    -- GPIO1_D(15 downto 0)  <= const_out;                             -- output const_out to lower 16 bits of GPIO1
+    GPIO1_D(31 downto 16) <= rwaddr_out;                             -- output rwaddr_out to upper 16 bits of GPIO1
+    GPIO1_D(15 downto 0)  <= mdata_out(15 downto 0);                 -- output mdata_out to lower 16 bits of GPIO1
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS 

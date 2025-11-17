@@ -13,14 +13,14 @@ entity dotstar_driver is
         START        : in  std_logic;
 
         -- DotStar Signals in reverse display order
-        SEGMENT      : in std_logic_vector(7 downto 0);   -- Segment register (to extend address bus)                                 0
+        SEGMENT      : in std_logic_vector(8 downto 0);   -- Segment register (to extend address bus), prepnded  with WSEG            0
         PC           : in std_logic_vector(16 downto 0);  -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)       1
         MDATA        : in std_logic_vector(16 downto 0);  -- Memory Data, prepended with R/W signal (0 = read, 1 = write)             2
         CONST        : in std_logic_vector(15 downto 0);  -- Constant                                                                 3
         INST         : in std_logic_vector(15 downto 0);  -- Instruction                                                              4
         
         ALU_OUT      : in std_logic_vector(15 downto 0);  -- ALU Output                                                               5
-        ALU_CMP      : in std_logic_vector(6 downto 0);   -- CMP function (2 bits), Z, V, N, Result, CMP Selected                     6
+        ALU_CMP      : in std_logic_vector(5 downto 0);   -- CMP function (2 bits), Z, V, N, Result, CMP Selected                     6
         ALU_SHIFT    : in std_logic_vector(18 downto 0);  -- SHIFT dir, SHIFT extend, Result (16 bits), SHIFT selected                7
         ALU_BOOL     : in std_logic_vector(20 downto 0);  -- BOOL truth table (4 bits), Result (16 bits), BOOL selected               8
         ALU_ARITH    : in std_logic_vector(17 downto 0);  -- ARITH subtract flag, Result (16 bits), ARITH selected                    9
@@ -354,7 +354,7 @@ begin
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         led_reg(COLOR_RANGE) <= x"000004";          -- INST and CONST, and ALU Output are all red LEDs
                                     end if;
-                                when 2 =>
+                                when 2 => -- TODO: Maybe blank these unless reading or writing is happening
                                     if led_index = 16 then      -- msb of MDATA is read/write signal
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"040004";      -- magenta LED for write (1)
@@ -375,7 +375,11 @@ begin
                                             led_reg(COLOR_RANGE) <= x"000400";      -- green LED for PC_INC
                                     end if;
                                 when 0 =>
-                                    if led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                    if led_index = 8 then
+                                        if set_reg(led_index) = '1' then
+                                            led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for WSEG = 1
+                                        end if;
+                                    elsif led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
                                         else

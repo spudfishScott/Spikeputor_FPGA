@@ -24,9 +24,11 @@ entity CPU_WSH_M is
         M_TGD_O   : out std_logic;
 
         -- Direct Display Values
+        WSEG_DISP       : out std_logic;
         INST_DISP       : out std_logic_vector(15 downto 0);
         CONST_DISP      : out std_logic_vector(15 downto 0);
         MDATA_DISP      : out std_logic_vector(16 downto 0);
+        RWADDR_DISP     : out std_logic_vector(15 downto 0);
         PC_DISP         : out std_logic_vector(16 downto 0);
         ALU_DISP        : out std_logic_vector(15 downto 0);
         ALU_CMP_DISP    : out std_logic_vector(6 downto 0);
@@ -51,6 +53,7 @@ end CPU_WSH_M;
 architecture Behavioral of CPU_WSH_M is
     -- Register File control signals
     signal werf_out  : std_logic := '0';
+    signal wseg_out  : std_logic = '0';
     signal rbsel_out : std_logic := '0';
     signal wdsel_out : std_logic_vector(1 downto 0) := (others => '0');
     signal opa_out   : std_logic_vector(2 downto 0) := (others => '0');
@@ -62,6 +65,7 @@ architecture Behavioral of CPU_WSH_M is
     signal inst_out   : std_logic_vector(15 downto 0) := (others => '0');
     signal pcinc_out  : std_logic_vector(15 downto 0) := (others => '0');
     signal mrdata_out : std_logic_vector(15 downto 0) := (others => '0');
+    signal rwaddr_out : std_logic_vector(16 downto 0) := (others => '0');
 
     -- ALU control signals
     signal alufn_out : std_logic_vector(4 downto 0) := (others => '0');
@@ -99,9 +103,11 @@ architecture Behavioral of CPU_WSH_M is
 begin
 
     -- wire internal signals to display outputs
+    WSEG_DISP       <= wseg_out;
     INST_DISP       <= inst_out;
     CONST_DISP      <= const_out;
     MDATA_DISP      <= rbsel_out & mdata_sig;
+    RWADDR_DISP     <= rwaddr_out;
     PC_DISP         <= jt_sig & pc_disp_sig;
 
     ALU_DISP        <= s_alu_out;
@@ -123,8 +129,8 @@ begin
     REG7_DISP       <= reg_a_addr(7) & reg_b_addr(7) & reg_w_disp(7) & allregs_sig(7);
     REGIN_DISP      <= wdsel_out & regin_sig;
 
-    -- these two intermediate signals are not necessary and shoul be incorporated into the MDATA_DISP and PC_DISP outputs, above
-    mdata_sig       <= mrdata_out when rbsel_out = '0' else regb_out;       -- get mdata from memory read or write (rbsel = 1 on ST commands only)
+    -- these two intermediate signals are incorporated into the MDATA_DISP and PC_DISP outputs, above
+    mdata_sig       <= mrdata_out when (rbsel_out = '0' OR wseg_out = '1') else regb_out;       -- get mdata from memory read or write (rbsel = 1 AND wseg = 0 on ST commands only)
 
     jt_sig          <= '1' when ((inst_out(9) = '1') AND                    -- Calculate value of JT flag (1 = jump, 0 = use pc_inc)
                                  ((inst_out(8 downto 6) = "000") OR                             -- unconditional jump (JMP)
@@ -164,8 +170,10 @@ begin
         PC          => pc_disp_sig,             -- PC output for display only
         PC_INC      => pcinc_out,               -- PC+2 output to ALU and REG_FILE
         MRDATA      => mrdata_out,              -- MEM output to REG_FILE
+        RWADDR      => rwaddr_out,              -- address of memory r/w for display only
         -- Control signals from Control Logic to other modules
         WERF        => werf_out,                -- WERF output to REG_FILE
+        WSEG        => wseg_out                 -- WSEG output to SEGMENT register
         RBSEL       => rbsel_out,               -- RBSEL output to REG_FILE
         WDSEL       => wdsel_out,               -- WDSEL output to REG_FILE
         OPA         => opa_out,                 -- OPA output to REG_FILE
