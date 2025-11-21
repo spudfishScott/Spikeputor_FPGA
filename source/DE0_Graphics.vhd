@@ -23,9 +23,9 @@ entity DE0_Graphics is
         -- LED
         LEDG       : out std_logic_vector(9 downto 0);
         -- GPIO (need to assign pins accordingly)
-        GPIO0_D_OUT    : out   std_logic_vector(5 downto 0);    -- Screen Control output only (BL_CTL, /RESET, /CS, /WR, /RD, RS) GPIO 2 -> 7
-        GPIO0_WAIT_N   : in    std_logic;                       -- /WAIT signal input only (GPIO0 8)
-        GPIO0_DATA     : inout std_logic_vector(24 downto 9)    -- DATAIO signal (GPIO 9 -> 24)
+        SCRN_CTRL   : out   std_logic_vector(5 downto 0);    -- Screen Control output only (BL_CTL, /RESET, /CS, /WR, /RD, RS) GPIO 2 -> 7
+        SCRN_WAIT_N : in    std_logic;                       -- /WAIT signal input only (GPIO0 8)
+        SCRN_DATA   : inout std_logic_vector(15 downto 0)    -- DATAIO signal (GPIO 9 -> 24)
     );
 end DE0_Graphics;
 
@@ -49,12 +49,12 @@ architecture RTL of DE0_Graphics is
 
 begin
     -- signals mapped to pin outputs
-    GPIO0_D_OUT(7) <= bl;
-    GPIO0_D_OUT(6) <= n_res;
-    GPIO0_D_OUT(5) <= n_cs;
-    GPIO0_D_OUT(4) <= n_wr;
-    GPIO0_D_OUT(3) <= n_rd;
-    GPIO0_D_OUT(2) <= rs;
+    SCRN_CTRL(5) <= bl;
+    SCRN_CTRL(4) <= n_res;
+    SCRN_CTRL(3) <= n_cs;
+    SCRN_CTRL(2) <= n_wr;
+    SCRN_CTRL(1) <= n_rd;
+    SCRN_CTRL(0) <= rs;
 
     HEX0_D <= (others => '0');
     HEX0_DP <= '0';
@@ -68,7 +68,7 @@ begin
     LEDG <= std_logic_vector(to_unsigned(cmd_index, 10));   -- show cmd_index on the on-board LEDs
 
     -- send d_in into the screen controller when db_oe is 1, otherwise set data_out to screen controller output
-    GPIO0_DATA(24 downto 9) <= d_in when db_oe = '1' else (others => 'Z');
+    SCRN_DATA(15 downto 0) <= d_in when db_oe = '1' else (others => 'Z');
 
     process(CLOCK_50) is
     begin
@@ -106,7 +106,7 @@ begin
                             n_cs <= '1';
                             n_rd <= '1';    -- complete command
                             d_out(15 downto 8) <= (others => '0');
-                            d_out(7 downto 0) <= GPIO0_DATA(16 downto 9);   -- latch data (lower 8 bits only) into data_out
+                            d_out(7 downto 0) <= SCRN_DATA(7 downto 0);   -- latch data (lower 8 bits only) into data_out
                             state <= return_st;                 -- go back to the state this was "called" from
                         end if;
 
@@ -133,7 +133,7 @@ begin
                         else
                             n_cs <= '1';
                             n_rd <= '1';    -- complete command
-                            d_out <= GPIO0_DATA(24 downto 9);   -- latch data (all 16 bits) into register
+                            d_out <= SCRN_DATA(15 downto 0);   -- latch data (all 16 bits) into register
                             state <= return_st;                 -- go back to the state this was "called" from
                         end if;
 
