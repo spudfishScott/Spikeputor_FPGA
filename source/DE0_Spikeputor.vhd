@@ -47,7 +47,7 @@ entity DE0_Spikeputor is
         DRAM_LDQM  : out std_logic;
         -- GPIO
         GPIO1_D    : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
-        GPIO0_D    : out std_logic_vector(1 downto 0)     -- dotstar out
+        GPIO0_D    : out std_logic_vector(1 downto 0)     -- [1:0] = dotstar out
     );
 end DE0_Spikeputor;
 
