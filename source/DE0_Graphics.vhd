@@ -1,7 +1,7 @@
-ibrary ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
-  use work.Types.all;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.Types.all;
 
 entity DE0_Graphics is
     port (
@@ -43,7 +43,7 @@ architecture RTL of DE0_Graphics is
     signal timer : Integer := 0;            -- timer counter
     signal cmd_index : Integer := 0;        -- command index for multi-step commands
 
-    type state_type is (IDLE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT, INIT);
+    type state_type is (IDLE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
     signal state     : state_type := INIT;
     signal return_st : state_type := INIT;
 
@@ -88,12 +88,12 @@ begin
                 d_in  <= (others => '0');
             else
                 case state is
-                    when WAIT =>
+                    when WAIT_ST =>
                         if timer = 0 then
                             state <= return_st;
                         else
                             timer <= timer - 1;
-                            state <= WAIT;
+                            state <= WAIT_ST;
                         end if;
 
                     when STATUS_RD =>
@@ -158,15 +158,15 @@ begin
                             -- POWER UP CYCLE - WAIT - HW RESET - WAIT
                             when 0 =>       -- step 0: delay 100 ms (5,000,000 cycles at 20 ns per cycle)
                                 timer <= 5_000_000;
-                                state <= WAIT;
+                                state <= WAIT_ST;
                             when 1 =>       -- step 1: set /RESET low on the chip and delay for 50 ms
                                 n_res <= '0';
                                 timer <= 2_500_000;
-                                state <= WAIT;
+                                state <= WAIT_ST;
                             when 2 =>       -- step 2: set /RESET high on the chip and delay 150 ms
                                 n_res <= '1';
                                 timer <= 7_500_000;
-                                state <= WAIT;
+                                state <= WAIT_ST;
                             -- WAIT FOR CHIP TO POWER UP/RESET
                             when 3 =>       -- step 3: read Status register
                                 state <= STATUS_RD;
@@ -234,13 +234,13 @@ begin
                                 state <= DATA_WR;
                             when 24 =>      -- step 24: Delay 10 uS
                                 timer <= 500;
-                                state <= WAIT;
+                                state <= WAIT_ST;
                             when 25 =>      -- step 25: Write 0x80 to Regsiter 0x01 (Set up PLLs, TFT Output is 24 bpp)
                                 d_in <= x"0080";
                                 state <= DATA_WR;
                             when 26 =>      -- step 26: Delay 1 ms
                                 timer <= 50_000;
-                                state <= WAIT;
+                                state <= WAIT_ST;
                             -- SET UP SDRAM
                             when 27 =>      -- step 27: Select Register 0xE0
                                 d_in <= x"00E0";
