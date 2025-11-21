@@ -1,7 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.Types.all;
 
 entity DE0_Graphics is
     port (
@@ -56,14 +55,20 @@ begin
     SCRN_CTRL(1) <= n_rd;
     SCRN_CTRL(0) <= rs;
 
-    HEX0_D <= (others => '0');
-    HEX0_DP <= '0';
-    HEX1_D <= (others => '0');
-    HEX1_DP <= '0';
-    HEX2_D <= (others => '0');
-    HEX2_DP <= '0';
-    HEX3_D <= (others => '0');
-    HEX4_DP <= '0';
+
+    HEX0_DP <= '1';
+    HEX1_DP <= '1';
+    HEX2_DP <= '1';
+    HEX3_DP <= '1';
+	 
+	 DISPLAY : entity work.WORDTO7SEGS
+	     port map (
+		      WORD  => d_in,
+				SEGS0 => HEX0_D,
+				SEGS1 => HEX1_D,
+				SEGS2 => HEX2_D,
+				SEGS3 => HEX3_D
+			);
 
     LEDG <= std_logic_vector(to_unsigned(cmd_index, 10));   -- show cmd_index on the on-board LEDs
 
@@ -171,7 +176,7 @@ begin
                             when 3 =>       -- step 3: read Status register
                                 state <= STATUS_RD;
                             when 4 =>       -- step 4: if status bit 1 is 1, go back to step 3
-                                if data_out(1) = '1' then
+                                if d_out(1) = '1' then
                                     cmd_index <= 3;
                                 end if;
                             -- SOFTWARE RESET
@@ -186,7 +191,7 @@ begin
                             when 8 =>       -- step 8: re-read register 8
                                 state <= DATA_RD;
                             when 9 =>       -- step 9: if bit 0 is 1, go back to step 8 (Software Reset not complete)
-                                if d_out(1) = '1' then
+                                if d_out(0) = '1' then
                                     cmd_index <= 8;
                                 end if;
                             -- SET PLLs
@@ -540,9 +545,11 @@ begin
                                 state <= DATA_WR;
                             when 124 =>     -- step 124: Wait for 10 seconds
                                 timer <= 500_000_000;
-                                next_st <= IDLE;
-                            when 125 =>     -- step 125: Clear bit 5 (still Register 0x12) to remove test pattern and proceed to IDLE state
-                                d_in <= d_out AND "1111111111011111"    -- clear bit 5
+                                state <= WAIT_ST;
+									 when 125 =>     -- step 125: Read Register 0x12
+                                state <= DATA_RD;
+                            when 126 =>     -- step 126: Clear bit 5 (still Register 0x12) to remove test pattern and proceed to IDLE state
+                                d_in <= d_out AND "1111111111011111";   -- clear bit 5
                                 state <= DATA_WR;
                                 return_st <= IDLE;
                             when others =>
