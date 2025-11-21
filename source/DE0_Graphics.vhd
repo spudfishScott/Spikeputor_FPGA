@@ -60,15 +60,15 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-	 
-	 DISPLAY : entity work.WORDTO7SEGS
-	     port map (
-		      WORD  => d_in,
-				SEGS0 => HEX0_D,
-				SEGS1 => HEX1_D,
-				SEGS2 => HEX2_D,
-				SEGS3 => HEX3_D
-			);
+
+    DISPLAY : entity work.WORDTO7SEGS
+        port map (
+            WORD  => d_in,
+            SEGS0 => HEX0_D,
+            SEGS1 => HEX1_D,
+            SEGS2 => HEX2_D,
+            SEGS3 => HEX3_D
+        );
 
     LEDG <= std_logic_vector(to_unsigned(cmd_index, 10));   -- show cmd_index on the on-board LEDs
 
@@ -138,7 +138,7 @@ begin
                         else
                             n_cs <= '1';
                             n_rd <= '1';    -- complete command
-                            d_out <= SCRN_DATA(15 downto 0);   -- latch data (all 16 bits) into register
+                            d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
                             state <= return_st;                 -- go back to the state this was "called" from
                         end if;
 
@@ -546,11 +546,12 @@ begin
                             when 124 =>     -- step 124: Wait for 10 seconds
                                 timer <= 500_000_000;
                                 state <= WAIT_ST;
-									 when 125 =>     -- step 125: Read Register 0x12
+                            when 125 =>     -- step 125: Re-read Register 0x12 (required - why? Should stay in d_out, right?)
                                 state <= DATA_RD;
                             when 126 =>     -- step 126: Clear bit 5 (still Register 0x12) to remove test pattern and proceed to IDLE state
                                 d_in <= d_out AND "1111111111011111";   -- clear bit 5
                                 state <= DATA_WR;
+                                cmd_index <= 0;     -- reset the command index and go to IDLE
                                 return_st <= IDLE;
                             when others =>
                                 cmd_index <= 0;     -- failsafe - go back to the start if we get here
@@ -558,8 +559,106 @@ begin
                         end case;
 
                     when IDLE =>        -- for now, just stop and do nothing when you get here
-                        state <= IDLE;
+                        return_st <= IDLE;              -- return from other states to here by default
+                        cmd_index <= cmd_index + 1;     -- go to next command index by default
 
+                        case cmd_index is
+                            when 0 =>       -- step 0: Select Register 0xD2
+                                d_in <= x"00D2";
+                                state <= COMMAND_WR;
+                            when 1 =>       -- step 1: Write 0x80 to Register 0xD2 (Foreground Red)
+                                d_in <= x"0000";
+                                state <= DATA_WR;
+                            when 2 =>       -- step 2: Select Register 0xD3
+                                d_in <= x"00D3";
+                                state <= COMMAND_WR;
+                            when 3 =>       -- step 3: Write 0x80 to Register 0xD3 (Foreground Green)
+                                d_in <= x"0000";
+                                state <= DATA_WR;
+                            when 4 =>       -- step 4: Select Register 0xD4
+                                d_in <= x"00D2";
+                                state <= COMMAND_WR;
+                            when 5 =>       -- step 5: Write 0x80 to Register 0xD4 (Foreground Blue)
+                                d_in <= x"0000";
+                                state <= DATA_WR;
+                            when 6 =>       -- step 6: Select Register 0x68
+                                d_in <= x"0068";
+                                state <= COMMAND_WR;
+                            when 7 =>       -- step 7: Write 0x20 to Register 0x68 (Line Start X low byte = 0x20)
+                                d_in <= x"0020";
+                                state <= DATA_WR;
+                            when 8 =>       -- step 8: Select Register 0x69
+                                d_in <= x"0069";
+                                state <= COMMAND_WR;
+                            when 9 =>       -- step 9: Write 0x00 to Register 0x69 (Line Start X high byte = 0x00)
+                                d_in <= x"0000";
+                                state <= DATA_WR;
+                            when 10 =>      -- step 10: Select Register 0x6A
+                                d_in <= x"006A";
+                                state <= COMMAND_WR;
+                            when 11 =>      -- step 11: Write 0x20 to Register 0x6A (Line Start Y low byte = 0x20)
+                                d_in <= x"0020";
+                                state <= DATA_WR;
+                            when 12 =>      -- step 12: Select Register 0x6B
+                                d_in <= x"006B";
+                                state <= COMMAND_WR;
+                            when 13 =>      -- step 13: Write 0x00 to Register 0x6B (Line Start Y high byte = 0x00)
+                                d_in <= x"0000";
+                                state <= DATA_WR;
+                            when 14 =>      -- step 14: Select Register 0x6C
+                                d_in <= x"006C";
+                                state <= COMMAND_WR;
+                            when 15 =>      -- step 15: Write 0xE0 to Register 0x6C (Line End X low byte = 0xE0)
+                                d_in <= x"00E0";
+                                state <= DATA_WR;
+                            when 16 =>      -- step 16: Select Register 0x6D
+                                d_in <= x"006D";
+                                state <= COMMAND_WR;
+                            when 17 =>      -- step 17: Write 0x03 to Register 0x6D (Line End X high byte = 0x03)
+                                d_in <= x"0003";
+                                state <= DATA_WR;
+                            when 18 =>      -- step 18: Select Register 0x6E
+                                d_in <= x"006E";
+                                state <= COMMAND_WR;
+                            when 19 =>      -- step 19: Write 0x38 to Register 0x6E (Line End Y low byte = 0x38)
+                                d_in <= x"0038";
+                                state <= DATA_WR;
+                            when 20 =>      -- step 20: Select Register 0x6F
+                                d_in <= x"006F";
+                                state <= COMMAND_WR;
+                            when 21 =>      -- step 21: Write 0x02 to Register 0x6F (Line End Y high byte = 0x02)
+                                d_in <= x"0002";
+                                state <= DATA_WR;
+                            when 22 =>      -- step 22: read Status register
+                                state <= STATUS_RD;
+                            when 23 =>      -- step 23: if status bit 3 is 1, go back to step 3 (Core Task is Busy)
+                                if d_out(1) = '1' then
+                                    cmd_index <= 22;    -- still busy, check again
+                                end if;
+                            when 24 =>      -- step 24: Select register 0x67
+                                d_in <= x"0067";
+                                state <= COMMAND_WR;
+                            when 25 =>      -- step 25: Read Register 0x67
+                                state <= DATA_RD;
+                            when 26 =>      -- step 26: Check to see if bit 7 is set (line/triangle drawing function is processing)
+                                if d_out(7) = '1' then
+                                    cmd_index <= 25;    -- still busy, check again
+                                end if;
+                            when 27 =>      -- step 27: Select Register 0x76
+                                d_in <= x"0076";
+                                state <= COMMAND_WR;
+                            when 28 =>      -- step 28: Read Register 0x76
+                                state <= DATA_RD;
+                            when 29 =>      -- step 29: Check to see if bit 7 is set (ellipse/curve/square) drawing function is processing)
+                                if d_out(7) = '1' then
+                                    cmd_index <= 28;    -- still busy, check again
+                                end if;
+                            when 30 =>      -- step 30: Write 0xE0 to register 0x76 (Draw the filled square)
+                                d_in <= x"00E0";
+                                state <= DATA_WR;
+                            when 31 =>
+                                cmd_index <= 31;    -- stay here forever
+                        end case;
                     when others =>
                         null;
                 end case;
