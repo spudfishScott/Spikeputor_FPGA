@@ -581,7 +581,7 @@ begin
                                 d_in <= x"00D4";
                                 state <= COMMAND_WR;
                             when 5 =>       -- step 5: Write 0x80 to Register 0xD4 (Foreground Blue)
-                                d_in <= std_logic_vector(to_unsigned(blue, 8));
+                                d_in <= "00000000" & std_logic_vector(to_unsigned(blue, 8));
                                 state <= DATA_WR;
                             when 6 =>       -- step 6: Select Register 0x68
                                 d_in <= x"0068";
@@ -658,6 +658,9 @@ begin
                             when 30 =>      -- step 30: Write 0xE0 to register 0x76 (Draw the filled square)
                                 d_in <= x"00E0";
                                 state <= DATA_WR;
+                            when 31 =>
+                                timer <= 1_000_000;
+                                state <= WAIT_ST;
                             when others =>
                                 cmd_index <= 0;    -- loop forever
                         end case;
