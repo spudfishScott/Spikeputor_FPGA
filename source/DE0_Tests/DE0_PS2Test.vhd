@@ -22,7 +22,9 @@ entity DE0_PS2Test is -- the interface to the DE0 board
         HEX3_D   : out std_logic_vector(6 downto 0);
         HEX3_DP  : out std_logic;
 
-        LEDG     : out std_logic_vector(9 downto 0)
+        LEDG     : out std_logic_vector(9 downto 0);
+
+        BUTTON   : in std_logic_vector(9 downto 0)
     );
 
 end DE0_PS2Test;
@@ -50,7 +52,7 @@ begin
     -- PS2_ASCII instance
    PS2 : entity work.PS2_ASCII port map (
         clk        => CLOCK_50,
-        rst        => NOT Button(0),        -- button 0 is reset
+        rst        => Button(0),        -- button 0 is reset active low
         ps2_clk    => PS2_KBCLK,
         ps2_data   => PS2_KBDAT,
         ascii_new  => LEDG(0),
