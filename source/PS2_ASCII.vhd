@@ -39,7 +39,7 @@ ENTITY PS2_ASCII IS
 END PS2_ASCII;
 
 ARCHITECTURE behavior OF PS2_ASCII IS
-    TYPE machine IS (ready, new_code, translate, output, capslock, capslock2, waittxbusy);   --needed states
+    TYPE machine IS (ready, new_code, translate, output, capslock, capslock2);   --needed states
     SIGNAL state             : machine;                               --state machine
 
     SIGNAL ps2_code_new      : STD_LOGIC := '0';                      -- new PS2 code flag from ps2_keyboard component
@@ -56,7 +56,7 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; -- internal value of ASCII translation
 
     SIGNAL tx_busy_sig       : STD_LOGIC := '0';                      -- '1' if we're transmitting a command to PS/2
-    SIGNAL tx_cmd_sig        : STD_LOGIC_VECTOR(8 DOWNTO 0) := "011101101"; -- command to send to PS/2, parity is bit 8
+    SIGNAL tx_cmd_sig        : STD_LOGIC_VECTOR(8 DOWNTO 0) := "111101101"; -- command to send to PS/2, parity is bit 8
     SIGNAL tx_ena_sig        : STD_LOGIC := '0';                      -- '1' to latch the command and start sending it
 
     -- SIGNAL ps2_clk_sync      : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
@@ -112,7 +112,7 @@ BEGIN
                         e0_code <= '1';             -- set multi-code command flag
                         state <= ready;             -- return to ready state to await next PS2 code
                     ELSIF (ps2_code = x"FA") THEN   -- sent to acknowledge that the keyboard recived a command
-                        IF tx_cmd_sig = "011101101" THEN -- last command sent was SET/RESET mode indicators
+                        IF tx_cmd_sig = "111101101" THEN -- last command sent was SET/RESET mode indicators
                             state <= capslock2;     -- send the option byte
                         ELSE
                             state <= ready;         -- listen for the next PS2 code
@@ -353,7 +353,7 @@ BEGIN
                 -- handle caps lock change
                 WHEN capslock =>
                     IF tx_busy_sig = '0' THEN                   -- wait until ok to transmit
-                        tx_cmd_sig <= "011101101";              -- 0xED with msb as parity bit - set/reset mode indicators
+                        tx_cmd_sig <= "111101101";              -- 0xED with msb as parity bit - set/reset mode indicators
                         tx_ena_sig <= '1';                      -- set transmit signal
                         state <= ready;                         -- wait for acknowledgement
                     ELSE
@@ -362,7 +362,7 @@ BEGIN
 
                 WHEN capslock2 =>
                     IF tx_busy_sig = '0' THEN
-                        tx_cmd_sig <= caps_lock & "000000" & caps_lock & "0";   -- set current caps lock state (bit 2) with parity bit
+                        tx_cmd_sig <= NOT(caps_lock) & "000000" & caps_lock & "0";   -- set current caps lock state (bit 2) with parity bit
                         tx_ena_sig <= '1';                      -- set transmit signal
                         state <= ready;                         -- wait for acknowledgement
                     ELSE
