@@ -30,15 +30,16 @@ ENTITY PS2_ASCII IS
 
     PORT (
         clk        : IN  STD_LOGIC;                           -- system clock input
-        ps2_clk    : INOUT  STD_LOGIC;                           -- clock signal from PS2 keyboard
-        ps2_data   : INOUT  STD_LOGIC;                           -- data signal from PS2 keyboard
+        rst        : IN  STD_LOGIC;                           -- reset signal
+        ps2_clk    : INOUT  STD_LOGIC;                        -- clock signal from PS2 keyboard
+        ps2_data   : INOUT  STD_LOGIC;                        -- data signal from PS2 keyboard
         ascii_new  : OUT STD_LOGIC;                           -- output flag to indicate new ASCII value - cleared when a new key comes in 
         ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)         -- ASCII value
     );
 END PS2_ASCII;
 
 ARCHITECTURE behavior OF PS2_ASCII IS
-    TYPE machine IS (ready, new_code, translate, output);             --needed states
+    TYPE machine IS (ready, new_code, translate, output, capslock, caplock2, waittxbusy);   --needed states
     SIGNAL state             : machine;                               --state machine
 
     SIGNAL ps2_code_new      : STD_LOGIC := '0';                      -- new PS2 code flag from ps2_keyboard component
@@ -54,23 +55,27 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL shift_l           : STD_LOGIC := '0';                      -- '1' if left shift is held down, else '0'
     SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; -- internal value of ASCII translation
 
+    SIGNAL tx_busy_sig       : STD_LOGIC := '0';                      -- '1' if we're transmitting a command to PS/2
+    SIGNAL tx_cmd_sig        : STD_LOGIC_VECTOR(8 DOWNTO 0) := "011101101"; -- command to send to PS/2, parity is bit 8
+    SIGNAL tx_ena_sig        : STD_LOGIC := '0';                      -- '1' to latch the command and start sending it
+
     -- SIGNAL ps2_clk_sync      : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
     -- SIGNAL ps2_data_sync     : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
 
 BEGIN
 
     --instantiate PS2 keyboard interface logic
-    ps2_trans IS entity work.ps2_transceiver
+    ps2_trans : entity work.ps2_transceiver
         GENERIC MAP (
-            clk_freq        => clk_freg
+            clk_freq        => clk_freq
         )
 
         PORT MAP (  -- not doing any transmitting yet
             clk          => clk,                    -- system clock
-            reset_n      => '1',                    -- active low asynchronous reset
-            tx_ena       => '0',                    -- enable transmit
-            tx_cmd       => (others => '0'),        -- 8-bit command to transmit, MSB is parity bit
-            tx_busy      => open,                   -- indicates transmit in progress
+            reset_n      => rst,                    -- active low asynchronous reset
+            tx_ena       => tx_ena_sig,             -- enable transmit
+            tx_cmd       => tx_cmd_sig,             -- 8-bit command to transmit, MSB is parity bit
+            tx_busy      => tx_busy_sig,            -- indicates transmit in progress
             ack_error    => open,                   -- device acknowledge from transmit, '1' is error
             ps2_code     => ps2_code,               -- code received from PS/2
             ps2_code_new => ps2_code_new,           -- flag that new PS/2 code is available on ps2_code bus
@@ -78,32 +83,6 @@ BEGIN
             ps2_clk      => ps2_clk,                -- PS/2 port clock signal
             ps2_data     => ps2_data                -- PS/2 port data signal
         );
-
-
-    -- ps2_keyboard_0 : entity work.PS2_KEYBOARD 
-    --     GENERIC MAP (
-    --         clk_freq              => clk_freq
-    --     )
-
-    --     PORT MAP (
-    --         clk          => clk,
-    --         ps2_clk      => ps2_clk_sync(1),        -- send synchronized ps2 clock and data signals to keyboard interface
-    --         ps2_data     => ps2_data_sync(1),
-    --         ps2_code_new => ps2_code_new,
-    --         ps2_code     => ps2_code
-    --     );
-
-    -- -- synchronize incoming PS/2 signals
-    -- PROCESS(clk)
-    -- BEGIN
-    --     IF (rising_edge(clk)) THEN                  -- rising edge of system clock
-    --         ps2_clk_sync(0)  <= ps2_clk;            -- synchronize PS/2 clock signal
-    --         ps2_clk_sync(1)  <= ps2_clk_sync(0);
-
-    --         ps2_data_sync(0) <= ps2_data;           -- synchronize PS/2 data signal
-    --         ps2_data_sync(1) <= ps2_data_sync(0);
-    --     END IF;
-    -- END PROCESS;
 
     -- state machine to process PS2 codes and output ASCII values
     PROCESS(clk)
@@ -350,14 +329,46 @@ BEGIN
                     ELSE                        -- code is a break
                         state <= ready;         -- return to ready state to await next PS2 code
                     END IF;
-                
+
                 -- output state: verify the code is valid and output the ASCII value
                 WHEN output =>
                     IF (ascii(7) = '0') THEN                -- if it's still '1', the keycode was not valid, so ignore
                         ascii_new <= '1';                   -- strobe flag indicating new ASCII output
                         ascii_code <= ascii(6 DOWNTO 0);    -- output the ASCII value
                     END IF;
-                    state <= ready;                         -- return to ready state to await next PS2 code
+                    IF ps2_code = x"58" THEN                -- if the code is the caps lock key, send command to toggle caps lock light on keyboard
+                        state <= capslock;
+                    ELSE
+                        state <= ready;                     -- return to ready state to await next PS2 code
+                    END IF;
+
+                -- handle caps lock change
+                WHEN capslock =>
+                    IF tx_busy_sig = '0' THEN                   -- wait until ok to transmit
+                        tx_cmd_sig <= "011101101";              -- 0xED with msb as parity bit
+                        tx_ena_sig <= '1';                      -- set transmit signal
+                        status <= waittxbusy;
+                    ELSE
+                        status <= capslock;
+                    END IF;
+
+                WHEN waittxbusy =>                              -- wait until transmit state is busy before going to next command transmit state
+                    IF tx_bus_sig = '1' THEN
+                        state <= capslock2;
+                    ELSE
+                        state <= waittxbusy;
+                    END IF;
+
+                WHEN capslock2 =>
+                    tx_ena_sig <= '0';                          -- turn off transmit signal
+                    IF tx_busy_sig = '0' THEN
+                        tx_cmd_sig <= caps_lock & "000000" & caps_lock & "0";   -- set current caps lock state wit parity bit
+                        tx_ena_sig <= '1';
+                        status <= ready;
+                    ELSE
+                        status <= capslock2;
+                    END IF;
+
             END CASE;
         END IF;
     END PROCESS;

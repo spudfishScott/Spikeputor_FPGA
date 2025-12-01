@@ -50,10 +50,11 @@ begin
     -- PS2_ASCII instance
    PS2 : entity work.PS2_ASCII port map (
         clk        => CLOCK_50,
+        rst        => NOT Button(0),        -- button 0 is reset
         ps2_clk    => PS2_KBCLK,
         ps2_data   => PS2_KBDAT,
         ascii_new  => LEDG(0),
-        ascii_code => disp_out(6 downto 0) -- output ASCII code to display
+        ascii_code => disp_out(6 downto 0)  -- output ASCII code to display
     );
 
 end Structural;
