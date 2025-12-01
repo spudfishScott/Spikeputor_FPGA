@@ -8,8 +8,8 @@ entity DE0_PS2Test is -- the interface to the DE0 board
         -- CLOCK
         CLOCK_50 : in std_logic; -- 20 ns clock
         -- PS/2 Keyboard
-        PS2_KBCLK : in std_logic; -- PS/2 clock signal
-        PS2_KBDAT : in std_logic; -- PS/2 data signal
+        PS2_KBCLK : inout std_logic; -- PS/2 clock signal
+        PS2_KBDAT : inout std_logic; -- PS/2 data signal
 
         --OUTPUTS
         -- 7-SEG Display

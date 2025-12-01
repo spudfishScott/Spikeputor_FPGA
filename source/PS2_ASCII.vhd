@@ -26,13 +26,12 @@ USE ieee.std_logic_1164.all;
 ENTITY PS2_ASCII IS
     GENERIC (
         clk_freq                  : INTEGER := 50_000_000    -- system clock frequency in Hz
- --       ps2_debounce_counter_size : INTEGER := 8              -- set such that 2^size/clk_freq = 5us (size = 8 for 50MHz)
     );
 
     PORT (
         clk        : IN  STD_LOGIC;                           -- system clock input
-        ps2_clk    : IN  STD_LOGIC;                           -- clock signal from PS2 keyboard
-        ps2_data   : IN  STD_LOGIC;                           -- data signal from PS2 keyboard
+        ps2_clk    : INOUT  STD_LOGIC;                           -- clock signal from PS2 keyboard
+        ps2_data   : INOUT  STD_LOGIC;                           -- data signal from PS2 keyboard
         ascii_new  : OUT STD_LOGIC;                           -- output flag to indicate new ASCII value - cleared when a new key comes in 
         ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)         -- ASCII value
     );
@@ -55,37 +54,56 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL shift_l           : STD_LOGIC := '0';                      -- '1' if left shift is held down, else '0'
     SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; -- internal value of ASCII translation
 
-    SIGNAL ps2_clk_sync      : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
-    SIGNAL ps2_data_sync     : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
+    -- SIGNAL ps2_clk_sync      : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
+    -- SIGNAL ps2_data_sync     : STD_LOGIC_VECTOR(1 downto 0) := (others => '0');
 
 BEGIN
 
     --instantiate PS2 keyboard interface logic
-    ps2_keyboard_0 : entity work.PS2_KEYBOARD 
+    ps2_trans IS entity work.ps2_transceiver
         GENERIC MAP (
-            clk_freq              => clk_freq
-  --          debounce_counter_size => ps2_debounce_counter_size
+            clk_freq        => clk_freg
         )
 
-        PORT MAP (
-            clk          => clk,
-            ps2_clk      => ps2_clk_sync(1),        -- send synchronized ps2 clock and data signals to keyboard interface
-            ps2_data     => ps2_data_sync(1),
-            ps2_code_new => ps2_code_new,
-            ps2_code     => ps2_code
+        PORT MAP (  -- not doing any transmitting yet
+            clk          => clk,                    -- system clock
+            reset_n      => '1',                    -- active low asynchronous reset
+            tx_ena       => '0',                    -- enable transmit
+            tx_cmd       => (others => '0'),        -- 8-bit command to transmit, MSB is parity bit
+            tx_busy      => open,                   -- indicates transmit in progress
+            ack_error    => open,                   -- device acknowledge from transmit, '1' is error
+            ps2_code     => ps2_code,               -- code received from PS/2
+            ps2_code_new => ps2_code_new,           -- flag that new PS/2 code is available on ps2_code bus
+            rx_error     => open,                   -- start, stop, or parity receive error detected, '1' is error
+            ps2_clk      => ps2_clk,                -- PS/2 port clock signal
+            ps2_data     => ps2_data                -- PS/2 port data signal
         );
 
-    -- synchronize incoming PS/2 signals
-    PROCESS(clk)
-    BEGIN
-        IF (rising_edge(clk)) THEN                  -- rising edge of system clock
-            ps2_clk_sync(0)  <= ps2_clk;            -- synchronize PS/2 clock signal
-            ps2_clk_sync(1)  <= ps2_clk_sync(0);
 
-            ps2_data_sync(0) <= ps2_data;           -- synchronize PS/2 data signal
-            ps2_data_sync(1) <= ps2_data_sync(0);
-        END IF;
-    END PROCESS;
+    -- ps2_keyboard_0 : entity work.PS2_KEYBOARD 
+    --     GENERIC MAP (
+    --         clk_freq              => clk_freq
+    --     )
+
+    --     PORT MAP (
+    --         clk          => clk,
+    --         ps2_clk      => ps2_clk_sync(1),        -- send synchronized ps2 clock and data signals to keyboard interface
+    --         ps2_data     => ps2_data_sync(1),
+    --         ps2_code_new => ps2_code_new,
+    --         ps2_code     => ps2_code
+    --     );
+
+    -- -- synchronize incoming PS/2 signals
+    -- PROCESS(clk)
+    -- BEGIN
+    --     IF (rising_edge(clk)) THEN                  -- rising edge of system clock
+    --         ps2_clk_sync(0)  <= ps2_clk;            -- synchronize PS/2 clock signal
+    --         ps2_clk_sync(1)  <= ps2_clk_sync(0);
+
+    --         ps2_data_sync(0) <= ps2_data;           -- synchronize PS/2 data signal
+    --         ps2_data_sync(1) <= ps2_data_sync(0);
+    --     END IF;
+    -- END PROCESS;
 
     -- state machine to process PS2 codes and output ASCII values
     PROCESS(clk)

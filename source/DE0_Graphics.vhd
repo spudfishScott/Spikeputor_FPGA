@@ -291,8 +291,8 @@ begin
                             when 39 =>      -- step 39: Select Register 0x12
                                 d_in <= x"0012";
                                 state <= COMMAND_WR;
-                            when 40 =>      -- step 40: Write 0x00 to Register 0x12 (Set screen data for fetching on rising clock)
-                                d_in <= x"0000";
+                            when 40 =>      -- step 40: Write 0x80 to Register 0x12 (Set screen data for fetching on falling clock)
+                                d_in <= x"0080";
                                 state <= DATA_WR;
                             when 41 =>      -- step 41: Select Register 0x13
                                 d_in <= x"0013";
@@ -563,25 +563,25 @@ begin
                     when IDLE =>        -- for now, just stop and do nothing when you get here
                         return_st <= IDLE;              -- return from other states to here by default
                         cmd_index <= cmd_index + 1;     -- go to next command index by default
-                        blue <= (blue + 1) mod 255;
                         case cmd_index is
                             when 0 =>       -- step 0: Select Register 0xD2
                                 d_in <= x"00D2";
                                 state <= COMMAND_WR;
                             when 1 =>       -- step 1: Write 0x80 to Register 0xD2 (Foreground Red)
-                                d_in <= x"0080";
+                                d_in <= x"00FF";
                                 state <= DATA_WR;
                             when 2 =>       -- step 2: Select Register 0xD3
                                 d_in <= x"00D3";
                                 state <= COMMAND_WR;
                             when 3 =>       -- step 3: Write 0x80 to Register 0xD3 (Foreground Green)
-                                d_in <= x"0080";
+                                d_in <= x"0000";
                                 state <= DATA_WR;
                             when 4 =>       -- step 4: Select Register 0xD4
                                 d_in <= x"00D4";
                                 state <= COMMAND_WR;
                             when 5 =>       -- step 5: Write 0x80 to Register 0xD4 (Foreground Blue)
                                 d_in <= "00000000" & std_logic_vector(to_unsigned(blue, 8));
+                                blue <= (blue + 1) mod 255;
                                 state <= DATA_WR;
                             when 6 =>       -- step 6: Select Register 0x68
                                 d_in <= x"0068";
@@ -658,9 +658,6 @@ begin
                             when 30 =>      -- step 30: Write 0xE0 to register 0x76 (Draw the filled square)
                                 d_in <= x"00E0";
                                 state <= DATA_WR;
-                            when 31 =>
-                                timer <= 1_000_000;
-                                state <= WAIT_ST;
                             when others =>
                                 cmd_index <= 0;    -- loop forever
                         end case;
