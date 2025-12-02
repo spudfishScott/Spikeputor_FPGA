@@ -31,6 +31,7 @@ end DE0_PS2Test;
 
 architecture Structural of DE0_PS2Test is
     signal disp_out : std_logic_vector(15 downto 0) := (others => '0');
+    signal key_req_sig : std_logic := '0';
 
 begin
     -- assign output states for unused 7 segment display decimal point and unused LEDs
@@ -49,14 +50,29 @@ begin
         SEGS3 => HEX3_D
     );
 
+    -- Generate one cycle pulse signal for key request on button press
+    PULSER : entity work.PULSE_GEN
+    generic map (
+        PULSE_WIDTH => 1
+    )
+
+    port map (
+        CLK_IN      => CLOCK_50,
+        BUTTON_IN   => BUTTON(1),  -- button 1 is key request
+        PULSE_OUT   => key_req_sig
+    );
+
     -- PS2_ASCII instance
-   PS2 : entity work.PS2_ASCII port map (
+    PS2 : entity work.PS2_ASCII port map (
         clk        => CLOCK_50,
-        rst        => Button(0),        -- button 0 is reset active low
+        n_rst      => Button(0),            -- button 0 is reset active low
         ps2_clk    => PS2_KBCLK,
         ps2_data   => PS2_KBDAT,
+        key_req    => key_req_sig,          -- key request signal
         ascii_new  => LEDG(0),
         ascii_code => disp_out(6 downto 0)  -- output ASCII code to display
     );
+
+
 
 end Structural;
