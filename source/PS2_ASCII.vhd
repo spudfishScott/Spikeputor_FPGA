@@ -59,7 +59,7 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL shift_r           : STD_LOGIC := '0';                      -- '1' if right shift is held down, else '0'
     SIGNAL shift_l           : STD_LOGIC := '0';                      -- '1' if left shift is held down, else '0'
     SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; -- internal value of ASCII translation
-    SIGNAL addtionals        : STD_LOGIC_VECTOR(23 downto 0) := x"000000"; -- up to three additional characters to send for special control keys
+    SIGNAL additionals       : STD_LOGIC_VECTOR(23 downto 0) := x"000000"; -- up to three additional characters to send for special control keys
 
     SIGNAL tx_busy_sig       : STD_LOGIC := '0';                      -- '1' if we're transmitting a command to PS/2
     SIGNAL tx_cmd_sig        : STD_LOGIC_VECTOR(8 DOWNTO 0) := "111101101"; -- command to send to PS/2, parity is bit 8
@@ -427,7 +427,7 @@ BEGIN
                                     buffer_tail <= (buffer_tail + 1) MOD 8;     -- so advance tail pointer to overwrite oldest value
                                 END IF;
                             ELSE                                            -- four ascii code keypress
-                                key_buffer(buffer_head) <= ascii(6 DOWNTO 0)
+                                key_buffer(buffer_head) <= ascii(6 DOWNTO 0);
                                 key_buffer(buffer_head + 1) <= additionals(22 DOWNTO 16);
                                 key_buffer((buffer_head + 2) MOD 8) <= additionals(14 DOWNTO 8);
                                 key_buffer((buffer_head + 3) MOD 8) <= additionals(6 DOWNTO 0);
@@ -441,7 +441,9 @@ BEGIN
                                         buffer_tail <= (buffer_tail + 2) MOD 8;
                                     ELSIF (buffer_head + 3) MOD 8 = buffer_tail THEN
                                         buffer_tail <= (buffer_tail + 1) MOD 8;
+													END IF;
                                 END IF;
+										 END IF;
                         END IF;
 
                         IF ps2_code = x"58" OR ps2_code = x"77" THEN                -- if the code is the caps lock or num lock keys, send command to toggle appropriate lights on keyboard
