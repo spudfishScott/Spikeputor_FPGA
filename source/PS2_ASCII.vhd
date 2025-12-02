@@ -43,8 +43,8 @@ END PS2_ASCII;
 ARCHITECTURE behavior OF PS2_ASCII IS
     TYPE KEYBUF IS ARRAY(0 to 7) OF STD_LOGIC_VECTOR(6 DOWNTO 0);
 
-    TYPE machine IS (ready, new_code, translate, addbuf, capslock, capslock2);   --needed states
-    SIGNAL state             : machine := capslock;                              --state machine starts with setting keyboard LEDs
+    TYPE machine IS (ready, new_code, translate, addbuf, updatekb, updatekb2);   --needed states
+    SIGNAL state             : machine := updatekb;                              --state machine starts with setting keyboard LEDs
 
     SIGNAL ps2_code_new      : STD_LOGIC := '0';                      -- new PS2 code flag from ps2_keyboard component
     SIGNAL ps2_code          : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"00"; -- PS2 code input form ps2_keyboard component
@@ -65,9 +65,9 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL tx_ena_sig        : STD_LOGIC := '0';                      -- '1' to latch the command and start sending it
 
     SIGNAL key_buffer        : KEYBUF := (others => (others => '0')); -- ring buffer for ASCII codes
-    SIGNAL buffer_head       : INTEGER RANGE 0 TO 7 := 0;            -- points to next position to write new key
-    SIGNAL buffer_tail       : INTEGER RANGE 0 TO 7 := 0;            -- points to next position to read key
-	 SIGNAL buffer_empty      : STD_LOGIC := '1';                     -- flag if buffer is empty
+    SIGNAL buffer_head       : INTEGER RANGE 0 TO 7 := 0;             -- points to next position to write new key
+    SIGNAL buffer_tail       : INTEGER RANGE 0 TO 7 := 0;             -- points to next position to read key
+    SIGNAL buffer_empty      : STD_LOGIC := '1';                      -- flag if buffer is empty
 
 BEGIN
 
@@ -97,7 +97,7 @@ BEGIN
         IF (rising_edge(clk)) THEN
 
             IF (n_rst = '0') THEN                   -- reset all signals and variables
-                state <= capslock;                  -- start by sending caps lock state to keyboard
+                state <= updatekb;                  -- start by sending caps lock state to keyboard
                 break <= '0';
                 e0_code <= '0';
                 caps_lock <= '0';
@@ -109,7 +109,7 @@ BEGIN
                 ascii <= x"FF";
                 buffer_head <= 0;
                 buffer_tail <= 0;
-					 buffer_empty <= '1';
+                buffer_empty <= '1';
                 ascii_new <= '0';
                 ascii_code <= (others => '0');
             ELSE
@@ -122,17 +122,17 @@ BEGIN
                         ascii_new <= '0';                                           --  ascii_new is a one-clock strobe
                         IF (prev_ps2_code_new = '0' AND ps2_code_new = '1') THEN    -- new PS2 code received
                             state <= new_code;                                      -- proceed to new_code state
-                        ELSIF (key_req = '1') THEN                                  -- key requested
-								    IF buffer_empty = '0' THEN                              -- Buffer has characters in it
+                        ELSIF (key_req = '1') THEN                                  -- key requested - may have to wait for new code to come in before servicing
+                            IF buffer_empty = '0' THEN                              -- Buffer has characters in it
                                 ascii_code <= key_buffer(buffer_tail);              -- output the next ASCII code from the buffer
                                 ascii_new <= '1';                                   -- set new ASCII code indicator
                                 buffer_tail <= (buffer_tail + 1) MOD 8;             -- advance tail pointer
-										  IF (buffer_tail + 1) MOD 8 = buffer_head THEN       -- mark buffer empty if tail will = head
-										      buffer_empty <= '1';
-											END IF;
-								    ELSE                                                    -- ouput 0x00 when buffer is empty
-									     ascii_code <= (others => '0');
-									 END IF;
+                                IF (buffer_tail + 1) MOD 8 = buffer_head THEN       -- mark buffer empty if tail will = head
+                                    buffer_empty <= '1';
+                                END IF;
+                            ELSE                                                    -- ouput 0x00 when buffer is empty
+                                ascii_code <= (others => '0');
+                            END IF;
                         ELSE                                                        -- no new PS2 code received yet
                             state <= ready;                                         -- remain in ready state
                         END IF;
@@ -147,7 +147,7 @@ BEGIN
                             state <= ready;             -- return to ready state to await next PS2 code
                         ELSIF (ps2_code = x"FA") THEN   -- sent to acknowledge that the keyboard recived a command
                             IF tx_cmd_sig = "111101101" THEN -- last command sent was SET/RESET mode indicators
-                                state <= capslock2;     -- send the option byte
+                                state <= updatekb2;     -- send the option byte
                             ELSE
                                 state <= ready;         -- listen for the next PS2 code
                             END IF;
@@ -166,6 +166,10 @@ BEGIN
                             WHEN x"58" =>                       -- caps lock code
                                 IF (break = '0') THEN           -- if make command
                                     caps_lock <= NOT caps_lock; -- toggle caps lock
+                                END IF;
+                            WHEN x"77" =>                       -- num lock code
+                                IF (break = '0') THEN           -- if make command
+                                    num_lock <= NOT num_lock;   -- toggle num lock
                                 END IF;
                             WHEN x"14" =>                       -- code for the control keys
                                 IF (e0_code = '1') THEN         -- code for right control
@@ -282,20 +286,6 @@ BEGIN
                                 WHEN x"3D" => ascii <= x"37"; -- 7
                                 WHEN x"3E" => ascii <= x"38"; -- 8
                                 WHEN x"46" => ascii <= x"39"; -- 9
-                                WHEN x"70" => ascii <= x"30"; -- KP 0
-                                WHEN x"69" => ascii <= x"31"; -- KP 1
-                                WHEN x"72" => ascii <= x"32"; -- KP 2
-                                WHEN x"7A" => ascii <= x"33"; -- KP 3
-                                WHEN x"6B" => ascii <= x"34"; -- KP 4
-                                WHEN x"73" => ascii <= x"35"; -- KP 5
-                                WHEN x"74" => ascii <= x"36"; -- KP 6
-                                WHEN x"6C" => ascii <= x"37"; -- KP 7
-                                WHEN x"75" => ascii <= x"38"; -- KP 8
-                                WHEN x"7D" => ascii <= x"39"; -- KP 9
-                                WHEN x"71" => ascii <= x"2E"; -- KP .  ('.')
-                                WHEN x"79" => ascii <= x"2B"; -- KP +
-                                WHEN x"7B" => ascii <= x"2D"; -- KP -
-                                WHEN x"7C" => ascii <= x"2A"; -- KP *
                                 WHEN x"52" => ascii <= x"27"; -- '
                                 WHEN x"41" => ascii <= x"2C"; -- ,
                                 WHEN x"4E" => ascii <= x"2D"; -- -
@@ -311,6 +301,42 @@ BEGIN
                             END CASE;
                         END IF;
 
+                        IF num_lock = '1' AND e0_code = '0' THEN  -- If num lock is on, translate these keys to numerics unless it's an e0 prefixed code
+                            CASE ps2_code is
+                                WHEN x"70" => ascii <= x"30"; -- KP 0
+                                WHEN x"69" => ascii <= x"31"; -- KP 1
+                                WHEN x"72" => ascii <= x"32"; -- KP 2
+                                WHEN x"7A" => ascii <= x"33"; -- KP 3
+                                WHEN x"6B" => ascii <= x"34"; -- KP 4
+                                WHEN x"73" => ascii <= x"35"; -- KP 5
+                                WHEN x"74" => ascii <= x"36"; -- KP 6
+                                WHEN x"6C" => ascii <= x"37"; -- KP 7
+                                WHEN x"75" => ascii <= x"38"; -- KP 8
+                                WHEN x"7D" => ascii <= x"39"; -- KP 9
+                                WHEN x"71" => ascii <= x"2E"; -- KP .  ('.')
+                                WHEN x"79" => ascii <= x"2B"; -- KP +
+                                WHEN x"7B" => ascii <= x"2D"; -- KP -
+                                WHEN x"7C" => ascii <= x"2A"; -- KP *
+                                WHEN OTHERS => NULL;
+                            END CASE;
+                        ELSE                    -- If num lock is off, or it's on, but there was an e0 prefix, transate these keys to control stuff
+                            CASE ps2_code is
+                                WHEN x"70" => ascii <= x"1B"; -- INS <esc>[2~   TODO: handle adding more keys for these commands
+                                WHEN x"69" => ascii <= x"1B"; -- END <esc>[4~
+                                WHEN x"72" => ascii <= x"1B"; -- DOWN <esc>[B
+                                WHEN x"7A" => ascii <= x"1B"; -- PG DN <esc>[6~
+                                WHEN x"6B" => ascii <= x"1B"; -- LEFT <esc>[D
+                                WHEN x"74" => ascii <= x"1B"; -- RIGHT <esc> [C
+                                WHEN x"6C" => ascii <= x"1B"; -- HOME <esc> [1~
+                                WHEN x"75" => ascii <= x"1B"; -- UP <esc>[A
+                                WHEN x"7D" => ascii <= x"1B"; -- PG UP <esc>[5~
+                                WHEN x"71" => ascii <= x"1B"; -- DEL <esc>[3~
+                                WHEN x"79" => ascii <= x"2B"; -- KP +
+                                WHEN x"7B" => ascii <= x"2D"; -- KP -
+                                WHEN x"7C" => ascii <= x"2A"; -- KP *
+                                WHEN OTHERS => NULL;
+                            END CASE;
+                        END IF;
                         -- translate control codes (these do not depend on shift or caps lock)
                         IF (control_l = '1' OR control_r = '1') THEN
                             CASE ps2_code IS
@@ -376,37 +402,35 @@ BEGIN
                         IF (ascii(7) = '0') THEN                -- if it's still '1', the keycode was not valid, so ignore
                             key_buffer(buffer_head) <= ascii(6 DOWNTO 0);   -- store new ASCII code in buffer
                             buffer_head <= (buffer_head + 1) MOD 8;         -- advance head pointer
-									 buffer_empty <= '0';                            -- buffer no longer empty
-                            IF buffer_head = buffer_tail AND buffer_empty = '0' THEN               -- if buffer is full
-                                buffer_tail <= (buffer_tail + 1) MOD 8;     -- advance tail pointer to overwrite oldest value
+                            buffer_empty <= '0';                            -- buffer no longer empty
+                            IF buffer_head = buffer_tail AND buffer_empty = '0' THEN        -- buffer is full
+                                buffer_tail <= (buffer_tail + 1) MOD 8;     -- so advance tail pointer to overwrite oldest value
                             END IF;
-                            -- ascii_new <= '1';                   -- strobe flag indicating new ASCII output
-                            -- ascii_code <= ascii(6 DOWNTO 0);    -- output the ASCII value
                         END IF;
 
-                        IF ps2_code = x"58" THEN                -- if the code is the caps lock key, send command to toggle caps lock light on keyboard
-                            state <= capslock;
+                        IF ps2_code = x"58" OR ps2_code = x"77" THEN                -- if the code is the caps lock or num lock keys, send command to toggle appropriate lights on keyboard
+                            state <= updatekb;
                         ELSE
                             state <= ready;                     -- return to ready state to await next PS2 code
                         END IF;
 
                     -- handle mode indicator change
-                    WHEN capslock =>
+                    WHEN updatekb =>
                         IF tx_busy_sig = '0' THEN                   -- wait until ok to transmit
                             tx_cmd_sig <= "111101101";              -- 0xED with msb as parity bit - set/reset mode indicators
                             tx_ena_sig <= '1';                      -- set transmit signal
                             state <= ready;                         -- wait for acknowledgement
                         ELSE
-                            state <= capslock;
+                            state <= updatekb;
                         END IF;
 
-                    WHEN capslock2 =>
+                    WHEN updatekb2 =>
                         IF tx_busy_sig = '0' THEN
                             tx_cmd_sig <= NOT(caps_lock XOR num_lock) & "00000" & caps_lock & num_lock & "0";   -- set current caps lock (bit 2) and num_lock (bit 1) states with parity bit
                             tx_ena_sig <= '1';                      -- set transmit signal
                             state <= ready;                         -- wait for acknowledgement
                         ELSE
-                            state <= capslock2;
+                            state <= updatekb2;
                         END IF;
                 END CASE;
             END IF;
