@@ -41,7 +41,7 @@ ENTITY PS2_ASCII IS
 END PS2_ASCII;
 
 ARCHITECTURE behavior OF PS2_ASCII IS
-    TYPE RARRAY is array(1 to 7) of std_logic_vector(BIT_DEPTH-1 downto 0);
+    TYPE KEYBUF IS ARRAY(0 to 7) OF STD_LOGIC_VECTOR(6 DOWNTO 0);
 
     TYPE machine IS (ready, new_code, translate, addbuf, capslock, capslock2);   --needed states
     SIGNAL state             : machine := capslock;                              --state machine starts with setting keyboard LEDs
@@ -64,9 +64,10 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL tx_cmd_sig        : STD_LOGIC_VECTOR(8 DOWNTO 0) := "111101101"; -- command to send to PS/2, parity is bit 8
     SIGNAL tx_ena_sig        : STD_LOGIC := '0';                      -- '1' to latch the command and start sending it
 
-    SIGNAL key_buffer        : ARRAY(0 to 7) OF STD_LOGIC_VECTOR(6 DOWNTO 0) := (others => (others => '0')); -- ring buffer for ASCII codes
+    SIGNAL key_buffer        : KEYBUF := (others => (others => '0')); -- ring buffer for ASCII codes
     SIGNAL buffer_head       : INTEGER RANGE 0 TO 7 := 0;            -- points to next position to write new key
     SIGNAL buffer_tail       : INTEGER RANGE 0 TO 7 := 0;            -- points to next position to read key
+	 SIGNAL buffer_empty      : STD_LOGIC := '1';                     -- flag if buffer is empty
 
 BEGIN
 
@@ -108,6 +109,7 @@ BEGIN
                 ascii <= x"FF";
                 buffer_head <= 0;
                 buffer_tail <= 0;
+					 buffer_empty <= '1';
                 ascii_new <= '0';
                 ascii_code <= (others => '0');
             ELSE
@@ -117,14 +119,20 @@ BEGIN
                     -- ready state: wait for a new PS2 code to be received or a new key request from the buffer
                     WHEN ready =>
                         tx_ena_sig <= '0';                                          -- turn off transmit signal
-                        ascii_new <= '0';   --  ascii_new is a one-clock strobe
+                        ascii_new <= '0';                                           --  ascii_new is a one-clock strobe
                         IF (prev_ps2_code_new = '0' AND ps2_code_new = '1') THEN    -- new PS2 code received
-                            -- ascii_new <= '0';                                       -- reset new ASCII code indicator
                             state <= new_code;                                      -- proceed to new_code state
-                        ELSIF (key_req = '1' AND buffer_head /= buffer_tail) THEN   -- key requested and buffer not empty
-                            ascii_code <= key_buffer(buffer_tail);                  -- output the next ASCII code from the buffer
-                            ascii_new <= '1';                                       -- set new ASCII code indicator
-                            buffer_tail <= (buffer_tail + 1) MOD 8;                 -- advance tail pointer
+                        ELSIF (key_req = '1') THEN                                  -- key requested
+								    IF buffer_empty = '0' THEN                              -- Buffer has characters in it
+                                ascii_code <= key_buffer(buffer_tail);              -- output the next ASCII code from the buffer
+                                ascii_new <= '1';                                   -- set new ASCII code indicator
+                                buffer_tail <= (buffer_tail + 1) MOD 8;             -- advance tail pointer
+										  IF (buffer_tail + 1) MOD 8 = buffer_head THEN       -- mark buffer empty if tail will = head
+										      buffer_empty <= '1';
+											END IF;
+								    ELSE                                                    -- ouput 0x00 when buffer is empty
+									     ascii_code <= (others => '0');
+									 END IF;
                         ELSE                                                        -- no new PS2 code received yet
                             state <= ready;                                         -- remain in ready state
                         END IF;
@@ -368,7 +376,8 @@ BEGIN
                         IF (ascii(7) = '0') THEN                -- if it's still '1', the keycode was not valid, so ignore
                             key_buffer(buffer_head) <= ascii(6 DOWNTO 0);   -- store new ASCII code in buffer
                             buffer_head <= (buffer_head + 1) MOD 8;         -- advance head pointer
-                            IF buffer_head = buffer_tail THEN               -- if buffer is full
+									 buffer_empty <= '0';                            -- buffer no longer empty
+                            IF buffer_head = buffer_tail AND buffer_empty = '0' THEN               -- if buffer is full
                                 buffer_tail <= (buffer_tail + 1) MOD 8;     -- advance tail pointer to overwrite oldest value
                             END IF;
                             -- ascii_new <= '1';                   -- strobe flag indicating new ASCII output

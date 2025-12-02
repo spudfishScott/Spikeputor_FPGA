@@ -24,7 +24,7 @@ entity DE0_PS2Test is -- the interface to the DE0 board
 
         LEDG     : out std_logic_vector(9 downto 0);
 
-        BUTTON   : in std_logic_vector(9 downto 0)
+        BUTTON   : in std_logic_vector(1 downto 0)
     );
 
 end DE0_PS2Test;
@@ -58,7 +58,7 @@ begin
 
     port map (
         CLK_IN      => CLOCK_50,
-        BUTTON_IN   => BUTTON(1),  -- button 1 is key request
+        START_PULSE => NOT(Button(1)),  -- button 1 is key request
         PULSE_OUT   => key_req_sig
     );
 
