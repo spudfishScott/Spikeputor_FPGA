@@ -59,6 +59,7 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL shift_r           : STD_LOGIC := '0';                      -- '1' if right shift is held down, else '0'
     SIGNAL shift_l           : STD_LOGIC := '0';                      -- '1' if left shift is held down, else '0'
     SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; -- internal value of ASCII translation
+    SIGNAL addtionals        : STD_LOGIC_VECTOR(23 downto 0) := x"000000"; -- up to three additional characters to send for special control keys
 
     SIGNAL tx_busy_sig       : STD_LOGIC := '0';                      -- '1' if we're transmitting a command to PS/2
     SIGNAL tx_cmd_sig        : STD_LOGIC_VECTOR(8 DOWNTO 0) := "111101101"; -- command to send to PS/2, parity is bit 8
@@ -160,6 +161,7 @@ BEGIN
                     WHEN translate =>
                         break <= '0';                           -- reset break flag
                         e0_code <= '0';                         -- reset multi-code command flag
+                        additionals <= (others => '0');         -- reset additional keystrokes by default
                         
                         -- handle codes for control, shift, and caps lock
                         CASE ps2_code IS
@@ -321,16 +323,33 @@ BEGIN
                             END CASE;
                         ELSE                    -- If num lock is off, or it's on, but there was an e0 prefix, transate these keys to control stuff
                             CASE ps2_code is
-                                WHEN x"70" => ascii <= x"1B"; -- INS <esc>[2~   TODO: handle adding more keys for these commands
-                                WHEN x"69" => ascii <= x"1B"; -- END <esc>[4~
-                                WHEN x"72" => ascii <= x"1B"; -- DOWN <esc>[B
-                                WHEN x"7A" => ascii <= x"1B"; -- PG DN <esc>[6~
-                                WHEN x"6B" => ascii <= x"1B"; -- LEFT <esc>[D
-                                WHEN x"74" => ascii <= x"1B"; -- RIGHT <esc> [C
-                                WHEN x"6C" => ascii <= x"1B"; -- HOME <esc> [1~
-                                WHEN x"75" => ascii <= x"1B"; -- UP <esc>[A
-                                WHEN x"7D" => ascii <= x"1B"; -- PG UP <esc>[5~
-                                WHEN x"71" => ascii <= x"1B"; -- DEL <esc>[3~
+                                WHEN x"70" =>
+                                    ascii       <= x"1B";             -- INS <esc>[2~
+                                    additionals <= x"5B327E";
+                                WHEN x"69" =>
+                                    ascii       <= x"1B";             -- END <esc>[4~
+                                    additionals <= x"5B347E";
+                                WHEN x"72" =>
+                                    ascii       <= x"1B";             -- DOWN <esc>[B
+                                    additionals <= x"5B4200";
+                                WHEN x"7A" =>
+                                    ascii       <= x"1B";             -- PG DN <esc>[6~
+                                    additionals <= x"5B367E";
+                                WHEN x"6B" =>
+                                    ascii       <= x"1B";             -- LEFT <esc>[D
+                                    additionals <= x"5B4400";
+                                WHEN x"74" =>
+                                    ascii       <= x"1B";             -- RIGHT <esc> [C
+                                    additionals <= x"5B4300";
+                                WHEN x"6C" =>
+                                    ascii       <= x"1B";             -- HOME <esc> [1~
+                                    additionals <= x"5B317E";
+                                WHEN x"75" =>
+                                    ascii       <= x"1B";             -- UP <esc>[A
+                                    additionals <= x"5B4100";
+                                WHEN x"7D" =>
+                                    ascii       <= x"1B";             -- PG UP <esc>[5~
+                                    additionals <= x"5B357E";
                                 WHEN x"79" => ascii <= x"2B"; -- KP +
                                 WHEN x"7B" => ascii <= x"2D"; -- KP -
                                 WHEN x"7C" => ascii <= x"2A"; -- KP *
@@ -400,12 +419,29 @@ BEGIN
                     -- buffer state: verify the code is valid and buffer the ASCII value
                     WHEN addbuf =>
                         IF (ascii(7) = '0') THEN                -- if it's still '1', the keycode was not valid, so ignore
-                            key_buffer(buffer_head) <= ascii(6 DOWNTO 0);   -- store new ASCII code in buffer
-                            buffer_head <= (buffer_head + 1) MOD 8;         -- advance head pointer
                             buffer_empty <= '0';                            -- buffer no longer empty
-                            IF buffer_head = buffer_tail AND buffer_empty = '0' THEN        -- buffer is full
-                                buffer_tail <= (buffer_tail + 1) MOD 8;     -- so advance tail pointer to overwrite oldest value
-                            END IF;
+                            IF additionals = x"000000" THEN                 -- standard keypress (one ascii code)
+                                key_buffer(buffer_head) <= ascii(6 DOWNTO 0);   -- store new ASCII code in buffer
+                                buffer_head <= (buffer_head + 1) MOD 8;         -- advance head pointer
+                                IF buffer_head = buffer_tail AND buffer_empty = '0' THEN        -- buffer is full
+                                    buffer_tail <= (buffer_tail + 1) MOD 8;     -- so advance tail pointer to overwrite oldest value
+                                END IF;
+                            ELSE                                            -- four ascii code keypress
+                                key_buffer(buffer_head) <= ascii(6 DOWNTO 0)
+                                key_buffer(buffer_head + 1) <= additionals(22 DOWNTO 16);
+                                key_buffer((buffer_head + 2) MOD 8) <= additionals(14 DOWNTO 8);
+                                key_buffer((buffer_head + 3) MOD 8) <= additionals(6 DOWNTO 0);
+                                buffer_head <= (buffer_head + 4) MOD 8;     -- for these multi-value keystrokes, advance buffer head by the 4 total ascii codes
+                                IF buffer_empty = '0' THEN                  -- if buffer isn't empty, do head/tail logic for 4 byte increase to see if tail needs to change
+                                    IF buffer_head = buffer_tail THEN
+                                        buffer_tail <= (buffer_tail + 4) MOD 8;
+                                    ELSIF (buffer_head + 1) MOD 8 = buffer_tail THEN
+                                        buffer_tail <= (buffer_tail + 3) MOD 8;
+                                    ELSIF (buffer_head + 2) MOD 8 = buffer_tail THEN
+                                        buffer_tail <= (buffer_tail + 2) MOD 8;
+                                    ELSIF (buffer_head + 3) MOD 8 = buffer_tail THEN
+                                        buffer_tail <= (buffer_tail + 1) MOD 8;
+                                END IF;
                         END IF;
 
                         IF ps2_code = x"58" OR ps2_code = x"77" THEN                -- if the code is the caps lock or num lock keys, send command to toggle appropriate lights on keyboard
