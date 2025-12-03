@@ -354,7 +354,7 @@ begin
             WBS_ACK_O   => ack(8),
 
             -- memory read signals (KEYBOARD is single address read-only for now - maybe include a way to change keybaord repeat rate)
-            WBS_DATA_O  => data8
+            WBS_DATA_O  => data8,
 
             -- keyboard communication
             PS2_CLK     => PS2_KBCLK,

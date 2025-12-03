@@ -52,10 +52,10 @@ begin
     WBS_ACK_O  <= WBS_CYC_I AND WBS_STB_I AND ack;          -- acknowledge signal based on ack, CYC and STB
 
     process(clk) is
+	 begin
         if rising_edge(CLK) then
-            if RST_I = '1' then -- return to IDLE state and clear output and control signals on reset
+            if RST_I = '1' then -- return to IDLE state and clear control signal on reset
                 key_req_s <= '0';
-                ascii_data <= (others => '0');
                 st    <= IDLE; 
             else
                 case st is
@@ -69,7 +69,7 @@ begin
 
                     when WAIT_VALID =>          -- wait for READ to complete (keyboard data is valid)
                         key_req_s <= '0';           -- clear request signal
-                        if (ascii_new = '1') then   -- keyboard reports a new ascii character
+                        if (ascii_new_s = '1') then -- keyboard reports a new ascii character
                             ack   <= '1';           -- assert ack signal
                             st    <= CLEAR;         -- done, clear ack signal when wishbone transaction ends, then go back to IDLE state
                         else
@@ -98,7 +98,6 @@ begin
                     ack <= '0';
                     st <= IDLE;
                 end if;
-
             end if;
         end if;
   end process;
