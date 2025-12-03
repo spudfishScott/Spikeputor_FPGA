@@ -45,6 +45,9 @@ entity DE0_Spikeputor is
         DRAM_DQ    : inout std_logic_vector(15 downto 0);
         DRAM_UDQM  : out std_logic;
         DRAM_LDQM  : out std_logic;
+        --PS/2 KEYBOARD
+        PS2_KBCLK  : inout std_logic;
+        PS2_KBDAT  : inout std_logic;
         -- GPIO
         GPIO1_D    : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
         GPIO0_D    : out std_logic_vector(1 downto 0)     -- [1:0] = dotstar out
@@ -338,6 +341,26 @@ begin
             Q           => FL_DQ
         );
 
+    -- KEYBOARD Instance as Wishbone provider (P8)
+    KBD : entity work.KEYBOARD_WSH_P
+        port map (
+            CLK         => CLOCK_50,
+            RST_I       => NOT button_sync(0),  -- Button 0 is system reset (active low)
+
+            -- Wishbone signals
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(8),
+            WBS_ACK_O   => ack(8),
+
+            -- memory read signals (KEYBOARD is single address read-only for now - maybe include a way to change keybaord repeat rate)
+            WBS_DATA_O  => data8
+
+            -- keyboard communication
+            PS2_CLK     => PS2_KBCLK,
+            PS2_DATA    => PS2_KBDAT
+        );
+
     -- SEGMENT Instance as Wishbone provider (P9)
     SEG : entity work.SEGMENT_WSH_P
         port map (
@@ -354,6 +377,7 @@ begin
             WBS_WE_I    => arb_we,
             WBS_DATA_O  => data9,
 
+            -- SEGMENT register
             SEGMENT     => SEGMENT             -- output of SEGMENT provider is a direct connection to the rest of the computer (not on the data bus)
         );
 

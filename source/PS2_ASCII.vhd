@@ -426,24 +426,14 @@ BEGIN
                                 IF buffer_head = buffer_tail AND buffer_empty = '0' THEN        -- buffer is full
                                     buffer_tail <= (buffer_tail + 1) MOD 8;     -- so advance tail pointer to overwrite oldest value
                                 END IF;
-                            ELSE                                            -- four ascii code keypress
-                                key_buffer(buffer_head) <= ascii(6 DOWNTO 0);
+                            ELSE                                                    -- four ascii code keypress
+                                key_buffer(buffer_head) <= ascii(6 DOWNTO 0);       -- put each of the four keypresses into the buffer
                                 key_buffer(buffer_head + 1) <= additionals(22 DOWNTO 16);
                                 key_buffer((buffer_head + 2) MOD 8) <= additionals(14 DOWNTO 8);
                                 key_buffer((buffer_head + 3) MOD 8) <= additionals(6 DOWNTO 0);
-                                buffer_head <= (buffer_head + 4) MOD 8;     -- for these multi-value keystrokes, advance buffer head by the 4 total ascii codes
-                                IF buffer_empty = '0' THEN                  -- if buffer isn't empty, do head/tail logic for 4 byte increase to see if tail needs to change
-                                    IF buffer_head = buffer_tail THEN
-                                        buffer_tail <= (buffer_tail + 4) MOD 8;
-                                    ELSIF (buffer_head + 1) MOD 8 = buffer_tail THEN
-                                        buffer_tail <= (buffer_tail + 3) MOD 8;
-                                    ELSIF (buffer_head + 2) MOD 8 = buffer_tail THEN
-                                        buffer_tail <= (buffer_tail + 2) MOD 8;
-                                    ELSIF (buffer_head + 3) MOD 8 = buffer_tail THEN
-                                        buffer_tail <= (buffer_tail + 1) MOD 8;
-													END IF;
-                                END IF;
-										 END IF;
+                                buffer_head <= (buffer_head + 4) MOD 8;     -- advance buffer head by the 4 total ascii codes
+                                buffer_tail <= buffer_head;                 -- purge buffer for these keystrokes, otherwise we might overwrite a portion of a previous set
+                            END IF;
                         END IF;
 
                         IF ps2_code = x"58" OR ps2_code = x"77" THEN                -- if the code is the caps lock or num lock keys, send command to toggle appropriate lights on keyboard

@@ -17,11 +17,11 @@
 -- In addition to standard RAM (P0), SDRAM (P10), and ROM (P1), the following providers are accessed through specific addresses, which override the above:
 --  GPO (P2)        read/write location 0x7FFC
 --  GPI (P3)        read only location 0x7FFE - writing goes nowhere
---  BANK_SEL (P4)   read/write location 0x7FAE
---  SOUND (P5)      read/write location 0x7FAC
---  VIDEO (P6)      read/write to video coprocessor - locations TBD
---  SERIAL (P7)     serial in/serial out - locations TBD
---  STORAGE (P8)    read/write to SD card filesystem - locations TBD (might be coupled to DMA)
+--  SOUND (P4)      read/write location 0x7FAC
+--  VIDEO (P5)      read/write to video coprocessor - locations TBD
+--  SERIAL (P6)     serial in/serial out - locations TBD
+--  STORAGE (P7)    read/write to SD card filesystem - locations TBD (might be coupled to DMA)
+--  KEYBOARD (P8)   read keyboard input buffer (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which might be used to expand the total amount of RAM available - locations TBD
 
 -- Outputs are:
@@ -46,11 +46,11 @@ entity WSH_ADDR is
         P1_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from ROM (P1)
         P2_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPO (P2)
         P3_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPI (P3)
-        P4_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from BANK_SEL (P4)
-        P5_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SOUND (P5)
-        P6_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from VIDEO (P6)
-        P7_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SERIAL (P7)
-        P8_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from STORAGE (P8)
+        P4_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SOUND (P4)
+        P5_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from VIDEO (P5)
+        P6_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SERIAL (P6)
+        P7_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from STORAGE (P7)
+        P8_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from KEYBOARD (P8)
         P9_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SEGMENT (P9)
         P10_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from SDRAM (P10)
 
@@ -61,6 +61,8 @@ entity WSH_ADDR is
 end WSH_ADDR;
 
 architecture RTL of WSH_ADDR is
+
+    constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FF00"; -- keyboard address
 
     signal p_sel   : integer range 0 to 10 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- RAM selected
@@ -74,7 +76,7 @@ begin
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
 
     -- TODO: replace addresses with constants defined above (they'll be in 0xFFxx - could even expand to 0xFxxx for hardware I/O)
-    spec <= '1' when seg = "0000000" AND (p_addr = x"7FFC" OR p_addr = x"7FFE" OR p_addr = x"7FAC")     -- check for a special address (more to follow)
+    spec <= '1' when seg = "0000000" AND (p_addr = KEYBOARD_ADDR)                         -- check for a special address (more to follow)
                 else '0';
     ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111") OR                                               -- no segment and in range 0x0000-0xDFFF
                       (seg /= "0000000" AND ADDR_I(23) = '0')                                                               -- segment and not a ROM address
@@ -88,6 +90,7 @@ begin
         else    3 when seg  = "0000000" AND p_addr = x"7FFE"                                  -- read only GPI
         else    4 when seg  = "0000000" AND p_addr = x"7FAC"                                  -- read/write sound register (this may be expanded)
         -- to do the rest 5 through 9
+        else    8 when seg  = "0000000" AND p_addr = KEYBOARD_ADDR                            -- read only KEYBOARD
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    3;                                                                        -- default to read only GPI
 
