@@ -124,9 +124,9 @@ BEGIN
                         IF (prev_ps2_code_new = '0' AND ps2_code_new = '1') THEN    -- new PS2 code received
                             state <= new_code;                                      -- proceed to new_code state
                         ELSIF (key_req = '1') THEN                                  -- key requested - may have to wait for new code to come in before servicing
+                            ascii_new <= '1';                                       -- set new ASCII code indicator
                             IF buffer_empty = '0' THEN                              -- Buffer has characters in it
                                 ascii_code <= key_buffer(buffer_tail);              -- output the next ASCII code from the buffer
-                                ascii_new <= '1';                                   -- set new ASCII code indicator
                                 buffer_tail <= (buffer_tail + 1) MOD 8;             -- advance tail pointer
                                 IF (buffer_tail + 1) MOD 8 = buffer_head THEN       -- mark buffer empty if tail will = head
                                     buffer_empty <= '1';

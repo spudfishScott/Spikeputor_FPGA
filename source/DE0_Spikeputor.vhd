@@ -295,7 +295,7 @@ begin
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- RAM Instance as Wishbone provider (P0)
     RAM : entity work.RAM_WSH_P 
-        port map ( -- change to real RAM module when testing is complete, add other provider modules for ROM, peripherals, etc.
+        port map (
             -- SYSCON inputs
             CLK         => CLOCK_50,
 
