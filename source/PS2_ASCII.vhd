@@ -43,7 +43,7 @@ END PS2_ASCII;
 ARCHITECTURE behavior OF PS2_ASCII IS
     TYPE KEYBUF IS ARRAY(0 to 7) OF STD_LOGIC_VECTOR(6 DOWNTO 0);
 
-    TYPE machine IS (ready, new_code, translate, addbuf, updatekb, updatekb2);   --needed states
+    TYPE machine IS (ready, send_wait, new_code, translate, addbuf, updatekb, updatekb2);   --needed states
     SIGNAL state             : machine := updatekb;                              --state machine starts with setting keyboard LEDs
 
     SIGNAL ps2_code_new      : STD_LOGIC := '0';                      -- new PS2 code flag from ps2_keyboard component
@@ -70,6 +70,8 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL buffer_tail       : INTEGER RANGE 0 TO 7 := 0;             -- points to next position to read key
     SIGNAL buffer_empty      : STD_LOGIC := '1';                      -- flag if buffer is empty
 
+	 SIGNAL pending_keypress  : STD_LOGIC := '1';
+	 
 BEGIN
 
     --instantiate PS2 keyboard interface logic
@@ -113,22 +115,26 @@ BEGIN
                 buffer_empty <= '1';
                 ascii_new <= '0';
                 ascii_code <= (others => '0');
+					 pending_keypress <= '0';
             ELSE
                 prev_ps2_code_new <= ps2_code_new;  -- keep track of previous ps2_code_new values to determine low-to-high transitions
                 ascii_new <= '0';                                           --  ascii_new is a one-clock strobe
-
+					 IF prev_ps2_code_new = '0' AND ps2_code_new = '1' THEN		 -- latch in any pending keypresses
+    					 pending_keypress <= '1';
+	             END IF;
+					 
                 CASE state IS
                     -- ready state: wait for a new PS2 code to be received or a new key request from the buffer
                     WHEN ready =>
                         tx_ena_sig <= '0';                                          -- turn off transmit signal
 
-                        IF (prev_ps2_code_new = '0' AND ps2_code_new = '1') THEN    -- new PS2 code received
+                        IF pending_keypress = '1' THEN    								   -- new PS2 code received
                             state <= new_code;                                      -- proceed to new_code state
                         ELSE                                                        -- no new PS2 code received yet
                             state <= ready;                                         -- remain in ready state
                         END IF;
 
-                        IF (key_req = '1') THEN                                     -- key requested
+                        IF (key_req = '1') THEN                                     -- key requested - supercedes pending keypress
                             IF buffer_empty = '0' THEN                              -- Buffer has characters in it
                                 ascii_code <= key_buffer(buffer_tail);              -- output the next ASCII code from the buffer
                                 buffer_tail <= (buffer_tail + 1) MOD 8;             -- advance tail pointer
@@ -139,10 +145,19 @@ BEGIN
                                 ascii_code <= (others => '0');
                             END IF;
                             ascii_new <= '1';                                       -- set new ASCII code indicator
+									 state <= send_wait;
                         END IF;
 
+						  WHEN send_wait =>																-- wait until request is cleared before continuing
+						      IF key_req = '0' THEN
+    						      state <= ready;
+								ELSE
+									state <= send_wait;
+	                     END IF;
+								
                     -- new_code state: determine what to do with the new PS2 code  
                     WHEN new_code =>
+						      pending_keypress <= '0';
                         IF (ps2_code = x"F0") THEN      -- code indicates that next command is break
                             break <= '1';               -- set break flag
                             state <= ready;             -- return to ready state to await next PS2 code

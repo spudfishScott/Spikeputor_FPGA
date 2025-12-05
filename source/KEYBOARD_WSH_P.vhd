@@ -70,7 +70,7 @@ begin
 
                     when WAIT_VALID =>          -- wait for READ to complete (keyboard data is valid)
                         if (ascii_new_s = '1') then -- keyboard reports a new ascii character
-                            key_req_s <= '0';       -- clear request signal
+                            key_req_s <= '0';       -- clear request signal AFTER request is valid to avoid deadlocked signals
                             ack <= '1';             -- assert wishbone ack signal
                             st  <= CLEAR;           -- done, clear ack signal when wishbone transaction ends, then go back to IDLE state
                         else
