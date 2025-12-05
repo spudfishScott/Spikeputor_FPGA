@@ -17,7 +17,7 @@
 --   Version History
 --   Version 1.0 1/19/2018 Scott Larson
 --     Initial Public Release
---    
+--    Modified by Scott Berk
 --------------------------------------------------------------------------------
 
 LIBRARY ieee;
@@ -25,19 +25,19 @@ USE ieee.std_logic_1164.all;
 
 ENTITY ps2_transceiver IS
     GENERIC(
-        clk_freq              : INTEGER := 50_000_000 --system clock frequency in Hz
+        CLK_FREQ     : INTEGER := 50_000_000            -- system clock frequency in Hz (default 50 MHz)
     );
     PORT(
-        clk          : IN     STD_LOGIC;                    --system clock
-        reset_n      : IN     STD_LOGIC;                    --active low asynchronous reset
-        tx_ena       : IN     STD_LOGIC;                    --enable transmit
-        tx_cmd       : IN     STD_LOGIC_VECTOR(8 DOWNTO 0); --8-bit command to transmit, MSB is parity bit
-        tx_busy      : OUT    STD_LOGIC;                    --indicates transmit in progress
-        ack_error    : OUT    STD_LOGIC;                    --device acknowledge from transmit, '1' is error
-        ps2_code     : OUT    STD_LOGIC_VECTOR(7 DOWNTO 0); --code received from PS/2
-        ps2_code_new : OUT    STD_LOGIC;                    --flag that new PS/2 code is available on ps2_code bus
-        rx_error     : OUT    STD_LOGIC;                    --start, stop, or parity receive error detected, '1' is error
-        ps2_clk      : INOUT  STD_LOGIC;                    --PS/2 port clock signal
+        clk          : IN     STD_LOGIC;                            -- system clock
+        reset_n      : IN     STD_LOGIC;                            -- active low asynchronous reset
+        tx_ena       : IN     STD_LOGIC;                            -- enable transmit
+        tx_cmd       : IN     STD_LOGIC_VECTOR(8 DOWNTO 0);         -- 8-bit command to transmit, MSB is parity bit
+        tx_busy      : OUT    STD_LOGIC;                            -- indicates transmit in progress
+        ack_error    : OUT    STD_LOGIC;                            -- device acknowledge from transmit, '1' is error
+        ps2_code     : OUT    STD_LOGIC_VECTOR(7 DOWNTO 0);         -- code received from PS/2
+        ps2_code_new : OUT    STD_LOGIC;                            -- flag that new PS/2 code is available on ps2_code bus
+        rx_error     : OUT    STD_LOGIC;                            -- start, stop, or parity receive error detected, '1' is error
+        ps2_clk      : INOUT  STD_LOGIC;                            -- PS/2 port clock signal
         ps2_data     : INOUT  STD_LOGIC
     );                   --PS/2 port data signal
 END ps2_transceiver;
@@ -52,7 +52,7 @@ ARCHITECTURE logic OF ps2_transceiver IS
     SIGNAL ps2_data_int     : STD_LOGIC;                               -- debounced input data signal from PS/2 port
     SIGNAL ps2_word         : STD_LOGIC_VECTOR(10 DOWNTO 0);           -- stores the ps2 data word (both tx and rx)
     SIGNAL error            : STD_LOGIC;                               -- validate parity, start, and stop bits for received data
-    SIGNAL timer            : INTEGER RANGE 0 TO clk_freq/10_000 := 0; -- counter to determine both inhibit period and when PS/2 is idle
+    SIGNAL timer            : INTEGER RANGE 0 TO CLK_FREQ/10_000 := 0; -- counter to determine both inhibit period and when PS/2 is idle
     SIGNAL bit_cnt          : INTEGER RANGE 0 TO 11 := 0;              -- count the number of clock pulses during transmit
 
 BEGIN
@@ -110,12 +110,12 @@ BEGIN
                         -- determine if PS/2 port is idle 
                         IF (ps2_clk_int = '0') THEN                            -- low PS2 clock, PS/2 is active
                             timer <= 0;                                            -- reset idle counter
-                        ELSIF (timer < clk_freq/18_000) THEN                   -- PS2 clock has been high less than a half clock period (<55us)
+                        ELSIF (timer < CLK_FREQ/18_000) THEN                   -- PS2 clock has been high less than a half clock period (<55us)
                             timer <= timer + 1;                                    -- continue counting
                         END IF;
 
                         -- output received data and port status          
-                        IF (timer = clk_freq/18_000) THEN                      -- idle threshold reached
+                        IF (timer = CLK_FREQ/18_000) THEN                      -- idle threshold reached
                             IF (error = '0') THEN                                  -- no error detected
                                 ps2_code_new <= '1';                                   -- set flag that new PS/2 code is available
                                 ps2_code <= ps2_word(8 DOWNTO 1);                      -- output new PS/2 code
@@ -130,12 +130,12 @@ BEGIN
                     END IF;
                 
                 WHEN inhibit =>
-                    IF (timer < clk_freq/10_000) THEN     -- first 100us not complete
+                    IF (timer < CLK_FREQ/10_000) THEN     -- first 100us not complete
                         timer <= timer + 1;                  -- increment timer
                         ps2_data <= 'Z';                     -- release data port
                         ps2_clk <= '0';                      -- inhibit communication
                         state <= inhibit;                    -- continue inhibit
-                    ELSE                                 -- 100us complete
+                    ELSE                                  -- 100us complete
                         ps2_data <= ps2_word(0);             -- output start bit to PS/2 data port
                         state <= transact;                   -- proceed to send bits
                     END IF;
@@ -204,8 +204,7 @@ USE ieee.std_logic_1164.all;
 
 ENTITY PS2_KEYBOARD IS
     GENERIC (
-        clk_freq              : INTEGER := 50_000_000       -- system clock frequency in Hz
-    --    debounce_counter_size : INTEGER := 8                -- set such that (2^size)/clk_freq = 5us (size = 8 for 50MHz)
+        CLK_FREQ              : INTEGER := 50_000_000       -- system clock frequency in Hz
     );
 
     PORT (
@@ -224,33 +223,9 @@ ARCHITECTURE logic OF PS2_KEYBOARD IS
     SIGNAL ps2_prev_clk : STD_LOGIC;                   -- previous PS/2 clock signal for synchronous edge detection
     SIGNAL ps2_word     : STD_LOGIC_VECTOR(10 DOWNTO 0);      -- stores the ps2 data word
     SIGNAL error        : STD_LOGIC;                          -- validate parity, start, and stop bits
-    SIGNAL count_idle   : INTEGER RANGE 0 TO clk_freq/18_000; -- counter to determine PS/2 is idle - 55 uSec
+    SIGNAL count_idle   : INTEGER RANGE 0 TO CLK_FREQ/18_000; -- counter to determine PS/2 is idle - 55 uSec
 
 BEGIN
-
-    -- debounce PS2 input signals - these are listed required to screen out noisy PS2 signals
-    -- but I think we can get away with just double-flopping to sync the signals in the parent entity
---    debounce_ps2_clk: entity work.DEBOUNCE 
---        GENERIC MAP (
---            counter_size => debounce_counter_size
---        ) 
---        
---        PORT MAP (
---            clk    => clk,
---            button => ps2_clk,
---            result => ps2_clk_int
---        );
---
---    debounce_ps2_data: entity work.DEBOUNCE
---        GENERIC MAP (
---            counter_size => debounce_counter_size
---        )
---
---        PORT MAP ( 
---            clk    => clk,
---            button => ps2_data,
---            result => ps2_data_int
---        );
 
     -- verify that parity, start, and stop bits are all correct
     error <= NOT (NOT ps2_word(0) AND ps2_word(10) AND (ps2_word(9) XOR ps2_word(8) XOR
@@ -270,11 +245,11 @@ BEGIN
                                                         -- keep track of how long ps2 clock is high
             IF (ps2_clk = '0') THEN                     -- low PS2 clock, PS/2 is active
                 count_idle <= 0;                            -- reset idle counter
-            ELSIF (count_idle /= clk_freq/18_000) THEN      -- PS2 clock has been high less than a half clock period (<55us)
+            ELSIF (count_idle /= CLK_FREQ/18_000) THEN      -- PS2 clock has been high less than a half clock period (<55us)
                 count_idle <= count_idle + 1;               -- continue counting
             END IF;
 
-            IF (count_idle = clk_freq/18_000 AND error = '0') THEN  -- idle threshold reached and no errors detected
+            IF (count_idle = CLK_FREQ/18_000 AND error = '0') THEN  -- idle threshold reached and no errors detected
                 ps2_code_new <= '1';                                -- set flag that new PS/2 code is available
                 ps2_code <= ps2_word(8 DOWNTO 1);                   -- output new PS/2 code
             ELSE                                                    -- PS/2 port active or error detected

@@ -17,8 +17,9 @@
 --   Version History
 --   Version 1.0 11/29/2013 Scott Larson
 --     Initial Public Release
---   Modified by Scott Berk to include setting Caps Lock light on Keyboard
---      and implementing an eight character ring buffer
+--   Modified by Scott Berk to include setting Caps Lock light on Keyboard,
+--       implementing an eight character ring buffer, and refining communication
+--       with the wishbone provider
 --------------------------------------------------------------------------------
 
 LIBRARY ieee;
@@ -26,7 +27,7 @@ USE ieee.std_logic_1164.all;
 
 ENTITY PS2_ASCII IS
     GENERIC (
-        clk_freq                  : INTEGER := 50_000_000    -- system clock frequency in Hz
+        CLK_FREQ   : INTEGER := 50_000_000    -- system clock frequency in Hz (default is 50 MHz)
     );
 
     PORT (
@@ -70,14 +71,14 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL buffer_tail       : INTEGER RANGE 0 TO 7 := 0;             -- points to next position to read key
     SIGNAL buffer_empty      : STD_LOGIC := '1';                      -- flag if buffer is empty
 
-	 SIGNAL pending_keypress  : STD_LOGIC := '1';
-	 
+    SIGNAL pending_keypress  : STD_LOGIC := '1';                      -- latched when a keypress is detected, so it will be addressed after the current read cycle
+
 BEGIN
 
     --instantiate PS2 keyboard interface logic
     ps2_trans : entity work.ps2_transceiver
         GENERIC MAP (
-            clk_freq        => clk_freq
+            CLK_FREQ     => CLK_FREQ
         )
 
         PORT MAP (
@@ -115,20 +116,20 @@ BEGIN
                 buffer_empty <= '1';
                 ascii_new <= '0';
                 ascii_code <= (others => '0');
-					 pending_keypress <= '0';
+                pending_keypress <= '0';
             ELSE
                 prev_ps2_code_new <= ps2_code_new;  -- keep track of previous ps2_code_new values to determine low-to-high transitions
                 ascii_new <= '0';                                           --  ascii_new is a one-clock strobe
-					 IF prev_ps2_code_new = '0' AND ps2_code_new = '1' THEN		 -- latch in any pending keypresses
-    					 pending_keypress <= '1';
-	             END IF;
-					 
+                IF prev_ps2_code_new = '0' AND ps2_code_new = '1' THEN		 -- latch in any pending keypresses
+                    pending_keypress <= '1';
+                END IF;
+
                 CASE state IS
                     -- ready state: wait for a new PS2 code to be received or a new key request from the buffer
                     WHEN ready =>
                         tx_ena_sig <= '0';                                          -- turn off transmit signal
 
-                        IF pending_keypress = '1' THEN    								   -- new PS2 code received
+                        IF pending_keypress = '1' THEN                              -- new PS2 code received
                             state <= new_code;                                      -- proceed to new_code state
                         ELSE                                                        -- no new PS2 code received yet
                             state <= ready;                                         -- remain in ready state
@@ -145,19 +146,19 @@ BEGIN
                                 ascii_code <= (others => '0');
                             END IF;
                             ascii_new <= '1';                                       -- set new ASCII code indicator
-									 state <= send_wait;
+                            state <= send_wait;                                     -- wait until wishbone provider has received it
                         END IF;
 
-						  WHEN send_wait =>																-- wait until request is cleared before continuing
-						      IF key_req = '0' THEN
-    						      state <= ready;
-								ELSE
-									state <= send_wait;
-	                     END IF;
-								
+                        WHEN send_wait =>                                           -- wait until request is cleared before continuing
+                            IF key_req = '0' THEN
+                                state <= ready;
+                            ELSE
+                                state <= send_wait;
+                            END IF;
+
                     -- new_code state: determine what to do with the new PS2 code  
                     WHEN new_code =>
-						      pending_keypress <= '0';
+                        pending_keypress <= '0';
                         IF (ps2_code = x"F0") THEN      -- code indicates that next command is break
                             break <= '1';               -- set break flag
                             state <= ready;             -- return to ready state to await next PS2 code
@@ -178,7 +179,7 @@ BEGIN
                     -- translate state: translate PS2 code to ASCII value
                     WHEN translate =>
                         additionals <= (others => '0');         -- reset additional keystrokes by default
-                        
+
                         -- handle codes for control, shift, and caps lock
                         CASE ps2_code IS
                             WHEN x"58" =>                       -- caps lock code
@@ -265,7 +266,7 @@ BEGIN
                                 WHEN OTHERS => NULL;
                             END CASE;
                         END IF;
-                        
+
                         -- translate numbers and symbols (these depend on shift but not caps lock)
                         IF (shift_l = '1' OR shift_r = '1') THEN  -- key's secondary character is desired
                             CASE ps2_code IS              
@@ -372,6 +373,7 @@ BEGIN
                                 WHEN OTHERS => NULL;
                             END CASE;
                         END IF;
+
                         -- translate control codes (these do not depend on shift or caps lock)
                         IF (control_l = '1' OR control_r = '1') THEN
                             CASE ps2_code IS
@@ -410,9 +412,8 @@ BEGIN
                                 WHEN x"4A" => ascii <= x"7F"; -- ^?  DEL
                                 WHEN OTHERS => NULL;
                             END CASE;
-                        ELSE -- if control keys are not pressed  
-                            -- translate other characters that do not depend on shift, or caps lock
-                            CASE ps2_code IS
+                        ELSE -- if control keys are not pressed
+                            CASE ps2_code IS            -- translate other characters that do not depend on shift, or caps lock
                                 WHEN x"29" => ascii <= x"20"; -- space
                                 WHEN x"66" => ascii <= x"08"; -- backspace (BS control code)
                                 WHEN x"0D" => ascii <= x"09"; -- tab (HT control code)

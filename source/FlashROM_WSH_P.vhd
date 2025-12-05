@@ -6,6 +6,7 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity FlashROM_WSH_P is
+    generic ( CLK_FREQ: Integer := 50_000_000)
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
@@ -50,7 +51,7 @@ begin
     -- FlashROM controller instance
     flash_ctrl : entity work.FLASH_ROM
         generic map (
-            MAIN_CLK_NS => 20          -- main clock period in ns - 20 ns for 50 MHz
+            MAIN_CLK_NS => 1_000_000/(CLK_FREQ/1000)          -- system clock period in ns - 20 ns for 50 MHz
         )
         
         port map (

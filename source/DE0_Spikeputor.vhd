@@ -55,6 +55,10 @@ entity DE0_Spikeputor is
 end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
+    -- Spikeputor Constants
+    constant CLK_FREQ     : Integer = 50_000_000;                           -- System clock frequency in MHz - feeds all other modules
+    constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"FF00";       -- Address PC is set to on RESET
+
     -- Signal Declarations
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
 
@@ -96,6 +100,7 @@ architecture Structural of DE0_Spikeputor is
     signal regin_out   : std_logic_vector(17 downto 0) := (others => '0');
 
     -- TODO: DMA interface signals
+    signal dma_ack     : std_logic := '0';
     signal dma_gnt_sig : std_logic := '0';
 
     -- Memory output signals
@@ -131,6 +136,9 @@ architecture Structural of DE0_Spikeputor is
 
     -- clock logic
     signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
+    signal SYS_CLK     : std_logic;                                         -- system clock signal
+    signal RESET       : std_logic;                                         -- system reset signal
+    signal MAN_CLK     : std_logic;                                         -- system manual clock
     
     -- Input synchronized signals
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
@@ -142,11 +150,16 @@ architecture Structural of DE0_Spikeputor is
     signal last_cyc_sig : std_logic := '0';                                  -- to detect edge of wishbone cycle for wishbone update request
 
 begin
+    -- Clock and Reset Signals
+    SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL)
+    RESET   <= NOT button_sync(0);                                           -- Reset is Button 0 (active low) now, but might not always be
+    MAN_CLK <= NOT button_sync(1);                                           -- Button 1 is manual clock (active low) now, but might not always be
+
     -- Input Synchronizers
     DIP_SYNC_E : entity work.SYNC_REG
         generic map ( WIDTH => 10 )
         port map (
-            CLK_IN   => CLOCK_50,
+            CLK_IN   => SYS_CLK,
             ASYNC_IN => SW,
             SYNC_OUT => sw_sync
         );
@@ -154,7 +167,7 @@ begin
     BUTTON_SYNC_E : entity work.SYNC_REG
         generic map ( WIDTH => 3 )
         port map (
-            CLK_IN   => CLOCK_50,
+            CLK_IN   => SYS_CLK,
             ASYNC_IN => BUTTON,
             SYNC_OUT => button_sync
         );
@@ -163,8 +176,8 @@ begin
     -- Round Robin Wishbone Bus Arbiter
     ARBITER : entity work.WSH_ARBITER 
         port map (
-            CLK         => CLOCK_50,
-            RESET       => NOT button_sync(0),      --  Button 0 is system reset (active low)
+            CLK         => SYS_CLK,
+            RESET       => RESET,
 
             -- Master 0 (CPU) signals
             M0_CYC_O    => cpu_cyc,
@@ -225,15 +238,18 @@ begin
         -- Wishbone ACK signal logic
         all_acks <= ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
         cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
-        --dma_ack <= dma_gnt_sig AND all_acks;
+        dma_ack  <= dma_gnt_sig AND all_acks;
 
     -- WISHBONE MASTERS ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    -- CPU (M0), DMA (M1), Clock Throttle (M2)
+
     -- Spikeputor CPU as Wishbone master (M0)
-    CPU : entity work.CPU_WSH_M 
+    CPU : entity work.CPU_WSH_M
+        generic map ( RESET_VECTOR => RESET_VECTOR )
         port map (
             -- Timing
-            CLK             => CLOCK_50,
-            RESET           => NOT button_sync(0),            -- Button 0 is system reset (active low)
+            CLK             => SYS_CLK,
+            RESET           => RESET,
             STALL           => '0',                           -- Temp Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
             SEGMENT         => SEGMENT,                       -- Segment Register input to CPU (so it can store in a register)
 
@@ -277,27 +293,29 @@ begin
     -- Spikeputor DMA as Wishbone master (M1)
     -- TBD
 
-    -- Spikeputor CPU Clock Control as Wishbone Master (M2)
+    -- Spikeputor CPU Clock Throttle Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M
         port map (
-            CLK        => CLOCK_50,
-            RESET      => NOT button_sync(0),   -- Button 0 is system reset (active low)
+            CLK        => SYS_CLK,
+            RESET      => RESET,
 
             M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
             SPD_IN     => sw_sync(6 downto 4),  -- input for clock speed for auto mode
             MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
-            MAN_START  => NOT button_sync(1),   -- Button 1 is manual clock (active low)
+            MAN_START  => MAN_CLK,
             CPU_CLOCK  => LEDG(9)
         );
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    -- RAM (P0), ROM (P1), GPO (P2), GPI (P3), SOUND (P4), VIDEO (P5), SERIAL (P6), STORAGE (P7), KEYBOARD (P8), SEGMENT (P9), SDRAM (P10)
+
     -- RAM Instance as Wishbone provider (P0)
-    RAM : entity work.RAM_WSH_P 
+    RAM : entity work.RAM_WSH_P
         port map (
             -- SYSCON inputs
-            CLK         => CLOCK_50,
+            CLK         => SYS_CLK,
 
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals
@@ -314,10 +332,11 @@ begin
 
     -- ROM Instance as Wishbone provider (P1)
     ROM: entity work.FlashROM_WSH_P
+        generic map ( CLK_FREQ => CLK_FREQ )    -- send system frequency into interface
         port map (
             -- SYSCON inputs
-            CLK         => CLOCK_50,
-            RST_I       => NOT button_sync(0),  -- Button 0 is system reset (active low)
+            CLK         => SYS_CLK,
+            RST_I       => RESET,  -- Button 0 is system reset (active low)
 
             -- Wishbone signals
             -- handshaking signals
@@ -343,9 +362,10 @@ begin
 
     -- KEYBOARD Instance as Wishbone provider (P8)
     KBD : entity work.KEYBOARD_WSH_P
+        generic map ( CLK_FREQ => CLK_FREQ )
         port map (
-            CLK         => CLOCK_50,
-            RST_I       => NOT button_sync(0),  -- Button 0 is system reset (active low)
+            CLK         => SYS_CLK,
+            RST_I       => RESET,  -- Button 0 is system reset (active low)
 
             -- Wishbone signals
             -- handshaking signals
@@ -364,7 +384,7 @@ begin
     -- SEGMENT Instance as Wishbone provider (P9)
     SEG : entity work.SEGMENT_WSH_P
         port map (
-            CLK         => CLOCK_50,
+            CLK         => SYS_CLK,
 
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals
@@ -381,12 +401,13 @@ begin
             SEGMENT     => SEGMENT             -- output of SEGMENT provider is a direct connection to the rest of the computer (not on the data bus)
         );
 
-    -- SDRAM (test) Instance as Wishbone provider (P10)
+    -- SDRAM Instance as Wishbone provider (P10)
     SDRAM : entity work.SDRAM_WSH_P
-        port map ( -- change to real SDRAM module when testing is complete
+        generic map (CLK_FREQ => CLK_FREQ )
+        port map (
             -- SYSCON inputs
-            CLK         => CLOCK_50,
-            RST_I       => NOT button_sync(0),  -- Button 0 is system reset (active low)
+            CLK         => SYS_CLK,
+            RST_I       => RESET,  -- Button 0 is system reset (active low)
 
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals
@@ -416,19 +437,19 @@ begin
         );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
-
-    process(CLOCK_50) is
+    process(SYS_CLK) is
     begin
-        if rising_edge(CLOCK_50) then 
+        if rising_edge(SYS_CLK) then 
             last_cyc_sig <= arb_cyc;    -- to detect falling edge of CYC_O signal for DotStar update requests
         end if;
     end process;
 
+    refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+
     DOTSTAR : entity work.dotstar_driver 
         generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
         port map (
-            CLK         => CLOCK_50,
+            CLK         => SYS_CLK,
             START       => refresh,
 
             INST        => inst_out,                                                            -- bits: Instruction (16 bits)

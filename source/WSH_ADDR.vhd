@@ -75,7 +75,6 @@ begin
     seg    <= ADDR_I(22 downto 16);   -- extract segment identifier from full address
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
 
-    -- TODO: replace addresses with constants defined above (they'll be in 0xFFxx - could even expand to 0xFxxx for hardware I/O)
     spec <= '1' when seg = "0000000" AND (p_addr = KEYBOARD_ADDR)                         -- check for a special address (more to follow)
                 else '0';
     ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111") OR                                               -- no segment and in range 0x0000-0xDFFF
@@ -86,13 +85,10 @@ begin
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, pre-empts all other
         else    0 when seg  = "0000000" AND spec = '0' AND (ram_e = '1' OR WE_I = '1')    -- standard RAM when segment is 0 and not a special location and either a RAM location or writing
         else    1 when spec = '0' AND ram_e = '0'                                         -- ROM if not a special location and not a RAM location (including 0xE000-0xFFFF)
-        else    2 when seg  = "0000000" AND p_addr = x"7FFC"                                  -- read/write GPO register
-        else    3 when seg  = "0000000" AND p_addr = x"7FFE"                                  -- read only GPI
-        else    4 when seg  = "0000000" AND p_addr = x"7FAC"                                  -- read/write sound register (this may be expanded)
-        -- to do the rest 5 through 9
+        -- to do the rest 2 through 7
         else    8 when seg  = "0000000" AND p_addr = KEYBOARD_ADDR                            -- read only KEYBOARD
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
-        else    3;                                                                        -- default to read only GPI
+        else    8;                                                                        -- default to read KEYBOARD
 
     -- output the correct data based on p_sel
     with (p_sel) select

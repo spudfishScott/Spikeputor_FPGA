@@ -4,6 +4,10 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity CPU_WSH_M is
+    generic (
+        RESET_VECTOR : std_logic_vector(15 downto 0) := x"FF00"  -- reset vector address
+    );
+
     port (
         -- Timing
         CLK       : in  std_logic;      -- System clock
@@ -142,7 +146,7 @@ begin
 
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M
-    generic map ( RESET_VECTOR => x"F000" )     -- set reset vector to ROM
+    generic map ( RESET_VECTOR => RESET_VECTOR )     -- set reset vector to ROM
     port map (
         -- SYSCON inputs
         CLK         => CLK,

@@ -28,9 +28,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity SDRAM is
+    generic ( CLK_FREQ : Integer := 50_000_000 );   -- system clock frequency (default = 50 MHz)
     port (
         -- INPUTS
-        CLK          : in  std_logic;              -- 50 MHz
+        CLK          : in  std_logic;
         RST_N        : in  std_logic;              -- async, active-low
         REQ          : in  std_logic;              -- start transaction when not refreshing or completing previous command
         WE           : in  std_logic;              -- 1 = write, 0 = read
@@ -60,13 +61,13 @@ end entity;
 
 architecture rtl of SDRAM is
     -- Timing constants based on a 50 MHz system clock. Change if that changes.
-    constant CAS_LATENCY  : integer := 2;
-    constant tRCD_CYC     : integer := 2;
-    constant tRP_CYC      : integer := 2;
-    constant tMRD_CYC     : integer := 2;
-    constant tWR_CYC      : integer := 2;
-    constant tRFC_CYC     : integer := 4;
-    constant REF_INTERVAL : integer := 781;
+    constant CAS_LATENCY  : integer := 2; -- stays at 2 cycles unless frequency is >100 MHz, then go to 3 (and change the MODE_REG as well)
+    constant tRCD_CYC     : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3
+    constant tRP_CYC      : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3 
+    constant tMRD_CYC     : integer := 2; -- always 2 cycles
+    constant tWR_CYC      : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3 
+    constant tRFC_CYC     : integer := (70 / (1_000_000_000/CLK_FREQ)) + 1; -- 70 nS
+    constant REF_INTERVAL : integer := 156 * (CLK_FREQ/10_000_000); -- 15.625 uS
 
     constant MODE_REG     : std_logic_vector(11 downto 0) := "00000" & "010" & "0" & "000";  -- [11:7] - Burst Read/Write / [6:4] - CAS latency = 2 / [3] - sequential wrap type / [2:0] - Burst Length = 1
 
@@ -114,7 +115,7 @@ architecture rtl of SDRAM is
         if rising_edge(clk) then
             if RST_N = '0' then     -- on reset, clear commands and counters, send to BOOT_WAIT state
                 st          <= ST_BOOT_WAIT;
-                timer       <= 10;--000;  -- wait 10000 cycles (200 us) after reset
+                timer       <= CLK_FREQ/5000;  -- wait 10000 cycles (200 us) after reset
                 DRAM_CS_N   <= '1';
                 DRAM_RAS_N  <= '1';
                 DRAM_CAS_N  <= '1';
@@ -146,7 +147,7 @@ architecture rtl of SDRAM is
                         if timer > 0 then 
                             timer   <= timer - 1;
                         else 
-                            timer   <= 2;   -- set delay for tRP, then execute precharge all
+                            timer   <= tRP_CYC;   -- set delay for tRP, then execute precharge all
                             st      <= ST_PREALL; 
                         end if;
 

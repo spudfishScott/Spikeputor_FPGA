@@ -246,11 +246,11 @@ end CLK_SEL;
 architecture Behavior of CLK_SEL is
 begin
 
-    WITH (SW_INPUTS) SELECT   -- select CPU speed via switches 6 through 4
-        SPEED_OUT <=                                                        -- clock values assuming a 50MHz system clock
-            std_logic_vector(to_unsigned(10_000_000, 32)) when "001",       -- 5 Hz
-            std_logic_vector(to_unsigned(50_000, 32)) when "010",           -- 1 KHz
-            std_logic_vector(to_unsigned(1, 32)) when "100",                -- 50 MHz
-            std_logic_vector(to_unsigned(100_000_000, 32)) when others;     -- 0.5 Hz
+    WITH (SW_INPUTS) SELECT   -- select CPU speed via switches 6 through 4 - this whole loigc will likely change - in new design, don't assume 50 MHz system clock
+        SPEED_OUT <=
+            std_logic_vector(to_unsigned(10_000_000, 32)) when "001",       -- Slow Speed (divide clock by 10 MHz - default 5 Hz)
+            std_logic_vector(to_unsigned(50_000, 32)) when "010",           -- Mid Speed (divide clock by 50kHz - default 1 KHz)
+            std_logic_vector(to_unsigned(1, 32)) when "100",                -- Full Speed (default 50 MHz)
+            std_logic_vector(to_unsigned(100_000_000, 32)) when others;     -- Glacial Speed (divide clock by 100 MHz - default 0.5 Hz)
 
 end Behavior;

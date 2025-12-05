@@ -9,37 +9,39 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity SDRAM_WSH_P is
-  port (
-    -- SYSCON inputs
-    CLK         : in std_logic;
-    RST_I       : in std_logic;
+    generic ( CLK_FREQ : Integer := 50_000_000 );
+    
+    port (
+        -- SYSCON inputs
+        CLK         : in std_logic;
+        RST_I       : in std_logic;
 
-    -- Wishbone signals
-    -- handshaking signals
-    WBS_CYC_I   : in std_logic;
-    WBS_STB_I   : in std_logic;
-    WBS_ACK_O   : out std_logic;
+        -- Wishbone signals
+        -- handshaking signals
+        WBS_CYC_I   : in std_logic;
+        WBS_STB_I   : in std_logic;
+        WBS_ACK_O   : out std_logic;
 
-    -- memory read/write signals
-    WBS_ADDR_I  : in std_logic_vector(23 downto 0);     -- lsb is ignored, but it is still part of the address bus
-    WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to master
-    WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
-    WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
+        -- memory read/write signals
+        WBS_ADDR_I  : in std_logic_vector(23 downto 0);     -- lsb is ignored, but it is still part of the address bus
+        WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to master
+        WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
+        WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
 
-    -- SDRAM pins
-    DRAM_CLK     : out std_logic;
-    DRAM_CKE     : out std_logic;
-    DRAM_CS_N    : out std_logic;
-    DRAM_RAS_N   : out std_logic;
-    DRAM_CAS_N   : out std_logic;
-    DRAM_WE_N    : out std_logic;
-    DRAM_BA_0    : out std_logic;
-    DRAM_BA_1    : out std_logic;
-    DRAM_ADDR    : out std_logic_vector(11 downto 0);
-    DRAM_DQ      : inout std_logic_vector(15 downto 0);
-    DRAM_UDQM    : out std_logic;
-    DRAM_LDQM    : out std_logic
-  );
+        -- SDRAM pins
+        DRAM_CLK     : out std_logic;
+        DRAM_CKE     : out std_logic;
+        DRAM_CS_N    : out std_logic;
+        DRAM_RAS_N   : out std_logic;
+        DRAM_CAS_N   : out std_logic;
+        DRAM_WE_N    : out std_logic;
+        DRAM_BA_0    : out std_logic;
+        DRAM_BA_1    : out std_logic;
+        DRAM_ADDR    : out std_logic_vector(11 downto 0);
+        DRAM_DQ      : inout std_logic_vector(15 downto 0);
+        DRAM_UDQM    : out std_logic;
+        DRAM_LDQM    : out std_logic
+    );
 end SDRAM_WSH_P;
 
 architecture rtl of SDRAM_WSH_P is
@@ -62,6 +64,7 @@ architecture rtl of SDRAM_WSH_P is
 begin
 
     SDRAM_core : entity work.SDRAM
+    generic map ( CLK_FREQ => CLK_FREQ )
     port map (
         -- Control signals
         CLK          => CLK,

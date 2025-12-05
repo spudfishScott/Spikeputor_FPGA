@@ -6,6 +6,7 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity KEYBOARD_WSH_P is
+    generic ( CLK_FREQ => 50_000_000 );         -- system clock frequency (default 50 MHz)
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
@@ -38,6 +39,7 @@ architecture rtl of KEYBOARD_WSH_P is
 begin
     -- instantiate the keyboard controller
     kbd : entity work.PS2_ASCII
+    GENERIC MAP ( CLK_FREQ => CLK_FREQ )        -- send the system clock frequency down into the PS2 keyboard ascii translator
     PORT MAP (
         clk         => CLK,                    -- system clock input
         n_rst       => NOT(RST_I),             -- reset signal (active low)
@@ -52,7 +54,7 @@ begin
     WBS_ACK_O  <= WBS_CYC_I AND WBS_STB_I AND ack;          -- acknowledge signal based on ack, CYC and STB
 
     process(clk) is
-	 begin
+    begin
         if rising_edge(CLK) then
             if RST_I = '1' then -- return to IDLE state and clear control signals on reset
                 key_req_s <= '0';
