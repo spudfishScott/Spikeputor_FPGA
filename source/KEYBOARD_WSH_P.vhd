@@ -54,26 +54,28 @@ begin
     process(clk) is
 	 begin
         if rising_edge(CLK) then
-            if RST_I = '1' then -- return to IDLE state and clear control signal on reset
+            if RST_I = '1' then -- return to IDLE state and clear control signals on reset
                 key_req_s <= '0';
-                st    <= IDLE; 
+                ack       <= '0';
+                st        <= IDLE; 
             else
                 case st is
                     when IDLE =>
                         if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
-                            key_req_s   <= '1';                         -- strobe key request
+                            key_req_s   <= '1';                         -- assert key request
                             st          <= WAIT_VALID;                  -- go to WAIT state, wait for valid result from KEYBOARD controller
                         else
                             st          <= IDLE;                        -- stay in IDLE state
                         end if;
 
                     when WAIT_VALID =>          -- wait for READ to complete (keyboard data is valid)
-                        key_req_s <= '0';           -- clear request signal
                         if (ascii_new_s = '1') then -- keyboard reports a new ascii character
-                            ack   <= '1';           -- assert ack signal
-                            st    <= CLEAR;         -- done, clear ack signal when wishbone transaction ends, then go back to IDLE state
+                            key_req_s <= '0';       -- clear request signal
+                            ack <= '1';             -- assert wishbone ack signal
+                            st  <= CLEAR;           -- done, clear ack signal when wishbone transaction ends, then go back to IDLE state
                         else
                             if (WBS_CYC_I = '0' OR WBS_STB_I = '0') then -- if master deasserts CYC or STB, abort read
+                                key_req_s <= '0';   -- clear request signal
                                 ack <= '0';         -- clear ack signal
                                 st  <= IDLE;        -- go back to IDLE state
                             else
@@ -91,10 +93,12 @@ begin
 
                     when others =>
                         ack <= '0';
-                        st <= IDLE;         -- should never happen, go to IDLE
+                        key_req_s <= '0';
+                        st  <= IDLE;         -- should never happen, go to IDLE
                 end case;
 
                 if (WBS_CYC_I = '0') then   -- Break cycle if master deasserts CYC
+                    key_req_s <= '0';
                     ack <= '0';
                     st <= IDLE;
                 end if;

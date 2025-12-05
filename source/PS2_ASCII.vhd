@@ -34,7 +34,7 @@ ENTITY PS2_ASCII IS
         n_rst      : IN  STD_LOGIC;                           -- reset signal (active low)
         ps2_clk    : INOUT  STD_LOGIC;                        -- clock signal from PS2 keyboard
         ps2_data   : INOUT  STD_LOGIC;                        -- data signal from PS2 keyboard
-        key_req    : IN STD_LOGIC;                            -- strobe this input to request next key in buffer
+        key_req    : IN STD_LOGIC;                            -- assert this input to request next key in buffer, clear it when data has been received
         ascii_new  : OUT STD_LOGIC;                           -- output flag to indicate key request has been fulfilled, 0x0000 = buffer empty
         ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)         -- ASCII value
     );
@@ -115,27 +115,30 @@ BEGIN
                 ascii_code <= (others => '0');
             ELSE
                 prev_ps2_code_new <= ps2_code_new;  -- keep track of previous ps2_code_new values to determine low-to-high transitions
+                ascii_new <= '0';                                           --  ascii_new is a one-clock strobe
 
                 CASE state IS
                     -- ready state: wait for a new PS2 code to be received or a new key request from the buffer
                     WHEN ready =>
                         tx_ena_sig <= '0';                                          -- turn off transmit signal
-                        ascii_new <= '0';                                           --  ascii_new is a one-clock strobe
+
                         IF (prev_ps2_code_new = '0' AND ps2_code_new = '1') THEN    -- new PS2 code received
                             state <= new_code;                                      -- proceed to new_code state
-                        ELSIF (key_req = '1') THEN                                  -- key requested - may have to wait for new code to come in before servicing
-                            ascii_new <= '1';                                       -- set new ASCII code indicator
+                        ELSE                                                        -- no new PS2 code received yet
+                            state <= ready;                                         -- remain in ready state
+                        END IF;
+
+                        IF (key_req = '1') THEN                                     -- key requested
                             IF buffer_empty = '0' THEN                              -- Buffer has characters in it
                                 ascii_code <= key_buffer(buffer_tail);              -- output the next ASCII code from the buffer
                                 buffer_tail <= (buffer_tail + 1) MOD 8;             -- advance tail pointer
-                                IF (buffer_tail + 1) MOD 8 = buffer_head THEN       -- mark buffer empty if tail will = head
+                                IF (buffer_tail + 1) MOD 8 = buffer_head THEN       -- mark buffer empty if tail will = head after this character
                                     buffer_empty <= '1';
                                 END IF;
                             ELSE                                                    -- ouput 0x00 when buffer is empty
                                 ascii_code <= (others => '0');
                             END IF;
-                        ELSE                                                        -- no new PS2 code received yet
-                            state <= ready;                                         -- remain in ready state
+                            ascii_new <= '1';                                       -- set new ASCII code indicator
                         END IF;
 
                     -- new_code state: determine what to do with the new PS2 code  
@@ -159,8 +162,6 @@ BEGIN
 
                     -- translate state: translate PS2 code to ASCII value
                     WHEN translate =>
-                        break <= '0';                           -- reset break flag
-                        e0_code <= '0';                         -- reset multi-code command flag
                         additionals <= (others => '0');         -- reset additional keystrokes by default
                         
                         -- handle codes for control, shift, and caps lock
@@ -411,14 +412,17 @@ BEGIN
                         END IF;
 
                         IF (break = '0') THEN       -- the code is a make
-                            state <= addbuf;        -- proceed to buffer state
+                            state <= addbuf;        -- proceed to add buffer state
                         ELSE                        -- code is a break
                             state <= ready;         -- return to ready state to await next PS2 code
                         END IF;
 
+                        break <= '0';               -- reset break flag
+                        e0_code <= '0';             -- reset multi-code command flag
+
                     -- buffer state: verify the code is valid and buffer the ASCII value
                     WHEN addbuf =>
-                        IF (ascii(7) = '0') THEN                -- if it's still '1', the keycode was not valid, so ignore
+                        IF (ascii(7) = '0') THEN                -- if it's '0', the keycode is valid, so add to the buffer
                             buffer_empty <= '0';                            -- buffer no longer empty
                             IF additionals = x"000000" THEN                 -- standard keypress (one ascii code)
                                 key_buffer(buffer_head) <= ascii(6 DOWNTO 0);   -- store new ASCII code in buffer
@@ -431,21 +435,21 @@ BEGIN
                                 key_buffer(buffer_head + 1) <= additionals(22 DOWNTO 16);
                                 key_buffer((buffer_head + 2) MOD 8) <= additionals(14 DOWNTO 8);
                                 key_buffer((buffer_head + 3) MOD 8) <= additionals(6 DOWNTO 0);
-                                buffer_head <= (buffer_head + 4) MOD 8;     -- advance buffer head by the 4 total ascii codes
                                 buffer_tail <= buffer_head;                 -- purge buffer for these keystrokes, otherwise we might overwrite a portion of a previous set
+                                buffer_head <= (buffer_head + 4) MOD 8;     -- advance buffer head by the 4 total ascii codes
                             END IF;
                         END IF;
 
-                        IF ps2_code = x"58" OR ps2_code = x"77" THEN                -- if the code is the caps lock or num lock keys, send command to toggle appropriate lights on keyboard
+                        IF ps2_code = x"58" OR ps2_code = x"77" THEN        -- if the code is the caps lock or num lock keys, send command to toggle appropriate lights on keyboard
                             state <= updatekb;
                         ELSE
-                            state <= ready;                     -- return to ready state to await next PS2 code
+                            state <= ready;                                 -- otherwise, return to ready state to await next PS2 code
                         END IF;
 
                     -- handle mode indicator change
                     WHEN updatekb =>
                         IF tx_busy_sig = '0' THEN                   -- wait until ok to transmit
-                            tx_cmd_sig <= "111101101";              -- 0xED with msb as parity bit - set/reset mode indicators
+                            tx_cmd_sig <= "111101101";              -- 0xED with msb as parity bit = set/reset mode indicators
                             tx_ena_sig <= '1';                      -- set transmit signal
                             state <= ready;                         -- wait for acknowledgement
                         ELSE
@@ -453,7 +457,7 @@ BEGIN
                         END IF;
 
                     WHEN updatekb2 =>
-                        IF tx_busy_sig = '0' THEN
+                        IF tx_busy_sig = '0' THEN                   -- wait until ok to transmit
                             tx_cmd_sig <= NOT(caps_lock XOR num_lock) & "00000" & caps_lock & num_lock & "0";   -- set current caps lock (bit 2) and num_lock (bit 1) states with parity bit
                             tx_ena_sig <= '1';                      -- set transmit signal
                             state <= ready;                         -- wait for acknowledgement
