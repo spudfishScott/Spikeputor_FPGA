@@ -5,7 +5,7 @@ use work.Types.all;
 
 entity CPU_WSH_M is
     generic (
-        RESET_VECTOR : std_logic_vector(15 downto 0) := x"FF00"  -- reset vector address
+        RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000"  -- reset vector address
     );
 
     port (
