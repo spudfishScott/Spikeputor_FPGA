@@ -20,7 +20,7 @@ entity dotstar_driver is
         INST         : in std_logic_vector(15 downto 0);  -- Instruction                                                              4
         
         ALU_OUT      : in std_logic_vector(15 downto 0);  -- ALU Output                                                               5
-        ALU_CMP      : in std_logic_vector(6 downto 0);   -- CMP function (2 bits), Z, V, N, Result, CMP Selected                     6
+        ALU_CMP      : in std_logic_vector(6 downto 0);   -- CMP function (2 bits), Z, V, N, Result, CMP Selected                     6 - needs only 6 LEDs
         ALU_SHIFT    : in std_logic_vector(18 downto 0);  -- SHIFT dir, SHIFT extend, Result (16 bits), SHIFT selected                7
         ALU_BOOL     : in std_logic_vector(20 downto 0);  -- BOOL truth table (4 bits), Result (16 bits), BOOL selected               8
         ALU_ARITH    : in std_logic_vector(17 downto 0);  -- ARITH subtract flag, Result (16 bits), ARITH selected                    9
@@ -38,6 +38,9 @@ entity dotstar_driver is
         REG7         : in std_logic_vector(18 downto 0);  -- A out, B out, Write, Register (16 bits)                                  20
         REGIN        : in std_logic_vector(17 downto 0);  -- WDSEL (2 bits), Regsiter Input (16 bits)                                 21
 
+        GPO          : in std_logic_vector(15 downto 0);  -- General Purpose Output Register                                          22
+        GPI          : in std_logic_vector(15 downto 0);  -- General Purpose Input                                                    23
+
          -- OUTPUTS
         DATA_OUT     : out std_logic;
         CLK_OUT      : out std_logic;
@@ -47,9 +50,9 @@ end dotstar_driver;
 
 architecture rtl of dotstar_driver is
 
-    constant NUM_SETS         : integer := 21;                                                      -- number of LED sets in the whole display array
+    constant NUM_SETS         : integer := 23;                                                      -- number of LED sets in the whole display array
     constant MAX_LEDS_PER_SET : integer := 22;                                                      -- max number of LEDs in each set (one more than actual so zero padding always works)
-    constant TOTAL_LEDS       : integer := 365;                                                     -- total number of LEDs (added the list above)
+    constant TOTAL_LEDS       : integer := 405;                                                     -- total number of LEDs (added the list above)
 
     constant START_BITS       : integer := 32;                                                      -- number of bits in start frame (all '0's)
     constant BITS_PER_LED     : integer := 32;                                                      -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
@@ -146,6 +149,12 @@ begin
                         if set_index /= NUM_SETS+1 then             -- if not finished all LED sets
                             -- for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
                             case set_index is
+                                when 23 =>
+                                    set_req <= (MAX_LEDS_PER_SET-1 downto GPI'length => '0') & GPI;
+                                    num_leds <= GPI'length;
+                                when 22 =>
+                                    set_reg <= (MAX_LEDS_PER_SET-1 downto GPO'length => '0') & GPO;
+                                    num_leds <= GPO'length;
                                 when 21 =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto regin_sig'length => '0') & regin_sig;
                                     num_leds <= regin_sig'length;
@@ -233,6 +242,14 @@ begin
 
                             -- Override color for specific cases
                             case set_index is
+                                when 23 =>
+                                    if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
+                                        led_reg(COLOR_RANGE) <= x"000400";          -- color GPI green
+                                    end if;
+                                when 22 =>
+                                    if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
+                                        led_reg(COLOR_RANGE) <= x"000004";          -- color GPO red
+                                    end if;
                                 when 21 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         if led_index = 16 then

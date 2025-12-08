@@ -30,7 +30,7 @@ entity DE0_Spikeputor is
         FL_WE_N    : out std_logic;
         FL_WP_N    : out std_logic;
         FL_ADDR    : out std_logic_vector(21 downto 0);
-        FL_DQ      :  in std_logic_vector(15 downto 0);
+        FL_DQ      : in std_logic_vector(15 downto 0);
         FL_RY      : in std_logic;
         --SDRAM
         DRAM_CLK   : out std_logic;
@@ -48,8 +48,12 @@ entity DE0_Spikeputor is
         --PS/2 KEYBOARD
         PS2_KBCLK  : inout std_logic;
         PS2_KBDAT  : inout std_logic;
-        -- GPIO
-        GPIO1_D    : out std_logic_vector(31 downto 0);   -- LED displays for direct display of registers, etc.
+
+        -- TODO: GPIO - relabel GPIO1_D in project
+        -- GPI        : in std_logic_vector(31 downto 16);   -- 16 bits of GPI
+        -- GPO        : out std_logic_vector(15 downto 0);   -- 16 bits of GPO
+
+        GPIO1_D    : out std_logic_vector(31 downto 0);   -- diagnostic outputs for now
         GPIO0_D    : out std_logic_vector(1 downto 0)     -- [1:0] = dotstar out
     );
 end DE0_Spikeputor;
@@ -57,10 +61,12 @@ end DE0_Spikeputor;
 architecture Structural of DE0_Spikeputor is
     -- Spikeputor Constants
     constant CLK_FREQ     : Integer := 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
-    constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000";       -- Address PC is set to on RESET
+    constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000";        -- Address PC is set to on RESET
 
     -- Signal Declarations
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
+    signal GPO_REG     : std_logic_vector(15 downto 0) := x"0000";
+    signal GPI         : std_logic_vector(15 downto 0) := x"5A5A";      -- delete when GPI is fully implemented - replace with direct input from DE0
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
@@ -360,6 +366,44 @@ begin
             Q           => FL_DQ
         );
 
+    -- GPO Instance as Wishbone Provider (P2)
+    GPO1 : entity work.GPO_WSH_P
+        port map (
+            CLK         => SYS_CLK,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(2),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(2),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_DATA_I  => arb_data_o,
+            WBS_DATA_O  => data2,
+            WBS_WE_I    => arb_we,
+
+            -- GPO register output
+            GPO         => GPO_REG             -- 16 bits to go to GPO port
+        );
+
+    -- GPI Instance as Wishbone Provider (P3)
+    GPI1 : entity work.GPI_WSH_P
+        port map (
+            CLK         => SYS_CLK,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(3),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(3),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read signals (GPI is read-only)
+            WBS_DATA_O  => data3,
+
+            -- GPI register input
+            GPI         => GPI                  -- 16 bits from GPI port
+        );
+
     -- KEYBOARD Instance as Wishbone provider (P8)
     KBD : entity work.KEYBOARD_WSH_P
         generic map ( CLK_FREQ => CLK_FREQ )
@@ -477,6 +521,9 @@ begin
             REG7        => reg7_out,                                                            -- bits: Reg 7 to Channel A Out, Reg 7 to Channel B Out, Write to Register 7, Register 7 (16 bits)
             REGIN       => regin_out,                                                           -- bits: WDSEL (2 bits), Reg Input (16 bits)
 
+            GPO         => GPO_REG,                                                             -- bits: General Purpose Input (16 bits)
+            GPI         => GPI,                                                                 -- bits: General Purpose Output (16 bits)
+
             DATA_OUT    => GPIO0_D(0),                                                          -- DotStar data and clock signals
             CLK_OUT     => GPIO0_D(1),
             BUSY        => led_busy
@@ -488,6 +535,9 @@ begin
     -- GPIO1_D(15 downto 0)  <= const_out;                             -- output const_out to lower 16 bits of GPIO1
     GPIO1_D(31 downto 16) <= rwaddr_out;                             -- output rwaddr_out to upper 16 bits of GPIO1
     GPIO1_D(15 downto 0)  <= mdata_out(15 downto 0);                 -- output mdata_out to lower 16 bits of GPIO1
+
+    --uncomment when GPO is fully implemented
+    --GPO                   <= GPO_REG;
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS 

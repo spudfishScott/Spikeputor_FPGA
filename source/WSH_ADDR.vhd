@@ -63,6 +63,8 @@ end WSH_ADDR;
 architecture RTL of WSH_ADDR is
 
     constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FF00"; -- keyboard address
+    constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FF01"; -- GPO address
+    constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FF02"; -- GPI address
 
     signal p_sel   : integer range 0 to 10 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- RAM selected
@@ -75,17 +77,20 @@ begin
     seg    <= ADDR_I(22 downto 16);   -- extract segment identifier from full address
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
 
-    spec <= '1' when seg = "0000000" AND (p_addr = KEYBOARD_ADDR)                         -- check for a special address (more to follow)
+    spec <= '1' when seg = "0000000" AND                                                  -- check for a special address (more to follow)
+                            (p_addr = KEYBOARD_ADDR OR p_addr = GPO_ADDR OR p_addr = GPI_ADDR)
                 else '0';
-    ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111") OR                                               -- no segment and in range 0x0000-0xDFFF
-                      (seg /= "0000000" AND ADDR_I(23) = '0')                                                               -- segment and not a ROM address
+    ram_e <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111") OR             -- no segment and in range 0x0000-0xDFFF
+                      (seg /= "0000000" AND ADDR_I(23) = '0')                             -- segment and not a ROM address
                  else '0';
 
     -- assign p_sel based on addressing logic described above
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, pre-empts all other
         else    0 when seg  = "0000000" AND spec = '0' AND (ram_e = '1' OR WE_I = '1')    -- standard RAM when segment is 0 and not a special location and either a RAM location or writing
         else    1 when spec = '0' AND ram_e = '0'                                         -- ROM if not a special location and not a RAM location (including 0xE000-0xFFFF)
-        -- to do the rest 2 through 7
+        else    2 when seg  = "0000000" AND p_addr = GPO_ADDR                             -- read/write GPO
+        else    3 when seg  = "0000000" AND p_addr = GPI_ADDR                             -- read only GPI
+        -- to do the rest 5 through 7
         else    8 when seg  = "0000000" AND p_addr = KEYBOARD_ADDR                            -- read only KEYBOARD
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    8;                                                                        -- default to read KEYBOARD
