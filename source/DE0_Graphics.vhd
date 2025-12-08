@@ -42,7 +42,7 @@ architecture RTL of DE0_Graphics is
     signal timer : Integer := 0;            -- timer counter
     signal cmd_index : Integer := 0;        -- command index for multi-step commands
 
-    type state_type is (IDLE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
+    type state_type is (IDLE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, RW_DONE, WAIT_ST, INIT);
     signal state     : state_type := INIT;
     signal return_st : state_type := INIT;
 
@@ -114,7 +114,7 @@ begin
                             n_rd <= '1';    -- complete command
                             d_out(15 downto 8) <= (others => '0');
                             d_out(7 downto 0) <= SCRN_DATA(7 downto 0);   -- latch data (lower 8 bits only) into data_out
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            state <= RW_DONE;                 -- go back to the state this was "called" from
                         end if;
 
                     when COMMAND_WR =>
@@ -128,7 +128,7 @@ begin
                             n_cs  <= '1';
                             db_oe <= '0';
                             n_wr  <= '1';    -- complete command
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            state <= RW_DONE;                 -- go back to the state this was "called" from
                         end if;
 
                     when DATA_RD =>
@@ -141,7 +141,7 @@ begin
                             n_cs <= '1';
                             n_rd <= '1';    -- complete command
                             d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            state <= RW_DONE;                 -- go back to the state this was "called" from
                         end if;
 
                     when DATA_WR =>
@@ -155,8 +155,11 @@ begin
                             n_cs  <= '1';
                             db_oe <= '0';
                             n_wr  <= '1';    -- complete command
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            state <= RW_DONE;                 -- go back to the state this was "called" from
                         end if;
+
+                    when RW_DONE =>
+                        state <= return_st;     -- go back to the state this was "called" from
 
                     when INIT =>            -- go through the display reset and initialization sequence
                         return_st <= INIT;              -- return state is always set here for WAIT and read/write calls
@@ -545,8 +548,8 @@ begin
                             when 123 =>     -- step 123: Assert bits 5 and 6 (Show Test Pattern and Turn on Screen)
                                 d_in <= d_out OR "0000000001100000";    -- assert bits 5 and 6
                                 state <= DATA_WR;
-                            when 124 =>     -- step 124: Wait for 10 seconds
-                                timer <= 500_000_000;
+                            when 124 =>     -- step 124: Wait for 5 seconds
+                                timer <= 250_000_000;
                                 state <= WAIT_ST;
                             when 125 =>     -- step 125: Re-read Register 0x12 (required - why? Should stay in d_out, right?)
                                 state <= DATA_RD;
@@ -560,7 +563,7 @@ begin
                                 state <= INIT;
                         end case;
 
-                    when IDLE =>        -- for now, just stop and do nothing when you get here
+                    when IDLE =>
                         return_st <= IDLE;              -- return from other states to here by default
                         cmd_index <= cmd_index + 1;     -- go to next command index by default
                         case cmd_index is
@@ -581,7 +584,7 @@ begin
                                 state <= COMMAND_WR;
                             when 5 =>       -- step 5: Write 0x80 to Register 0xD4 (Foreground Blue)
                                 d_in <= "00000000" & std_logic_vector(to_unsigned(blue, 8));
-                                blue <= (blue + 1) mod 255;
+                                blue <= (blue + 1);
                                 state <= DATA_WR;
                             when 6 =>       -- step 6: Select Register 0x68
                                 d_in <= x"0068";
