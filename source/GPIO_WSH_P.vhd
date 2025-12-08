@@ -75,7 +75,7 @@ entity GPI_WSH_P is
         WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to bus
 
         -- system outputs
-        GPI         : out std_logic_vector(15 downto 0)     -- the GPI input port
+        GPI         : in std_logic_vector(15 downto 0)     -- the GPI input port
     );
 end GPI_WSH_P;
 

@@ -150,7 +150,7 @@ begin
                             -- for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
                             case set_index is
                                 when 23 =>
-                                    set_req <= (MAX_LEDS_PER_SET-1 downto GPI'length => '0') & GPI;
+                                    set_reg <= (MAX_LEDS_PER_SET-1 downto GPI'length => '0') & GPI;
                                     num_leds <= GPI'length;
                                 when 22 =>
                                     set_reg <= (MAX_LEDS_PER_SET-1 downto GPO'length => '0') & GPO;
