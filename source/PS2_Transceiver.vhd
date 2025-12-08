@@ -55,6 +55,11 @@ ARCHITECTURE logic OF ps2_transceiver IS
     SIGNAL timer            : INTEGER RANGE 0 TO CLK_FREQ/10_000 := 0; -- counter to determine both inhibit period and when PS/2 is idle
     SIGNAL bit_cnt          : INTEGER RANGE 0 TO 11 := 0;              -- count the number of clock pulses during transmit
 
+	 -- Quartus Prime specific synchronizer attributes to identify synchronized signals for analysis
+    attribute altera_attribute : string;
+    attribute altera_attribute of ps2_clk_sync, ps2_clk_int   : signal is "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS";
+	 attribute altera_attribute of ps2_data_sync, ps2_data_int : signal is "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS";
+	 
 BEGIN
     -- synchronize incoming PS/2 signals
     PROCESS(clk)

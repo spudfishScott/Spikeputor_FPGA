@@ -56,7 +56,7 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Spikeputor Constants
-    constant CLK_FREQ     : Integer = 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
+    constant CLK_FREQ     : Integer := 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
     constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000";       -- Address PC is set to on RESET
 
     -- Signal Declarations

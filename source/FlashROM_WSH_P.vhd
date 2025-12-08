@@ -6,7 +6,7 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity FlashROM_WSH_P is
-    generic ( CLK_FREQ: Integer := 50_000_000)
+    generic ( CLK_FREQ: Integer := 50_000_000);
     port (
         -- SYSCON inputs
         CLK         : in std_logic;

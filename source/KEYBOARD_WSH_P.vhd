@@ -6,7 +6,7 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity KEYBOARD_WSH_P is
-    generic ( CLK_FREQ => 50_000_000 );         -- system clock frequency (default 50 MHz)
+    generic ( CLK_FREQ : Integer := 50_000_000 );         -- system clock frequency (default 50 MHz)
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
