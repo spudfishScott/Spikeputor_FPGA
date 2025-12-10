@@ -83,6 +83,7 @@ begin
                 return_st <= INIT;  -- reset the return state as well
                 timer     <= 0;     -- reset timer and command index
                 cmd_index <= 0;
+                bl        <= '0';   -- turn off backlight
                 n_res     <= '1';   -- reset output control signals
                 n_rd      <= '1';
                 n_wr      <= '1';
@@ -635,7 +636,7 @@ begin
                             when 154 =>     -- step 154: Assert bit 6 (Turn on Screen) and write register 0x12
                                 d_in <= d_out OR "0000000001000000";    -- assert bit 6
                                 state <= DATA_WR;
-                                cmd_index <= 0xAA;  -- done marker
+                                cmd_index <= 170;  -- done marker
                                 return_st <= IDLE;  -- and go to idle when done
                             when others =>
                                 cmd_index <= 0;     -- failsafe - go back to the start if we get here
