@@ -533,7 +533,7 @@ begin
     -- the LCD driver shows INST/CONST, instruction interpreted, Next PC, and SEGMENT:RWADDR (-> or <-) MDATA during r/w operations
     -- GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
     -- GPIO1_D(15 downto 0)  <= const_out;                             -- output const_out to lower 16 bits of GPIO1
-  --  GPIO1_D(31 downto 16) <= rwaddr_out;                             -- output rwaddr_out to upper 16 bits of GPIO1
+    GPIO1_D(31 downto 16) <= rwaddr_out;                             -- output rwaddr_out to upper 16 bits of GPIO1
     GPIO1_D(15 downto 0)  <= mdata_out(15 downto 0);                 -- output mdata_out to lower 16 bits of GPIO1
 
     --uncomment when GPO is fully implemented
@@ -550,13 +550,13 @@ begin
         );
 
     -- FPADD Test
-    FPADD : entity work.FPADD
-        port map (
-            CLK     => SYS_CLK,
-            A       => x"41200000",   -- 10.0
-            B       => x"41200000",   -- 10.0
-            SUM     => GPIO1_D(31 downto 16)
-        );
+--    FPADD0 : entity work.FPADD
+--        port map (
+--            CLOCK   => SYS_CLK,
+--            A       => x"41200000",   -- 10.0
+--            B       => x"41200000",   -- 10.0
+--            SUM     => GPIO1_D(31 downto 0)
+--        );
 
     -- LEDs
     LEDG(8 downto 0) <= (others => '0');

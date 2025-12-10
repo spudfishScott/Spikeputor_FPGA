@@ -72,8 +72,9 @@ architecture RTL of WSH_ADDR is
     -- more likely - just use register number for Video and assign other I/O registers to unused video registers
 
     signal p_sel   : integer range 0 to 10 := 0;                        -- provider selector index
-    signal ram_e   : std_logic := '0';                                  -- RAM selected
+    signal ram_e   : std_logic := '0';                                  -- FPGA RAM selected
     signal spec    : std_logic := '0';                                  -- special location (p2-p9)
+	 signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
     signal p_oh    : std_logic_vector(10 downto 0) := (others => '0');  -- provider one-hot vector
@@ -92,7 +93,7 @@ begin
     -- assign p_sel based on addressing logic described above
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, pre-empts all other
         else    0 when ram_e = '1'                                                        -- standard RAM
-        else    1 when spec = '0' AND ram_e = '0' AND sram_e = '0'                        -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
+        else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
         else    2 when spec = '1' AND p_addr = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND p_addr = GPI_ADDR                                   -- read only GPI
         -- to do the rest 5 through 7

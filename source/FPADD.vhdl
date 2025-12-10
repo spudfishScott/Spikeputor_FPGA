@@ -15,14 +15,14 @@ ENTITY FPADD IS
     );
 END FPADD;
 
-ARCHITECTURE SYN OF RAM IS
+ARCHITECTURE SYN OF FPADD IS
 
 BEGIN
 
-    altsyncram_component : altfp_add_sub
+    fpadd_component : altfp_add_sub
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
-        pipeline                        => 11,
+        pipeline                        => 7
     )
     PORT MAP (
         clock      => CLOCK,
