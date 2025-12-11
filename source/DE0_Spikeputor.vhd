@@ -54,7 +54,7 @@ entity DE0_Spikeputor is
         -- GPO        : out std_logic_vector(15 downto 0);   -- 16 bits of GPO
 
         GPIO1_D    : out std_logic_vector(31 downto 0);   -- diagnostic outputs for now
-        GPIO0_D    : out std_logic_vector(1 downto 0)     -- [1:0] = dotstar out
+        GPIO0_D    : inout std_logic_vector(24 downto 0)  -- [1:0] = dotstar out, [2:7] (BL_CTL, /RESET, /CS, /WR, /RD, RS) out, [8] = WAIT_N in, [24:9] = DATA inout
     );
 end DE0_Spikeputor;
 
@@ -66,7 +66,7 @@ architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
     signal GPO_REG     : std_logic_vector(15 downto 0) := x"0000";
-    signal GPI         : std_logic_vector(15 downto 0) := x"5A5A";      -- delete when GPI is fully implemented - replace with direct input from DE0
+    signal GPI         : std_logic_vector(15 downto 0) := x"5A5A";      -- delete when GPI is fully implemented - replace with direct input from DE0 GPIO1 port
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
@@ -137,8 +137,9 @@ architecture Structural of DE0_Spikeputor is
     signal data8       : std_logic_vector(15 downto 0) := (others => '0');
     signal data9       : std_logic_vector(15 downto 0) := (others => '0');
     signal data10      : std_logic_vector(15 downto 0) := (others => '0');
+    signal data11      : std_logic_vector(15 downto 0) := (others => '0');
 
-    signal stb_sel_sig : std_logic_vector(10 downto 0) := (others => '0');
+    signal stb_sel_sig : std_logic_vector(11 downto 0) := (others => '0');
 
     -- clock logic
     signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
@@ -236,6 +237,7 @@ begin
             P8_DATA_O   => data8,
             P9_DATA_O   => data9,
             P10_DATA_O  => data10,
+            P11_DATA_O  => data11,
 
             DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
             STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
@@ -315,7 +317,7 @@ begin
         );
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    -- RAM (P0), ROM (P1), GPO (P2), GPI (P3), SOUND (P4), VIDEO (P5), SERIAL (P6), STORAGE (P7), KEYBOARD (P8), SEGMENT (P9), SDRAM (P10)
+    -- RAM (P0), ROM (P1), GPO (P2), GPI (P3), SOUND (P4), VIDEO (P5), SERIAL (P6), STORAGE (P7), KEYBOARD (P8), SEGMENT (P9), SDRAM (P10), MATH (P11)
 
     -- RAM Instance as Wishbone provider (P0)
     RAM : entity work.RAM_WSH_P
@@ -402,6 +404,32 @@ begin
 
             -- GPI register input
             GPI         => GPI                  -- 16 bits from GPI port
+        );
+
+    -- VIDEO Instance as Wishbone provider (P5)
+    VID1 : entity work.WSH_VIDEO
+        generic map ( CLK_FREQ => CLK_FREQ )
+        port map (
+            -- SYSCON inputs
+            CLK         => SYS_CLK,
+            RST_I       => RESET,  -- Button 0 is system reset (active low)
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(5),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(5),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data5,              -- data out from P5 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we,
+
+            -- video chip control signals
+            SCRN_CTRL   => GPIO0_D(7 downto 2),
+            SCRN_WAIT_N => GPIO0_D(8),
+            SCRN_DATA   => GPIO0_D(24 downto 9)
         );
 
     -- KEYBOARD Instance as Wishbone provider (P8)

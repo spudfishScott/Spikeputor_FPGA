@@ -23,6 +23,7 @@
 --  STORAGE (P7)    read/write to SD card filesystem - locations TBD (might be coupled to DMA)
 --  KEYBOARD (P8)   read keyboard input buffer (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which might be used to expand the total amount of RAM available - locations TBD
+--  MATH (P11)      floating point unit - locations TBD
 
 -- Outputs are:
 --  Individual provider select signals, which go to provider STB_I inputs
@@ -53,28 +54,33 @@ entity WSH_ADDR is
         P8_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from KEYBOARD (P8)
         P9_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SEGMENT (P9)
         P10_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from SDRAM (P10)
+        P11_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from MATH (P11)
 
         -- Output signals
         DATA_O      : out std_logic_vector(15 downto 0);    -- Wishbone data bus output
-        STB_SEL     : out std_logic_vector(10 downto 0)     -- One hot strobe selector for provider STB_I signals
+        STB_SEL     : out std_logic_vector(11 downto 0)     -- One hot strobe selector for provider STB_I signals
     );
 end WSH_ADDR;
 
 architecture RTL of WSH_ADDR is
-
+                            -- (map low byte of address to video coprocessor registers, except 0x00 => STATUS, and protect against registers that should not be exposed)
+    constant VIDEO_ADDR     : std_logic_vector(15 downto 0) := x"FF10"; -- VIDEO address start
+    -- constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FFF0"; -- keyboard address - read only
+    -- constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FFF1"; -- GPO address - read/write
+    -- constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FFF2"; -- GPI address - read only
+    -- just to avoid having to re-write the current ROM for testing
     constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FF00"; -- keyboard address - read only
     constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FF01"; -- GPO address - read/write
     constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FF02"; -- GPI address - read only
 -- sound
 -- serial
 -- storage
-    constant VIDEO_ADDR     : std_logic_vector(15 downto 0) := x"FF72"; -- VIDEO address start (VIDEO registers end at 0xFFFF)
-    -- more likely - just use register number for Video and assign other I/O registers to unused video registers
+-- math fpu
 
     signal p_sel   : integer range 0 to 10 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- FPGA RAM selected
     signal spec    : std_logic := '0';                                  -- special location (p2-p9)
-	 signal sdram_e : std_logic := '0';                                  -- sdram selected
+    signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
     signal p_oh    : std_logic_vector(10 downto 0) := (others => '0');  -- provider one-hot vector
@@ -96,7 +102,7 @@ begin
         else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
         else    2 when spec = '1' AND p_addr = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND p_addr = GPI_ADDR                                   -- read only GPI
-        -- to do the rest 5 through 7
+        -- to do the rest 4 through 7, 11
         else    8 when spec = '1' AND p_addr = KEYBOARD_ADDR                              -- read only KEYBOARD
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    1;                                                                        -- default to read ROM
@@ -115,25 +121,27 @@ begin
             P8_DATA_O  when 8,      -- KEYBOARD
             P9_DATA_O  when 9,      -- SEGMENT
             P10_DATA_O when 10,     -- SDRAM
+            P11_DATA_O when 11,     -- MATH FPU
             (others => '0') when others;
 
     -- Generate one-hot strobe signals for each provider based on p_sel
     with (p_sel) select
         p_oh <=
-            "00000000001" when 0,
-            "00000000010" when 1,
-            "00000000100" when 2,
-            "00000001000" when 3,
-            "00000010000" when 4,
-            "00000100000" when 5,
-            "00001000000" when 6,
-            "00010000000" when 7,
-            "00100000000" when 8,
-            "01000000000" when 9,
-            "10000000000" when 10,
+            "000000000001" when 0,
+            "000000000010" when 1,
+            "000000000100" when 2,
+            "000000001000" when 3,
+            "000000010000" when 4,
+            "000000100000" when 5,
+            "000001000000" when 6,
+            "000010000000" when 7,
+            "000100000000" when 8,
+            "001000000000" when 9,
+            "010000000000" when 10,
+            "100000000000" when 11,
             "00000000000" when others;
 
     -- ouput STB_SEL based on the one-hot result and STB_I
-    STB_SEL <= p_oh when STB_I = '1' else "00000000000";
+    STB_SEL <= p_oh when STB_I = '1' else "000000000000";
 
 end RTL;

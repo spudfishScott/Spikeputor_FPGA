@@ -1,34 +1,44 @@
+-- Wishbone Provider for Video Coprocessor and Video Memory Mapped I/O
+-- For now, this is a simple wishbone provider that maps a fixed address range to read/write the video coprocessor registers and data
+-- In the future, may change this to be a higher level graphics engine that handles drawing operations, etc.
+-- Simple read or write 0xFFxx addresses to access the video coprocessor registers and data. Registers that shouldn't be exposed will return 0x0000 and will ignore writes.
+-- Note that the lsb of the address is NOT ignored here.
+-- The STATUS register is read via location 0xFF00. Writes to 0xFF00 are ignored. Actual video register 0 is not exposed.
+
+-- TODO: For read/writing register 4 (DATA register), need to handle bulk reads/writes (set a flag until a new address is selected after checking FIFO via STATUS register)
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity DE0_Graphics is
+entity VIDEO is
+    generic ( CLK_FREQ : integer := 50_000_000 );            -- system clock frequency in Hz
     port (
         -- Clock Input
-        CLOCK_50   : in std_logic;
-        -- Push Button
-        BUTTON     : in std_logic_vector(2 downto 0);
-        -- DPDT Switch
-        SW         : in std_logic_vector(9 downto 0);
-        -- 7-SEG Display
-        HEX0_D     : out std_logic_vector(6 downto 0);
-        HEX0_DP    : out std_logic;
-        HEX1_D     : out std_logic_vector(6 downto 0);
-        HEX1_DP    : out std_logic;
-        HEX2_D     : out std_logic_vector(6 downto 0);
-        HEX2_DP    : out std_logic;
-        HEX3_D     : out std_logic_vector(6 downto 0);
-        HEX3_DP    : out std_logic;
-        -- LED
-        LEDG       : out std_logic_vector(9 downto 0);
-        -- GPIO (need to assign pins accordingly)
+        CLK         : in std_logic;                          -- System Clock
+        RST         : in std_logic;                          -- System Reset
+
+        -- Wishbone signals
+        -- handshaking signals
+        WBS_CYC_I   : in std_logic;
+        WBS_STB_I   : in std_logic;
+        WBS_ACK_O   : out std_logic;
+
+        -- memory read/write signals
+        WBS_ADDR_I  : in std_logic_vector(23 downto 0);     -- lsb is NOT ignored, but it is still part of the address bus
+        WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to master
+        WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
+        WBS_WE_I    : in std_logic                          -- write enable input - when high, master is writing, when low, master is reading
+
+        -- Video Chip control signals
         SCRN_CTRL   : out   std_logic_vector(5 downto 0);    -- Screen Control output only (BL_CTL, /RESET, /CS, /WR, /RD, RS) GPIO0 2 -> 7
         SCRN_WAIT_N : in    std_logic;                       -- /WAIT signal input only (GPIO0 8)
         SCRN_DATA   : inout std_logic_vector(15 downto 0)    -- DATAIO signal (GPIO0 9 -> 24)
     );
-end DE0_Graphics;
+end VIDEO;
 
-architecture RTL of DE0_Graphics is
+architecture RTL of VIDEO is
+    -- Video control signals
     signal bl    : std_logic := '0';                                        -- Backlight control
     signal n_res : std_logic := '1';                                        -- /RESET signal
     signal n_cs  : std_logic := '1';                                        -- /CS signal (see if it can always just be on)
@@ -39,10 +49,18 @@ architecture RTL of DE0_Graphics is
     signal d_in  : std_logic_vector(15 downto 0) := (others => '0');        -- Data In to screen controller
     signal db_oe : std_logic := '0';                                        -- data bus output enable - set to 1 when sending to screen controller
 
-    signal timer : Integer := 0;            -- timer counter
-    signal cmd_index : Integer := 0;        -- command index for multi-step commands
+    -- Wishbone interface signals
+    signal ack     : std_logic := '0';                                      -- internal ack signal
+    signal wdat_r  : std_logic_vector(15 downto 0) := (others => '0');      -- write data register
+    signal reg_r   : std_logic_vector(7 downto 0) := x"FF";                 -- current register selected (0xFF = ignored)
 
-    type state_type is (IDLE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
+    -- Counters and indeces for initialization sequence
+    signal timer   : Integer := 0;                      -- timer counter
+    signal cmd_index : Integer := 0;                    -- command index for multi-step commands
+    signal reset_done : std_logic := '0';          -- flag to indicate initialization is done
+    signal powerup_done : std_logic := '0';             -- flag to indicate powerup sequence is done
+
+    type state_type is (IDLE, CLEAR_ACK, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
     signal state     : state_type := INIT;
     signal return_st : state_type := INIT;
 
@@ -55,34 +73,45 @@ begin
     SCRN_CTRL(1) <= n_rd;
     SCRN_CTRL(0) <= rs;
 
-
-    HEX0_DP <= '1';
-    HEX1_DP <= '1';
-    HEX2_DP <= '1';
-    HEX3_DP <= '1';
-
-    DISPLAY : entity work.WORDTO7SEGS
-        port map (
-            WORD  => d_in,
-            SEGS0 => HEX0_D,
-            SEGS1 => HEX1_D,
-            SEGS2 => HEX2_D,
-            SEGS3 => HEX3_D
-        );
-
-    LEDG <= std_logic_vector(to_unsigned(cmd_index, 10));   -- show cmd_index on the on-board LEDs
-
     -- send d_in into the screen controller when db_oe is 1, otherwise set data_out to screen controller output
     SCRN_DATA(15 downto 0) <= d_in when db_oe = '1' else (others => 'Z');
 
-    process(CLOCK_50) is
+    -- output to Wishbone interface
+    WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;
+    WBS_DATA_O     <= d_out;                           -- output read data register to Wishbone data output
+    wdat_r         <= WBS_DATA_I;                       -- data to write comes directly from Wishbone input
+    reg_r          <= WBS_ADDR_I(7 downto 0) when       -- register to read/write comes from lsb of Wishbone address unless it's blocked (see "Video Interface Notes")
+                        WBS_ADDR_I(7 downto 0) = X"00" OR
+                        WBS_ADDR_I(7 downto 0) = X"03" OR
+                        WBS_ADDR_I(7 downto 0) = X"04" OR
+                        WBS_ADDR_I(7 downto 0) = X"10" OR
+                        WBS_ADDR_I(7 downto 0) = X"11" OR
+                        (WBS_ADDR_I(7 downto 0) > X"1F" AND WBS_ADDR_I(7 downto 0) < X"46") OR
+                        (WBS_ADDR_I(7 downto 0) > X"4F" AND WBS_ADDR_I(7 downto 0) < X"74") OR
+                        (WBS_ADDR_I(7 downto 0) > X"75" AND WBS_ADDR_I(7 downto 0) < X"7F") OR
+                        (WBS_ADDR_I(7 downto 0) > X"8F" AND WBS_ADDR_I(7 downto 0) < X"B6") OR
+                        WBS_ADDR_I(7 downto 0) = X"CC" OR
+                        WBS_ADDR_I(7 downto 0) = X"CD" OR
+                        (WBS_ADDR_I(7 downto 0) > X"CE" AND WBS_ADDR_I(7 downto 0) < X"D8") OR
+                        (WBS_ADDR_I(7 downto 0) > X"DA" AND WBS_ADDR_I(7 downto 0) < X"DF")
+                    else x"FF";
+
+    process(CLK) is
     begin
-        if rising_edge(CLOCK_50) then
-            if Button(0) = '0' then         -- reset button pushed, clear state machine and all counters
+        if rising_edge(CLK) then
+            if RST = 1 then         -- reset button pushed, clear state machine and all counters
                 state     <= INIT;  -- set state to initialize the contoller
                 return_st <= INIT;  -- reset the return state as well
                 timer     <= 0;     -- reset timer and command index
-                cmd_index <= 0;
+                
+                if powered_up = '0' then
+                    cmd_index <= 0;
+                else
+                    cmd_index <= 67;  -- if already powered up, skip to warm reset portion
+                end if;
+
+                reset_done <= '0';  -- clear reset done flag
+
                 bl        <= '0';   -- turn off backlight
                 n_res     <= '1';   -- reset output control signals
                 n_rd      <= '1';
@@ -92,6 +121,10 @@ begin
                 db_oe     <= '0';
                 d_out <= (others => '0');   -- reset data in/out
                 d_in  <= (others => '0');
+
+                ack    <= '0';              -- clear ack signal
+                wdat_r <= (others => '0');  -- clear write data register
+                reg_r  <= X"FF";            -- set register to ingored value
             else
                 case state is
                     when WAIT_ST =>
@@ -155,6 +188,9 @@ begin
                             db_oe <= '0';
                             n_wr  <= '1';    -- complete command
                             state <= return_st;                 -- go back to the state this was "called" from
+                            if reset_done = '1' then
+                                ack <= '1';    -- set ack signal if not in initialization - one clock tick early for speed
+                            end if;
                         end if;
 
                     when INIT =>            -- go through the display reset and initialization sequence
@@ -371,7 +407,7 @@ begin
                             when 66 =>      -- step 66: Write 0x09 to Register 0x1F (VSYNC Pulse width - 1)
                                 d_in <= x"0009";
                                 state <= DATA_WR;
-                            -- SET RA8876 MAIN AND ACTIVE WINDOW
+                            -- SET RA8876 MAIN AND ACTIVE WINDOW - WARM RESET ENTRY POINT
                             when 67 =>      -- step 67: Select Register 0x10
                                 d_in <= x"0010";
                                 state <= COMMAND_WR;
@@ -534,9 +570,14 @@ begin
                             when 120 =>     -- step 120: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window - final)
                                 d_in <= x"0008";
                                 state <= DATA_WR;
-                            when 121 =>       -- step 121: Select Register 0xD2
-                                d_in <= x"00D2";
-                                state <= COMMAND_WR;
+                            when 121 =>       -- step 121: Select Register 0xD2 - CLEAR SCREEN FROM HERE ON DOWN
+                                if powered_up = '1' then
+                                    reset_done <= '1';  -- set reset done flag
+                                    cmd_index  <= 152;  -- skip clear screen if already powered up
+                                else
+                                    d_in <= x"00D2";    -- otherwise, continue power-up sequence
+                                    state <= COMMAND_WR;
+                                end if;
                             when 122 =>       -- step 122: Write 0x00 to Register 0xD2 (Foreground Red)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
@@ -636,19 +677,71 @@ begin
                             when 154 =>     -- step 154: Assert bit 6 (Turn on Screen) and write register 0x12
                                 d_in <= d_out OR "0000000001000000";    -- assert bit 6
                                 state <= DATA_WR;
-                                cmd_index <= 170;  -- done marker
-                                return_st <= IDLE;  -- and go to idle when done
+                                powered_up <= '1';       -- indicate power up is done
+                                return_st <= IDLE;       -- and go to idle when done
                             when others =>
                                 cmd_index <= 0;     -- failsafe - go back to the start if we get here
                                 state <= INIT;
                         end case;
 
                     when IDLE =>
-                        return_st <= IDLE;              -- return from other states to here by default
-                        state     <= IDLE;              -- just stay here for now
-                    when others =>
+                        -- logic to see if register is still set to 4?
+                        if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
+                            if WBS_WE_I = '0' then          -- read operation
+                                if reg_r = x"00" then
+                                    state <= STATUS_RD;          -- read status register
+                                    return_st <= ACK_CLEAR;      -- after reading status, finish wishbone transaction
+                                elsif reg_r /= x"FF" then        -- register to read is exposed
+                                    d_in <= reg_r;               -- load register address to read
+                                    -- TODO: handle register 4 logic here for bulk reads - after each read, need to wait until STATUS bit 4 is cleared before next read (Memory Read FIFO not empty)
+                                    state <= COMMAND_WR;         -- write command to select register
+                                    return_st <= WSH_READ;           -- after selecting register, go to read state
+                                else
+                                    d_out <= (others => '0');    -- register is blocked, return zero data
+                                    state <= ACK_CLEAR;          -- finish wishbone transaction
+                                end if;
+                            else                            -- write operation
+                                if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
+                                    d_in <= reg_r;               -- load register address to write
+                                    -- TODO: handle register 4 logic here for bulk writes - after each write, need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full)
+                                    state <= COMMAND_WR;         -- write command to select register
+                                    return_st <= WSH_WRITE;      -- after selecting register, go to write state
+                                else                             -- register is blocked, do nothing
+                                    ack <= '1';                  -- acknowledge wishbone write
+                                    state <= ACK_CLEAR;          -- register is blocked, finish wishbone transaction
+                                end if;
+                            end if;
+                        else
+                            st <= IDLE;                       -- stay in IDLE state
+                        end if;
+
+                    when WSH_READ =>
+                        state <= DATA_RD;                  -- read data from selected register
+                        return_st <= ACK_CLEAR;            -- after reading data, set ack and finish wishbone transaction
+
+                    when WSH_WRITE =>
+                        d_in <= WBS_DAT_I(15 downto 0);    -- load data to write to register
+                        state <= DATA_WR;                  -- write data to selected register and set ack
+                        return_st <= ACK_CLEAR;            -- after writing data, finish wishbone transaction
+
+                    when ACK_CLEAR =>
+                        if (WBS_CYC_I = '1' AND WBS_STB_I = '1' ) then
+                            ack <= '1';                    -- assert ack now that data is read or written
+                            state <= ACK_CLEAR;            -- and stay here until master deasserts CYC or STB
+                        end if;
+
+                    when others =>                         -- should never happen
                         null;
                 end case;
+
+                if (WBS_CYC_I = '0' OR WBS_STB_I = '0') then   -- Break cycle if master deasserts CYC at any point
+                    ack <= '0';
+                    if (reset_done = '1') then  -- return immediately to IDLE if initialization is done
+                        state <= IDLE;
+                        return_st <= IDLE;
+                    end if;
+                end if;
+
             end if;
         end if;
     end process;
