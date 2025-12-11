@@ -11,12 +11,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity VIDEO is
+entity VIDEO_WSH_P is
     generic ( CLK_FREQ : integer := 50_000_000 );            -- system clock frequency in Hz
     port (
         -- Clock Input
         CLK         : in std_logic;                          -- System Clock
-        RST         : in std_logic;                          -- System Reset
+        RST_I       : in std_logic;                          -- System Reset
 
         -- Wishbone signals
         -- handshaking signals
@@ -28,16 +28,16 @@ entity VIDEO is
         WBS_ADDR_I  : in std_logic_vector(23 downto 0);     -- lsb is NOT ignored, but it is still part of the address bus
         WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to master
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
-        WBS_WE_I    : in std_logic                          -- write enable input - when high, master is writing, when low, master is reading
+        WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
 
         -- Video Chip control signals
         SCRN_CTRL   : out   std_logic_vector(5 downto 0);    -- Screen Control output only (BL_CTL, /RESET, /CS, /WR, /RD, RS) GPIO0 2 -> 7
         SCRN_WAIT_N : in    std_logic;                       -- /WAIT signal input only (GPIO0 8)
         SCRN_DATA   : inout std_logic_vector(15 downto 0)    -- DATAIO signal (GPIO0 9 -> 24)
     );
-end VIDEO;
+end VIDEO_WSH_P;
 
-architecture RTL of VIDEO is
+architecture RTL of VIDEO_WSH_P is
     -- Video control signals
     signal bl    : std_logic := '0';                                        -- Backlight control
     signal n_res : std_logic := '1';                                        -- /RESET signal
@@ -51,7 +51,7 @@ architecture RTL of VIDEO is
 
     -- Wishbone interface signals
     signal ack     : std_logic := '0';                                      -- internal ack signal
-    signal wdat_r  : std_logic_vector(15 downto 0) := (others => '0');      -- write data register
+   -- signal wdat_r  : std_logic_vector(15 downto 0) := (others => '0');      -- write data register
     signal reg_r   : std_logic_vector(7 downto 0) := x"FF";                 -- current register selected (0xFF = ignored)
 
     -- Counters and indeces for initialization sequence
@@ -60,7 +60,7 @@ architecture RTL of VIDEO is
     signal reset_done : std_logic := '0';               -- flag to indicate initialization is done
     signal powerup_done : std_logic := '0';             -- flag to indicate powerup sequence is done
 
-    type state_type is (IDLE, CLEAR_ACK, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
+    type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
     signal state     : state_type := INIT;
     signal return_st : state_type := INIT;
 
@@ -79,7 +79,7 @@ begin
     -- output to Wishbone interface
     WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;
     WBS_DATA_O     <= d_out;                           -- output read data register to Wishbone data output
-    wdat_r         <= WBS_DATA_I;                       -- data to write comes directly from Wishbone input
+    --wdat_r         <= WBS_DATA_I;                       -- data to write comes directly from Wishbone input
     reg_r          <= WBS_ADDR_I(7 downto 0) when       -- register to read/write comes from lsb of Wishbone address unless it's blocked (see "Video Interface Notes")
                         WBS_ADDR_I(7 downto 0) = X"00" OR
                         WBS_ADDR_I(7 downto 0) = X"03" OR
@@ -99,7 +99,7 @@ begin
     process(CLK) is
     begin
         if rising_edge(CLK) then
-            if RST = 1 then         -- reset button pushed, clear state machine and all counters
+            if RST_I = '1' then         -- reset button pushed, clear state machine and all counters
                 state     <= INIT;  -- set state to initialize the contoller
                 return_st <= INIT;  -- reset the return state as well
                 timer     <= 0;     -- reset timer and command index
@@ -123,8 +123,7 @@ begin
                 d_in  <= (others => '0');
 
                 ack    <= '0';              -- clear ack signal
-                wdat_r <= (others => '0');  -- clear write data register
-                reg_r  <= X"FF";            -- set register to ingored value
+            --    wdat_r <= (others => '0');  -- clear write data register
             else
                 case state is
                     when WAIT_ST =>
@@ -692,7 +691,7 @@ begin
                                     state <= STATUS_RD;          -- read status register
                                     return_st <= ACK_CLEAR;      -- after reading status, finish wishbone transaction
                                 elsif reg_r /= x"FF" then        -- register to read is exposed
-                                    d_in <= reg_r;               -- load register address to read
+                                    d_in <= "00000000" & reg_r;  -- load register address to read
                                     -- TODO: handle register 4 logic here for bulk reads - after each read, need to wait until STATUS bit 4 is cleared before next read (Memory Read FIFO not empty)
                                     state <= COMMAND_WR;         -- write command to select register
                                     return_st <= WSH_READ;           -- after selecting register, go to read state
@@ -702,7 +701,7 @@ begin
                                 end if;
                             else                            -- write operation
                                 if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
-                                    d_in <= reg_r;               -- load register address to write
+                                    d_in <= "00000000" & reg_r;  -- load register address to write
                                     -- TODO: handle register 4 logic here for bulk writes - after each write, need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full)
                                     state <= COMMAND_WR;         -- write command to select register
                                     return_st <= WSH_WRITE;      -- after selecting register, go to write state
@@ -712,7 +711,7 @@ begin
                                 end if;
                             end if;
                         else
-                            st <= IDLE;                       -- stay in IDLE state
+                            state <= IDLE;                       -- stay in IDLE state
                         end if;
 
                     when WSH_READ =>
@@ -720,7 +719,7 @@ begin
                         return_st <= ACK_CLEAR;            -- after reading data, set ack and finish wishbone transaction
 
                     when WSH_WRITE =>
-                        d_in <= WBS_DAT_I(15 downto 0);    -- load data to write to register
+                        d_in <= WBS_DATA_I(15 downto 0);   -- load data to write to register
                         state <= DATA_WR;                  -- write data to selected register and set ack
                         return_st <= ACK_CLEAR;            -- after writing data, finish wishbone transaction
 

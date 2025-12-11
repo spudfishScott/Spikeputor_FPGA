@@ -77,13 +77,13 @@ architecture RTL of WSH_ADDR is
 -- storage
 -- math fpu
 
-    signal p_sel   : integer range 0 to 10 := 0;                        -- provider selector index
+    signal p_sel   : integer range 0 to 11 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- FPGA RAM selected
     signal spec    : std_logic := '0';                                  -- special location (p2-p9)
     signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
-    signal p_oh    : std_logic_vector(10 downto 0) := (others => '0');  -- provider one-hot vector
+    signal p_oh    : std_logic_vector(11 downto 0) := (others => '0');  -- provider one-hot vector
 
 begin
     seg    <= ADDR_I(22 downto 16);   -- extract segment identifier from full address
@@ -139,7 +139,7 @@ begin
             "001000000000" when 9,
             "010000000000" when 10,
             "100000000000" when 11,
-            "00000000000" when others;
+            "000000000000" when others;
 
     -- ouput STB_SEL based on the one-hot result and STB_I
     STB_SEL <= p_oh when STB_I = '1' else "000000000000";
