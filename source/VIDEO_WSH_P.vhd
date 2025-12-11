@@ -51,7 +51,6 @@ architecture RTL of VIDEO_WSH_P is
 
     -- Wishbone interface signals
     signal ack     : std_logic := '0';                                      -- internal ack signal
-   -- signal wdat_r  : std_logic_vector(15 downto 0) := (others => '0');      -- write data register
     signal reg_r   : std_logic_vector(7 downto 0) := x"FF";                 -- current register selected (0xFF = ignored)
 
     -- Counters and indeces for initialization sequence
@@ -79,7 +78,6 @@ begin
     -- output to Wishbone interface
     WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;
     WBS_DATA_O     <= d_out;                           -- output read data register to Wishbone data output
-    --wdat_r         <= WBS_DATA_I;                       -- data to write comes directly from Wishbone input
     reg_r          <= WBS_ADDR_I(7 downto 0) when       -- register to read/write comes from lsb of Wishbone address unless it's blocked (see "Video Interface Notes")
                         WBS_ADDR_I(7 downto 0) = X"00" OR
                         WBS_ADDR_I(7 downto 0) = X"03" OR
@@ -123,7 +121,7 @@ begin
                 d_in  <= (others => '0');
 
                 ack    <= '0';              -- clear ack signal
-            --    wdat_r <= (others => '0');  -- clear write data register
+                
             else
                 case state is
                     when WAIT_ST =>

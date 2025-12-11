@@ -54,7 +54,7 @@ entity DE0_Spikeputor is
         -- GPO        : out std_logic_vector(15 downto 0);   -- 16 bits of GPO
 
         GPIO1_D    : out std_logic_vector(31 downto 0);   -- diagnostic outputs for now
-		  -- reassign these pins directly in the assignment table and select in, out, or inout as appropriate
+        -- reassign these pins directly in the assignment table and select in, out, or inout as appropriate
         GPIO0_D    : inout std_logic_vector(24 downto 0)  -- [1:0] = dotstar out, [2:7] (BL_CTL, /RESET, /CS, /WR, /RD, RS) out, [8] = WAIT_N in, [24:9] = DATA inout
     );
 end DE0_Spikeputor;

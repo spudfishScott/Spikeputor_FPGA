@@ -64,14 +64,11 @@ end WSH_ADDR;
 
 architecture RTL of WSH_ADDR is
                             -- (map low byte of address to video coprocessor registers, except 0x00 => STATUS, and protect against registers that should not be exposed)
-    constant VIDEO_ADDR     : std_logic_vector(15 downto 0) := x"FF10"; -- VIDEO address start
-    -- constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FFF0"; -- keyboard address - read only
-    -- constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FFF1"; -- GPO address - read/write
-    -- constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FFF2"; -- GPI address - read only
-    -- just to avoid having to re-write the current ROM for testing
-    constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FF00"; -- keyboard address - read only
-    constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FF01"; -- GPO address - read/write
-    constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FF02"; -- GPI address - read only
+    constant VIDEO_ADDR     : std_logic_vector(15 downto 0) := x"FF00"; -- VIDEO address start
+    constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FFF0"; -- keyboard address - read only
+    constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FFF1"; -- GPO address - read/write
+    constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FFF2"; -- GPI address - read only
+
 -- sound
 -- serial
 -- storage
@@ -102,8 +99,10 @@ begin
         else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
         else    2 when spec = '1' AND p_addr = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND p_addr = GPI_ADDR                                   -- read only GPI
-        -- to do the rest 4 through 7, 11
+        -- to do the rest 4, 6, 7, 11
         else    8 when spec = '1' AND p_addr = KEYBOARD_ADDR                              -- read only KEYBOARD
+        else    5 when spec = '1' AND p_addr(15 downto 8) = VIDEO_ADDR(15 downto 8) 
+                                  AND p_addr(7 downto 4) /= "1111"                        -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFEF)
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    1;                                                                        -- default to read ROM
 
