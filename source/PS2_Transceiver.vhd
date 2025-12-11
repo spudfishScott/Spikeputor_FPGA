@@ -86,10 +86,12 @@ BEGIN
             ps2_clk      <= '0';                    -- inhibit communication on PS/2 bus
             ps2_data     <= 'Z';                    -- release PS/2 data line
             tx_busy      <= '1';                    -- indicate that no transmit is in progress
-            ack_error    <= '0';                    -- clear acknowledge error flag
+            ack_error    <= '00;                    -- clear acknowledge error flag
             ps2_code     <= (OTHERS => '0');        -- clear received PS/2 code
             ps2_code_new <= '0';                    -- clear new received PS/2 code flag
             rx_error     <= '0';                    -- clear receive error flag
+            ps2_clk_int_prev <= '0';                -- clear previous value of the PS/2 clock signal
+            ps2_word      <= (OTHERS => '0');       -- clear PS/2 data buffer
             state        <= receive;                -- set state machine to receive state
         ELSE                        -- not reset
             ps2_clk_int_prev <= ps2_clk_int;        -- store previous value of the PS/2 clock signal

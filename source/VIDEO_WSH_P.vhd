@@ -104,6 +104,7 @@ begin
                 
                 if powerup_done = '0' then
                     cmd_index <= 0;
+                    n_res     <= '1';   -- set chip reset high to begin power up sequence
                 else
                     cmd_index <= 67;  -- if already powered up, skip to warm reset portion
                 end if;
@@ -111,8 +112,7 @@ begin
                 reset_done <= '0';  -- clear reset done flag
 
                 bl        <= '0';   -- turn off backlight
-                n_res     <= '1';   -- reset output control signals
-                n_rd      <= '1';
+                n_rd      <= '1';   -- reset control signals
                 n_wr      <= '1';
                 n_cs      <= '1';
                 rs        <= '0';
@@ -185,9 +185,9 @@ begin
                             db_oe <= '0';
                             n_wr  <= '1';    -- complete command
                             state <= return_st;                 -- go back to the state this was "called" from
-                            if reset_done = '1' then
-                                ack <= '1';    -- set ack signal if not in initialization - one clock tick early for speed
-                            end if;
+                            -- if reset_done = '1' then
+                            --     ack <= '1';    -- set ack signal if not in initialization - one clock tick early for speed
+                            -- end if;
                         end if;
 
                     when INIT =>            -- go through the display reset and initialization sequence
