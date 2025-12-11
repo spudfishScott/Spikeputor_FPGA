@@ -57,7 +57,7 @@ architecture RTL of VIDEO is
     -- Counters and indeces for initialization sequence
     signal timer   : Integer := 0;                      -- timer counter
     signal cmd_index : Integer := 0;                    -- command index for multi-step commands
-    signal reset_done : std_logic := '0';          -- flag to indicate initialization is done
+    signal reset_done : std_logic := '0';               -- flag to indicate initialization is done
     signal powerup_done : std_logic := '0';             -- flag to indicate powerup sequence is done
 
     type state_type is (IDLE, CLEAR_ACK, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
@@ -104,7 +104,7 @@ begin
                 return_st <= INIT;  -- reset the return state as well
                 timer     <= 0;     -- reset timer and command index
                 
-                if powered_up = '0' then
+                if powerup_done = '0' then
                     cmd_index <= 0;
                 else
                     cmd_index <= 67;  -- if already powered up, skip to warm reset portion
@@ -571,7 +571,7 @@ begin
                                 d_in <= x"0008";
                                 state <= DATA_WR;
                             when 121 =>       -- step 121: Select Register 0xD2 - CLEAR SCREEN FROM HERE ON DOWN
-                                if powered_up = '1' then
+                                if powerup_done = '1' then
                                     reset_done <= '1';  -- set reset done flag
                                     cmd_index  <= 152;  -- skip clear screen if already powered up
                                 else
@@ -677,7 +677,7 @@ begin
                             when 154 =>     -- step 154: Assert bit 6 (Turn on Screen) and write register 0x12
                                 d_in <= d_out OR "0000000001000000";    -- assert bit 6
                                 state <= DATA_WR;
-                                powered_up <= '1';       -- indicate power up is done
+                                powerup_done <= '1';     -- indicate power up is done
                                 return_st <= IDLE;       -- and go to idle when done
                             when others =>
                                 cmd_index <= 0;     -- failsafe - go back to the start if we get here

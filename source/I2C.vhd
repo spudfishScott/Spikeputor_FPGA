@@ -240,7 +240,7 @@ BEGIN
                  NOT data_clk_prev WHEN stop,  --generate stop condition
                  sda_int WHEN OTHERS;          --set to internal sda signal    
       
-  --set scl and sda outputs
+  --set scl and sda outputs - Sinec outputs are pulled up, 'Z' state releases line for input or sets '1' as output
   scl <= '0' WHEN (scl_ena = '1' AND scl_clk = '0') ELSE 'Z';
   sda <= '0' WHEN sda_ena_n = '0' ELSE 'Z';
   
