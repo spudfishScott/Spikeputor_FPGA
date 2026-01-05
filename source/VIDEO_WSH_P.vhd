@@ -106,7 +106,7 @@ begin
                     cmd_index <= 0;
                     n_res     <= '1';   -- set chip reset high to begin power up sequence
                 else
-                    cmd_index <= 67;  -- if already powered up, skip to warm reset portion
+                    cmd_index <= 67;    -- if already powered up, skip to warm reset portion
                 end if;
 
                 reset_done <= '0';  -- clear reset done flag
@@ -185,9 +185,6 @@ begin
                             db_oe <= '0';
                             n_wr  <= '1';    -- complete command
                             state <= return_st;                 -- go back to the state this was "called" from
-                            -- if reset_done = '1' then
-                            --     ack <= '1';    -- set ack signal if not in initialization - one clock tick early for speed
-                            -- end if;
                         end if;
 
                     when INIT =>            -- go through the display reset and initialization sequence
@@ -689,18 +686,18 @@ begin
                                     state <= STATUS_RD;          -- read status register
                                     return_st <= ACK_CLEAR;      -- after reading status, finish wishbone transaction
                                 elsif reg_r /= x"FF" then        -- register to read is exposed
-                                    d_in <= "00000000" & reg_r;  -- load register address to read
                                     -- TODO: handle register 4 logic here for bulk reads - after each read, need to wait until STATUS bit 4 is cleared before next read (Memory Read FIFO not empty)
+                                    d_in <= "00000000" & reg_r;  -- load register address to read
                                     state <= COMMAND_WR;         -- write command to select register
-                                    return_st <= WSH_READ;           -- after selecting register, go to read state
+                                    return_st <= WSH_READ;       -- after selecting register, go to read state
                                 else
                                     d_out <= (others => '0');    -- register is blocked, return zero data
                                     state <= ACK_CLEAR;          -- finish wishbone transaction
                                 end if;
                             else                            -- write operation
                                 if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
-                                    d_in <= "00000000" & reg_r;  -- load register address to write
                                     -- TODO: handle register 4 logic here for bulk writes - after each write, need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full)
+                                    d_in <= "00000000" & reg_r;  -- load register address to write
                                     state <= COMMAND_WR;         -- write command to select register
                                     return_st <= WSH_WRITE;      -- after selecting register, go to write state
                                 else                             -- register is blocked, do nothing
