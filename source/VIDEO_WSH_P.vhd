@@ -567,7 +567,7 @@ begin
                             when 121 =>       -- step 121: Select Register 0xD2 - CLEAR SCREEN FROM HERE ON DOWN
                                 if powerup_done = '1' then
                                     reset_done <= '1';  -- set reset done flag
-                                    cmd_index  <= 152;  -- skip clear screen if already powered up
+                                    cmd_index  <= 153;  -- skip clear screen if already powered up
                                 else
                                     d_in <= x"00D2";    -- otherwise, continue power-up sequence
                                     state <= COMMAND_WR;
@@ -641,34 +641,37 @@ begin
                                 if d_out(3) = '1' then
                                     cmd_index <= 143;    -- still busy, check again
                                 end if;
-                            when 145 =>      -- step 145: Write 0xE0 to register 0x76 (Draw the filled square to clear the screen)
-                                d_in <= x"00E0";
-                                state <= DATA_WR;
-                            when 146 =>      -- step 146: Select register 0x67
-                                d_in <= x"0067";
-                                state <= COMMAND_WR;
-                            when 147 =>      -- step 147: Read Register 0x67
-                                state <= DATA_RD;
-                            when 148 =>      -- step 148: Check to see if bit 7 is set (line/triangle drawing function is processing)
-                                if d_out(7) = '1' then
-                                    cmd_index <= 147;    -- still busy, check again
-                                end if;
-                            when 149 =>      -- step 149: Select Register 0x76
+                            when 145 =>      -- step 145: Select register 0x76
                                 d_in <= x"0076";
                                 state <= COMMAND_WR;
-                            when 150 =>      -- step 150: Read Register 0x76
+                            when 146 =>      -- step 146: Write 0xE0 to register 0x76 (Draw the filled square to clear the screen)
+                                d_in <= x"00E0";
+                                state <= DATA_WR;
+                            when 147 =>     -- step 147: Select register 0x67
+                                d_in <= x"0067";
+                                state <= COMMAND_WR;
+                            when 148 =>      -- step 148: Read Register 0x67
                                 state <= DATA_RD;
-                            when 151 =>      -- step 152: Check to see if bit 7 is set (ellipse/curve/square) drawing function is processing)
+                            when 149 =>      -- step 149: Check to see if bit 7 is set (line/triangle drawing function is processing)
                                 if d_out(7) = '1' then
-                                    cmd_index <= 150;    -- still busy, check again
+                                    cmd_index <= 148;    -- still busy, check again
                                 end if;
-                            when 152 =>     -- step 152: Turn on backlight and Select Register 0x12
+                            when 150 =>      -- step 150: Select Register 0x76
+                                d_in <= x"0076";
+                                state <= COMMAND_WR;
+                            when 151 =>      -- step 151: Read Register 0x76
+                                state <= DATA_RD;
+                            when 152 =>      -- step 152: Check to see if bit 7 is set (ellipse/curve/square) drawing function is processing)
+                                if d_out(7) = '1' then
+                                    cmd_index <= 151;    -- still busy, check again
+                                end if;
+                            when 153 =>     -- step 153: Turn on backlight and Select Register 0x12
                                 bl   <= '1';
                                 d_in <= x"0012";
                                 state <= COMMAND_WR;
-                            when 153 =>     -- step 153: Read Register 0x12
+                            when 154 =>     -- step 154: Read Register 0x12
                                 state <= DATA_RD;
-                            when 154 =>     -- step 154: Assert bit 6 (Turn on Screen) and write register 0x12
+                            when 155 =>     -- step 155: Assert bit 6 (Turn on Screen) and write register 0x12
                                 d_in <= d_out OR "0000000001000000";    -- assert bit 6
                                 state <= DATA_WR;
                                 powerup_done <= '1';     -- indicate power up is done
