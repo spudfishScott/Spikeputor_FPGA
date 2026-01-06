@@ -219,7 +219,7 @@ begin
                             when 7 =>       -- step 7: assert bit 0 and write to register 0 (Software Reset)
                                 d_in <= d_out OR x"0001";
                                 state <= DATA_WR;
-                            when 8 =>       -- step 8: re-read register 8
+                            when 8 =>       -- step 8: re-read register 0
                                 state <= DATA_RD;
                             when 9 =>       -- step 9: if bit 0 is 1, go back to step 8 (Software Reset not complete)
                                 if d_out(0) = '1' then
@@ -411,7 +411,7 @@ begin
                             when 69 =>      -- step 69: Select Register 0x20
                                 d_in <= x"0020";
                                 state <= COMMAND_WR;
-                            when 70 =>      -- step 70: Write 0x00 to Register 0x20 (Main Image Start Address byte 0)
+                            when 70 =>      -- step 70: Write 0x00 to Register 0x20 (Main Image Start Address byte 0 - least significant byte)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
                             when 71 =>      -- step 71: Select Register 0x21
@@ -429,7 +429,7 @@ begin
                             when 75 =>      -- step 75: Select Register 0x23
                                 d_in <= x"0023";
                                 state <= COMMAND_WR;
-                            when 76 =>      -- step 76: Write 0x00 to Register 0x23 (Main Image Start Address byte 3)
+                            when 76 =>      -- step 76: Write 0x00 to Register 0x23 (Main Image Start Address byte 3 - most significant byte)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
                             when 77 =>      -- step 77: Select Register 0x24
@@ -641,27 +641,27 @@ begin
                                 if d_out(3) = '1' then
                                     cmd_index <= 143;    -- still busy, check again
                                 end if;
-                            when 145 =>      -- step 145: Select register 0x67
-                                d_in <= x"0067";
-                                state <= COMMAND_WR;
-                            when 146 =>      -- step 146: Read Register 0x67
-                                state <= DATA_RD;
-                            when 147 =>      -- step 147: Check to see if bit 7 is set (line/triangle drawing function is processing)
-                                if d_out(7) = '1' then
-                                    cmd_index <= 146;    -- still busy, check again
-                                end if;
-                            when 148 =>      -- step 148: Select Register 0x76
-                                d_in <= x"0076";
-                                state <= COMMAND_WR;
-                            when 149 =>      -- step 149: Read Register 0x76
-                                state <= DATA_RD;
-                            when 150 =>      -- step 150: Check to see if bit 7 is set (ellipse/curve/square) drawing function is processing)
-                                if d_out(7) = '1' then
-                                    cmd_index <= 149;    -- still busy, check again
-                                end if;
-                            when 151 =>      -- step 151: Write 0xE0 to register 0x76 (Draw the filled square to clear the screen)
+                            when 145 =>      -- step 145: Write 0xE0 to register 0x76 (Draw the filled square to clear the screen)
                                 d_in <= x"00E0";
                                 state <= DATA_WR;
+                            when 146 =>      -- step 146: Select register 0x67
+                                d_in <= x"0067";
+                                state <= COMMAND_WR;
+                            when 147 =>      -- step 147: Read Register 0x67
+                                state <= DATA_RD;
+                            when 148 =>      -- step 148: Check to see if bit 7 is set (line/triangle drawing function is processing)
+                                if d_out(7) = '1' then
+                                    cmd_index <= 147;    -- still busy, check again
+                                end if;
+                            when 149 =>      -- step 149: Select Register 0x76
+                                d_in <= x"0076";
+                                state <= COMMAND_WR;
+                            when 150 =>      -- step 150: Read Register 0x76
+                                state <= DATA_RD;
+                            when 151 =>      -- step 152: Check to see if bit 7 is set (ellipse/curve/square) drawing function is processing)
+                                if d_out(7) = '1' then
+                                    cmd_index <= 150;    -- still busy, check again
+                                end if;
                             when 152 =>     -- step 152: Turn on backlight and Select Register 0x12
                                 bl   <= '1';
                                 d_in <= x"0012";
