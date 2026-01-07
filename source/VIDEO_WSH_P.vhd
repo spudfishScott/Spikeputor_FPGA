@@ -31,9 +31,9 @@ entity VIDEO_WSH_P is
         WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
 
         -- Video Chip control signals
-        SCRN_CTRL   : out   std_logic_vector(5 downto 0);    -- Screen Control output only (BL_CTL, /RESET, /CS, /WR, /RD, RS) GPIO0 2 -> 7
+        SCRN_CTRL   : out   std_logic_vector(5 downto 0);    -- Screen Control output only (BL_CTL, /RESET, /CS, /WR, /RD, RS) GPIO0 7 -> 2
         SCRN_WAIT_N : in    std_logic;                       -- /WAIT signal input only (GPIO0 8)
-        SCRN_DATA   : inout std_logic_vector(15 downto 0)    -- DATAIO signal (GPIO0 9 -> 24)
+        SCRN_DATA   : inout std_logic_vector(15 downto 0)    -- DATAIO signal (GPIO0 24 -> 9)
     );
 end VIDEO_WSH_P;
 
@@ -139,11 +139,16 @@ begin
                             n_rd <= '0';    -- rs = 0, n_rd = 0 -> read status
                             state <= STATUS_RD;
                         else
-                            n_cs <= '1';
-                            n_rd <= '1';    -- complete command
-                            d_out(15 downto 8) <= (others => '0');
-                            d_out(7 downto 0) <= SCRN_DATA(7 downto 0);   -- latch data (lower 8 bits only) into data_out
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            if timer = 0 then
+                                timer <= 1;    -- wait 20 ns (1 cycle at 50 MHz) for data to be valid
+                            else
+                                timer <= 0;
+                                n_cs <= '1';
+                                n_rd <= '1';    -- complete command
+                                d_out(15 downto 8) <= (others => '0');
+                                d_out(7 downto 0) <= SCRN_DATA(7 downto 0);   -- latch data (lower 8 bits only) into data_out
+                                state <= return_st;                 -- go back to the state this was "called" from
+                            end if;
                         end if;
 
                     when COMMAND_WR =>
@@ -152,12 +157,17 @@ begin
                             n_cs <= '0';
                             rs   <= '0';
                             n_wr <= '0';    -- rs = 0, n_wr = 0 -> write command
-                            state <= COMMAND_WR;    -- hold in this state for one clock cycle
+                            state <= COMMAND_WR;
                         else
-                            n_cs  <= '1';
-                            db_oe <= '0';
-                            n_wr  <= '1';    -- complete command
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            if timer = 0 then
+                                timer <= 1;    -- wait 20 ns (1 cycle at 50 MHz) for data to be written
+                            else
+                                timer <= 0;
+                                n_cs  <= '1';
+                                db_oe <= '0';
+                                n_wr  <= '1';    -- complete command
+                                state <= return_st;                 -- go back to the state this was "called" from
+                            end if;
                         end if;
 
                     when DATA_RD =>
@@ -167,10 +177,15 @@ begin
                             n_rd <= '0';    -- rs = 1, n_rd = 0 -> read data
                             state <= DATA_RD;
                         else
-                            n_cs <= '1';
-                            n_rd <= '1';    -- complete command
-                            d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            if timer = 0 then
+                                timer <= 1;    -- wait 20 ns (1 cycle at 50 MHz) for data to be valid
+                            else
+                                timer <= 0;
+                                n_cs <= '1';
+                                n_rd <= '1';    -- complete command
+                                d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
+                                state <= return_st;                 -- go back to the state this was "called" from
+                            end if;
                         end if;
 
                     when DATA_WR =>
@@ -181,10 +196,15 @@ begin
                             n_wr <= '0';    -- rs = 1, n_wr = 0 -> write data
                             state <= DATA_WR;    -- hold in this state for one clock cycle
                         else
-                            n_cs  <= '1';
-                            db_oe <= '0';
-                            n_wr  <= '1';    -- complete command
-                            state <= return_st;                 -- go back to the state this was "called" from
+                            if timer = 0 then
+                                timer <= 1;    -- wait 20 ns (1 cycle at 50 MHz) for data to be written
+                            else
+                                timer <= 0;
+                                n_cs  <= '1';
+                                db_oe <= '0';
+                                n_wr  <= '1';    -- complete command
+                                state <= return_st;                 -- go back to the state this was "called" from
+                            end if;
                         end if;
 
                     when INIT =>            -- go through the display reset and initialization sequence
@@ -582,10 +602,10 @@ begin
                                 d_in <= x"0000";
                                 state <= DATA_WR;
                             when 125 =>       -- step 125: Select Register 0xD4
-                                d_in <= x"0040";
+                                d_in <= x"00D4";
                                 state <= COMMAND_WR;
                             when 126 =>       -- step 126: Write 0x40 to Register 0xD4 (Foreground Blue) - set color to dark blue
-                                d_in <= x"0000";
+                                d_in <= x"0040";
                                 state <= DATA_WR;
                             when 127 =>       -- step 127: Select Register 0x68
                                 d_in <= x"0068";
