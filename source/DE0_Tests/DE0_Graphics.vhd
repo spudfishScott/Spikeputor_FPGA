@@ -45,10 +45,10 @@ architecture RTL of DE0_Graphics is
     type state_type is (IDLE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT);
     signal state     : state_type := INIT;
     signal return_st : state_type := INIT;
-	 
-	 constant HOLD_COUNT  : Integer := 12; -- may get better with shorter wires, but this is consistently good
-	 constant CMD_CS_DIFF : Integer := 2;
-	 constant CMD_HOLD_TIME : Integer := 1;
+
+    constant HOLD_COUNT  : Integer := 12; -- may get better with shorter wires, but this is consistently good
+    constant CMD_CS_DIFF : Integer := 2;
+    constant CMD_HOLD_TIME : Integer := 1;
 
 begin
     -- signals mapped to pin outputs
@@ -107,75 +107,71 @@ begin
                         end if;
 
                     when STATUS_RD =>
-							   timer <= timer + 1;
-                        if timer = 0 then  -- issue command, then come back on next clock cycle
-                            n_cs <= '0';    -- start command
+                        timer <= timer + 1;
+                        if timer = 0 then
+                            n_cs <= '0';                -- start command
                             rs   <= '0';
-                            n_rd <= '0';    -- rs = 0, n_rd = 0 -> read status
-                           -- state <= STATUS_RD;
+                            n_rd <= '0';                -- rs = 0, n_rd = 0 -> read status
                         elsif timer = HOLD_COUNT - CMD_CS_DIFF then
-										 n_rd <= '1';    -- complete read
-										 d_out(15 downto 8) <= (others => '0');
-                               d_out(7 downto 0) <= SCRN_DATA(7 downto 0);   -- latch data (lower 8 bits only) into data_out
-									 elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
-									    n_cs <= '1';            -- complete command
-									 elsif timer = HOLD_COUNT then
-										 timer <= 0;				 -- reset timer
-                               state <= return_st;     -- go back to the state this was "called" from
-								end if;
+                            n_rd <= '1';                -- complete read command
+                            d_out(15 downto 8) <= (others => '0');
+                            d_out(7 downto 0) <= SCRN_DATA(7 downto 0);     -- latch data (lower 8 bits only) into data_out
+                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                            n_cs <= '1';                -- complete command
+                        elsif timer = HOLD_COUNT then
+                            timer <= 0;                 -- reset timer
+                            state <= return_st;         -- go back to the state this was "called" from
+                        end if;
 
                     when COMMAND_WR =>
-						      timer <= timer + 1;
-                        if timer = 0 then  -- issue command, then come back on next clock cycle
-                            db_oe <= '1';   -- puts d_in onto the inout bus
-                            n_cs <= '0';    -- start command
+                        timer <= timer + 1;
+                        if timer = 0 then
+                            db_oe <= '1';               -- puts d_in onto the inout bus
+                            n_cs <= '0';                -- start command
                             rs   <= '0';
-                            n_wr <= '0';    -- rs = 0, n_wr = 0 -> write command
-                           -- state <= COMMAND_WR;    -- hold in this state for one clock cycle
+                            n_wr <= '0';                -- rs = 0, n_wr = 0 -> write command
                         elsif timer = HOLD_COUNT - CMD_CS_DIFF then
-                              n_wr  <= '1';    -- complete write command
-				               elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
-									    n_cs  <= '1';   -- complete command
-                               db_oe <= '0';   -- set inout bus to input again
+                              n_wr  <= '1';             -- complete write command
+                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                            n_cs  <= '1';               -- complete command
+                            db_oe <= '0';               -- set inout bus to input again
                            elsif timer = HOLD_COUNT then
-		                         timer <= 0;     -- reset timer
-                               state <= return_st;                 -- go back to the state this was "called" from
+                            timer <= 0;                 -- reset timer
+                            state <= return_st;         -- go back to the state this was "called" from
                         end if;
 
                     when DATA_RD =>
-						      timer <= timer + 1;
-                        if timer = 0 then  -- issue command, then come back on next clock cycle
-                            n_cs <= '0';
+                        timer <= timer + 1;
+                        if timer = 0 then
+                            n_cs <= '0';                -- start command
                             rs   <= '1';
-                            n_rd <= '0';    -- rs = 1, n_rd = 0 -> read data
-                           -- state <= DATA_RD;
+                            n_rd <= '0';                -- rs = 1, n_rd = 0 -> read data
                         elsif timer = HOLD_COUNT - CMD_CS_DIFF then
-									    n_rd <= '1';    -- complete read command
-                               d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
-									elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
-									    n_cs <= '1';    -- complete command
-								   elsif timer = HOLD_COUNT then
-									    timer <= 0;     -- reset timer
-                               state <= return_st;                 -- go back to the state this was "called" from
+                            n_rd <= '1';                -- complete read command
+                            d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
+                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                            n_cs <= '1';                -- complete command
+                        elsif timer = HOLD_COUNT then
+                            timer <= 0;                 -- reset timer
+                            state <= return_st;         -- go back to the state this was "called" from
                         end if;
 
                     when DATA_WR =>
-						      timer <= timer + 1;
-                        if timer = 0 then  -- issue command, then come back on next clock cycle
-                            db_oe <= '1';   -- puts d_in onto the inout bus
+                        timer <= timer + 1;
+                        if timer = 0 then
+                            db_oe <= '1';               -- puts d_in onto the inout bus
                             n_cs <= '0';
                             rs   <= '1';
-                            n_wr <= '0';    -- rs = 1, n_wr = 0 -> write data
-                            state <= DATA_WR;    -- hold in this state for one clock cycle
+                            n_wr <= '0';                -- rs = 1, n_wr = 0 -> write data
+                            state <= DATA_WR;           -- hold in this state for one clock cycle
                         elsif timer = HOLD_COUNT - CMD_CS_DIFF then
-									    n_wr  <= '1';    -- complete write command
-									elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
-									    n_cs  <= '1';    -- complete command
-                               db_oe <= '0';    -- set inout bus to input again
-									elsif timer = HOLD_COUNT then
-									    timer <= 0;      -- reset timer
-                               state <= return_st;                 -- go back to the state this was "called" from
-
+                            n_wr  <= '1';               -- complete write command
+                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                            n_cs  <= '1';               -- complete command
+                            db_oe <= '0';               -- set inout bus to input again
+                        elsif timer = HOLD_COUNT then
+                            timer <= 0;                 -- reset timer
+                            state <= return_st;         -- go back to the state this was "called" from
                         end if;
 
                     when INIT =>            -- go through the display reset and initialization sequence
@@ -559,21 +555,21 @@ begin
                                 d_in <= x"00D2";
                                 state <= COMMAND_WR;
                             when 122 =>       -- step 122: Write 0x00 to Register 0xD2 (Foreground Red)
-										   if SW(9) = '1' then
+                                if SW(9) = '1' then
                                     d_in <= x"00f0";
-											else
-											   d_in <= x"0000";
-											end if;
+                                else
+                                    d_in <= x"0000";
+                                end if;
                                 state <= DATA_WR;
                             when 123 =>       -- step 123: Select Register 0xD3
                                 d_in <= x"00D3";
                                 state <= COMMAND_WR;
                             when 124 =>       -- step 124 Write 0x40 to Register 0xD3 (Foreground Green)
-										   if SW(8) = '1' then
+                                if SW(8) = '1' then
                                     d_in <= x"00f0";
-											else
-											   d_in <= x"0000";
-											end if;
+                                else
+                                   d_in <= x"0000";
+                                end if;
                                 state <= DATA_WR;
                             when 125 =>       -- step 125: Select Register 0xD4
                                 d_in <= x"00D4";
@@ -581,9 +577,9 @@ begin
                             when 126 =>       -- step 126: Write 0x00 to Register 0xD4 (Foreground Blue) - set color to dark blue
                                  if SW(7) = '1' then
                                     d_in <= x"00f0";
-											else
-											   d_in <= x"0000";
-											end if;
+                                else
+                                       d_in <= x"0000";
+                                end if;
                                 state <= DATA_WR;
                             when 127 =>       -- step 127: Select Register 0x68
                                 d_in <= x"0068";
