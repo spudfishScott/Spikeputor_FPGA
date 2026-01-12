@@ -40,9 +40,9 @@ end VIDEO_WSH_P;
 architecture RTL of VIDEO_WSH_P is
 
     -- constants for timing control - RA8876 is slower than we are
-    constant HOLD_COUNT  : Integer := 12; -- may get better with shorter wires, but this is consistently good
-    constant CMD_CS_DIFF : Integer := 2;
-    constant CMD_HOLD_TIME : Integer := 1;
+    constant COMMAND_REFRESH_TIME  : Integer := 9; -- 9 ticks between end of last command and availability to do next command (180 ns)
+    constant CMD_CS_DIFF : Integer := 2; -- 40 ns between /CS low and nRD/nWR high
+    constant CMD_HOLD_TIME : Integer := 1; -- 20 ns between nRD/nWR high and /CS high
 
     -- Video control signals
     signal bl    : std_logic := '0';                                        -- Backlight control
@@ -84,6 +84,7 @@ begin
     -- output to Wishbone interface
     WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;
     WBS_DATA_O     <= d_out;                           -- output read data register to Wishbone data output
+    -- TODO: mark some registers as "whole words" and automatically write to reg and reg+1 using full 16 bits of WBS_DATA_I
     reg_r          <= WBS_ADDR_I(7 downto 0) when       -- register to read/write comes from lsb of Wishbone address unless it's blocked (see "Video Interface Notes")
                         WBS_ADDR_I(7 downto 0) = X"00" OR
                         WBS_ADDR_I(7 downto 0) = X"03" OR
@@ -127,7 +128,6 @@ begin
                 d_in  <= (others => '0');
 
                 ack    <= '0';              -- clear ack signal
-                
             else
                 case state is
                     when WAIT_ST =>
@@ -137,22 +137,22 @@ begin
                             timer <= timer - 1;
                             state <= WAIT_ST;
                         end if;
-
+                    
+                    -- TODO: instead of waiting for HOLD_COUNT, could we monitor /WAIT signal here to speed up operations if the screen controller is ready sooner?
                     when STATUS_RD =>
                         timer <= timer + 1;
                         if timer = 0 then
                             n_cs <= '0';                -- start command
                             rs   <= '0';
                             n_rd <= '0';                -- rs = 0, n_rd = 0 -> read status
-                        elsif timer = HOLD_COUNT - CMD_CS_DIFF then
+                        elsif timer = CMD_CS_DIFF then
                             n_rd <= '1';                -- complete read command
                             d_out(15 downto 8) <= (others => '0');
                             d_out(7 downto 0) <= SCRN_DATA(7 downto 0);     -- latch data (lower 8 bits only) into data_out
-                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                        elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs <= '1';                -- complete command
-                        elsif timer = HOLD_COUNT then
-                            timer <= 0;                 -- reset timer
-                            state <= return_st;         -- go back to the state this was "called" from
+                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
+                            state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
                     when COMMAND_WR =>
@@ -162,14 +162,13 @@ begin
                             n_cs <= '0';                -- start command
                             rs   <= '0';
                             n_wr <= '0';                -- rs = 0, n_wr = 0 -> write command
-                        elsif timer = HOLD_COUNT - CMD_CS_DIFF then
+                        elsif timer = CMD_CS_DIFF then
                               n_wr  <= '1';             -- complete write command
-                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                        elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
-                           elsif timer = HOLD_COUNT then
-                            timer <= 0;                 -- reset timer
-                            state <= return_st;         -- go back to the state this was "called" from
+                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
+                            state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
                     when DATA_RD =>
@@ -178,14 +177,14 @@ begin
                             n_cs <= '0';                -- start command
                             rs   <= '1';
                             n_rd <= '0';                -- rs = 1, n_rd = 0 -> read data
-                        elsif timer = HOLD_COUNT - CMD_CS_DIFF then
+                        elsif timer = CMD_CS_DIFF then
                             n_rd <= '1';                -- complete read command
                             d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
-                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                        elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
+                                                    -- try deasserting ack here - ends wishbone transaction sooner
                             n_cs <= '1';                -- complete command
-                        elsif timer = HOLD_COUNT then
-                            timer <= 0;                 -- reset timer
-                            state <= return_st;         -- go back to the state this was "called" from
+                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
+                            state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
                     when DATA_WR =>
@@ -196,14 +195,14 @@ begin
                             rs   <= '1';
                             n_wr <= '0';                -- rs = 1, n_wr = 0 -> write data
                             state <= DATA_WR;           -- hold in this state for one clock cycle
-                        elsif timer = HOLD_COUNT - CMD_CS_DIFF then
+                        elsif timer = CMD_CS_DIFF then
                             n_wr  <= '1';               -- complete write command
-                        elsif timer = HOLD_COUNT - CMD_HOLD_TIME then
+                        elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
+                                                    -- try deasserting ack here - ends wishbone transaction sooner
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
-                        elsif timer = HOLD_COUNT then
-                            timer <= 0;                 -- reset timer
-                            state <= return_st;         -- go back to the state this was "called" from
+                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
+                            state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
                     when INIT =>            -- go through the display reset and initialization sequence
