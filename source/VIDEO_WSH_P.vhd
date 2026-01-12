@@ -40,36 +40,43 @@ end VIDEO_WSH_P;
 architecture RTL of VIDEO_WSH_P is
 
     -- constants for timing control - RA8876 is slower than we are
-    constant CMD_REFRESH_TIME  : Integer := 9;  -- 9 ticks between end of last command and availability to do next command (180 ns)
+    constant CMD_REFRESH_TIME  : Integer := 8;  -- 8 ticks between end of last read/write data command and availability to do next command (160 ns)
     constant CMD_CS_DIFF : Integer := 2;        -- 40 ns between /CS low and nRD/nWR high
     constant CMD_HOLD_TIME : Integer := 1;      -- 20 ns between nRD/nWR high and /CS high
 
     -- Video control signals
-    signal bl    : std_logic := '0';                                        -- Backlight control
-    signal n_res : std_logic := '1';                                        -- /RESET signal
-    signal n_cs  : std_logic := '1';                                        -- /CS signal (see if it can always just be on)
-    signal rs    : std_logic := '0';                                        -- RS signal - default to STATUS read/Command Write
-    signal n_rd  : std_logic := '1';                                        -- /RD signal
-    signal n_wr  : std_logic := '1';                                        -- /WR signal
-    signal d_out : std_logic_vector(15 downto 0) := (others => '0');        -- Data Out from screen controller
-    signal d_in  : std_logic_vector(15 downto 0) := (others => '0');        -- Data In to screen controller
-    signal db_oe : std_logic := '0';                                        -- data bus output enable - set to 1 when sending to screen controller
+    signal bl           : std_logic := '0';                                     -- Backlight control
+    signal n_res        : std_logic := '1';                                     -- /RESET signal
+    signal n_cs         : std_logic := '1';                                     -- /CS signal (see if it can always just be on)
+    signal rs           : std_logic := '0';                                     -- RS signal - default to STATUS read/Command Write
+    signal n_rd         : std_logic := '1';                                     -- /RD signal
+    signal n_wr         : std_logic := '1';                                     -- /WR signal
+    signal d_out        : std_logic_vector(15 downto 0) := (others => '0');     -- Data Out from screen controller
+    signal d_in         : std_logic_vector(15 downto 0) := (others => '0');     -- Data In to screen controller
+    signal db_oe        : std_logic := '0';                                     -- data bus output enable - set to 1 when sending to screen controller
 
     -- Wishbone interface signals
-    signal ack      : std_logic := '0';                                     -- internal ack signal
-    signal reg_r    : std_logic_vector(7 downto 0) := x"FF";                -- current register selected (0xFF = ignored)
-    signal prev_reg : std_logic_vector(7 downto 0) := x"FF";                -- previous register selected (for detecting changes)
+    signal ack      : std_logic := '0';                                         -- internal ack signal
+    signal reg_r    : std_logic_vector(7 downto 0) := x"FF";                    -- current register selected (0xFF = ignored)
+    signal prev_reg     : std_logic_vector(7 downto 0) := x"FF";                -- previous register selected (for detecting changes)
 
     -- Counters and indeces for initialization sequence
-    signal timer   : Integer := 0;                      -- timer counter
-    signal cmd_index : Integer := 0;                    -- command index for multi-step commands
-    signal status_check : std_logic := '0';             -- status register check flag for multi-check commands
-    signal reset_done : std_logic := '0';               -- flag to indicate initialization is done
-    signal powerup_done : std_logic := '0';             -- flag to indicate powerup sequence is done
+    signal timer        : Integer := 0;                                         -- timer counter
+    signal cmd_index    : Integer := 0;                                         -- command index for multi-step commands
+    signal status_check : std_logic := '0';                                     -- status register check flag for multi-check commands
+    signal reset_done   : std_logic := '0';                                     -- flag to indicate initialization is done
+    signal powerup_done : std_logic := '0';                                     -- flag to indicate powerup sequence is done
 
-    type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT, RD4, WR4);
-    signal state     : state_type := INIT;
-    signal return_st : state_type := INIT;
+    -- write both bytes of word-length registers
+    signal lobyte       : std_logic_vector(7 downto 0);                         -- lower byte for word writes (goes in REG)
+    signal hibyte       : std_logic_vector(7 downto 0);                         -- upper byte for word writes (goes in REG+1)
+    signal word_flg     : std_logic := '0';                                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
+    signal current_reg  : std_logic_vector(7 downto 0);                         -- current register being written to (for word writes)
+    signal temp_out     : std_logic_vector(7 downto 0);                         -- temporary storage for lower byte during word reads
+
+    type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT, RD4, WR4, WORD_RD, WORD_WR);
+    signal state        : state_type := INIT;
+    signal return_st    : state_type := INIT;
 
 begin
     -- signals mapped to pin outputs
@@ -86,22 +93,22 @@ begin
     -- output to Wishbone interface
     WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;
     WBS_DATA_O     <= d_out;                           -- output read data register to Wishbone data output
-    -- TODO: mark some registers as "whole words" and automatically write to reg and reg+1 using full 16 bits of WBS_DATA_I
-    reg_r          <= WBS_ADDR_I(7 downto 0) when       -- register to read/write comes from lsb of Wishbone address unless it's blocked (see "Video Interface Notes")
-                        WBS_ADDR_I(7 downto 0) = X"00" OR
-                        WBS_ADDR_I(7 downto 0) = X"03" OR
-                        WBS_ADDR_I(7 downto 0) = X"04" OR
-                        WBS_ADDR_I(7 downto 0) = X"10" OR
-                        WBS_ADDR_I(7 downto 0) = X"11" OR
-                        (WBS_ADDR_I(7 downto 0) > X"1F" AND WBS_ADDR_I(7 downto 0) < X"46") OR
-                        (WBS_ADDR_I(7 downto 0) > X"4F" AND WBS_ADDR_I(7 downto 0) < X"74") OR
-                        (WBS_ADDR_I(7 downto 0) > X"75" AND WBS_ADDR_I(7 downto 0) < X"7F") OR
-                        (WBS_ADDR_I(7 downto 0) > X"8F" AND WBS_ADDR_I(7 downto 0) < X"B6") OR
-                        WBS_ADDR_I(7 downto 0) = X"CC" OR
-                        WBS_ADDR_I(7 downto 0) = X"CD" OR
-                        (WBS_ADDR_I(7 downto 0) > X"CE" AND WBS_ADDR_I(7 downto 0) < X"D8") OR
-                        (WBS_ADDR_I(7 downto 0) > X"DA" AND WBS_ADDR_I(7 downto 0) < X"DF")
-                    else x"FF";
+
+    with WBS_ADDR_I(7 downto 0) select
+        reg_r <=                        -- register to read/write comes from lsb of Wishbone address unless it's blocked (see "Video Interface Notes")
+            WBS_ADDR_I(7 downto 0) when x"00" | x"03" | x"04" | x"10" | x"11" | x"20" to x"45" | x"50" to x"73" | 
+                                        x"76" to x"7E" | x"90" to x"B5" | x"CC" | x"CD" | x"CF" to X"D7" | x"DB" to x"DE",
+                             x"FF" when others;
+
+    with WBS_ADDR_I(7 downto 0) select
+        word_flg <=                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
+            '0' when x"00" | x"03" | x"04" | x"10" | x"11" | x"21" | x"23" | x"25" | x"27" | x"29" | x"2B" | x"2D" |
+                     x"2F" | x"31" | x"33" | x"35" | x"37" | x"39" | x"3B" to x"3F" | x"41" | x"43" | x"44" | x"45" | 
+                     x"51" | x"53" | x"55" | x"57" | x"59" | x"5B" | x"5D" | x"5E" | x"60" | x"62" | x"64" | x"66" | x"67" |
+                     x"69" | x"6B" | x"6D" | x"6F" | x"71" | x"73" | x"76" | x"78" | x"7A" | x"7C" | x"7E" | x"90" | x"91" | 
+                     x"94" | x"96" | x"98" | x"9A" | x"9C" | x"9E" | x"A0" | x"A2" | x"A4" | x"A6" | x"A8" | x"AA" | x"AC" | 
+                     x"AE" | x"B0" | x"B2" | x"B4" | x"B5" | x"CC" | x"CD" | x"CF" to x"D7" | x"DC" | x"DE",
+            '1' when others;
 
     process(CLK) is
     begin
@@ -153,7 +160,7 @@ begin
                             d_out(7 downto 0) <= SCRN_DATA(7 downto 0);     -- latch data (lower 8 bits only) into data_out
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs <= '1';                -- complete command
-                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
+                            timer <= 0;                 -- one tick delay before next command
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
@@ -169,7 +176,7 @@ begin
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
-                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
+                            timer <= 0;                 -- one tick delay before next command
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
@@ -183,8 +190,8 @@ begin
                             n_rd <= '1';                -- complete read command
                             d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
-                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1') then
-                                ack <= '1';             -- assert ack now that data is read or written
+                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' AND word_flg = '0') then
+                                ack <= '1';             -- assert ack now that data is read or written (don't do that yet for word reads)
                             end if;
                             n_cs <= '1';                -- complete command
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
@@ -210,6 +217,126 @@ begin
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
+
+                    when IDLE =>
+                        if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
+                            lo_byte <= WBS_DATA_I(7 downto 0);    -- store lower byte of data input
+                            hi_byte <= WBS_DATA_I(15 downto 8);   -- store upper byte of data input
+                            current_reg <= reg_r;                 -- store current register for word write handling
+
+                            if WBS_WE_I = '0' then          -- read operation
+                                if reg_r = x"00" then
+                                    state <= STATUS_RD;          -- read status register
+                                    return_st <= ACK_CLEAR;      -- after reading status, finish wishbone transaction
+                                elsif reg_r /= x"FF" then        -- register to read is exposed
+                                    if prev_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-read logic (need to wait until STATUS bit 4 is cleared before next read (Memory Read FIFO not empty))
+                                        status_check <= '0';     -- reset command index to for multi command RD4 state
+                                        state <= RD4;            -- if reading register 4 repeatedly, poll status until FIFO not empty and read next data
+                                    else
+                                        if word_flg = '0' then   -- single byte register
+                                            d_in <= "00000000" & reg_r;  -- load register address to read
+                                            state <= COMMAND_WR;               -- write command to select register
+                                            return_st <= WSH_READ;             -- after selecting register, go to read state
+                                        else                     -- word-length register
+                                            d_in <= "00000000" & current_reg;  -- load register address to read (lower byte)
+                                            command_index <= 0;                -- reset command index for word read sequence
+                                            state <= WORD_RD;                  -- go to word read state
+                                        end if;
+                                    end if;
+                                else
+                                    d_out <= (others => '0');    -- register is blocked, return zero data
+                                    state <= ACK_CLEAR;          -- finish wishbone transaction
+                                end if;
+                            else                            -- write operation
+                                if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
+                                    if prev_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-write logic (need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full))
+                                        status_check <= '0';     -- reset command index to for multi command WR4 state
+                                        state <= WR4;            -- if writing register 4 repeatedly, poll status until FIFO not full and write next data
+                                    else
+                                        d_in <= "00000000" & reg_r;  -- load register address to write
+                                        state <= COMMAND_WR;         -- write command to select register
+                                        return_st <= WSH_WRITE;      -- after selecting register, go to write state
+                                    end if;
+                                else                             -- register is blocked, do nothing
+                                    ack <= '1';                  -- acknowledge wishbone write
+                                    state <= ACK_CLEAR;          -- register is blocked, finish wishbone transaction doing nothing
+                                end if;
+                            end if;
+                            prev_reg <= reg_r;    -- store previous register for detecting changes
+                        else
+                            state <= IDLE;                       -- stay in IDLE state
+                        end if;
+
+                    when WSH_READ =>
+                        state <= DATA_RD;                  -- read data from selected register
+                        return_st <= ACK_CLEAR;            -- after reading data, finish wishbone transaction
+
+                    when WSH_WRITE =>
+                        d_in <= WBS_DATA_I(15 downto 0);   -- load data to write to register
+                        state <= DATA_WR;                  -- write data to selected register and set ack
+                        return_st <= ACK_CLEAR;            -- after writing data, finish wishbone transaction
+
+                    when ACK_CLEAR =>
+                        if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then
+                            ack <= '1';                    -- if ack hasn't already been set and wishbone cycle still activeassert ack
+                            state <= ACK_CLEAR;            -- and stay here until master deasserts CYC or STB
+                        else                               -- otherwise, return to idle state to wait next wishbone command
+                            state <= IDLE;
+                            return_st <= IDLE;
+                            timer <= 0;
+                        end if;
+
+                    when RD4 =>                     -- multi-read state for register 0x04 (Memory Read FIFO)
+                        return_st <= RD4;               -- return state is set back here by default
+                        if status_check = '0' then
+                            state <= STATUS_RD;          -- read status register
+                            status_check <= '1';         -- set flag to indicate status has been checked
+                        else
+                            if d_out(4) = '1' then       -- check if FIFO not empty
+                                status_check <= '0';        -- if empty, check status again
+                            else
+                                state <= DATA_RD;           -- not empty, so read data from register 0x04
+                                return_st <= ACK_CLEAR;     -- after reading data, finish wishbone transaction
+                            end if;
+                        end if;
+
+                    when WR4 =>                     -- multi-write state for register 0x04 (Memory Write FIFO)
+                        return_st <= WR4;               -- return state is always set here for WAIT and read/write calls
+                        if status_check = '0' then
+                            state <= STATUS_RD;          -- read status register
+                            status_check <= '1';         -- set flag to indicate status has been checked
+                        else
+                            if d_out(7) = '1' then       -- check if FIFO not full
+                                status_check <= '0';        -- if full, check status again
+                            else
+                                d_in <= WBS_DATA_I(15 downto 0);    -- not full, so load data to write to register
+                                state <= DATA_WR;                   -- write data to register 0x04
+                                return_st <= ACK_CLEAR;             -- after writing data, finish wishbone transaction
+                            end if;
+                        end if;
+
+                    when WORD_RD =>                 -- read word-length register
+                        return_st <= WORD_RD;           -- return state is always set here
+                        cmd_index <= cmd_index + 1;     -- complete each step in turn, so index is incremented by default each time through this state
+                        case cmd_index is
+                            when 0 =>               -- step 0: select register for lower byte read
+                                d_in <= "00000000" & current_reg;  -- load register address to read (lower byte)
+                                state <= COMMAND_WR;
+                            when 1 =>               -- step 1: read lower byte
+                                state <= DATA_RD;
+                            when 2 =>               -- step 2: store lower byte and select register for upper byte
+                                temp_out <= d_out(7 downto 0);     -- store lower byte temporarily
+                                d_in <= "00000000" & std_logic_vector(unsigned(current_reg) + 1);  -- load register address to read (upper byte)
+                                state <= COMMAND_WR;
+                            when 3 =>               -- step 3: read upper byte
+                                state <= DATA_RD;
+                            when 4 =>               -- step 4: combine lower and upper bytes and finish
+                                d_out <= d_out(7 downto 0) & temp_out;   -- combine upper and lower bytes into data out
+                                ack <= '1';                              -- assert ack now that all 16 bits of data is read
+                                state <= ACK_CLEAR;                      -- finish wishbone transaction
+                            when others =>          -- should not occur, but just in case
+                                state <= ACK_CLEAR;
+                        end case;
 
                     when INIT =>            -- go through the display reset and initialization sequence
                         return_st <= INIT;              -- return state is always set here for WAIT and read/write calls
@@ -710,93 +837,6 @@ begin
                                 cmd_index <= 0;     -- failsafe - go back to the start if we get here
                                 state <= INIT;
                         end case;
-
-                    when IDLE =>
-                        if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
-                            if WBS_WE_I = '0' then          -- read operation
-                                if reg_r = x"00" then
-                                    state <= STATUS_RD;          -- read status register
-                                    return_st <= ACK_CLEAR;      -- after reading status, finish wishbone transaction
-                                elsif reg_r /= x"FF" then        -- register to read is exposed
-                                    if prev_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-read logic (need to wait until STATUS bit 4 is cleared before next read (Memory Read FIFO not empty))
-                                        status_check <= '0';     -- reset command index to for multi command RD4 state
-                                        state <= RD4;            -- if reading register 4 repeatedly, poll status until FIFO not empty and read next data
-                                    else
-                                        d_in <= "00000000" & reg_r;  -- load register address to read
-                                        state <= COMMAND_WR;         -- write command to select register
-                                        return_st <= WSH_READ;       -- after selecting register, go to read state
-                                    end if;
-                                else
-                                    d_out <= (others => '0');    -- register is blocked, return zero data
-                                    state <= ACK_CLEAR;          -- finish wishbone transaction
-                                end if;
-                            else                            -- write operation
-                                if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
-                                    if prev_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-write logic (need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full))
-                                        status_check <= '0';     -- reset command index to for multi command WR4 state
-                                        state <= WR4;            -- if writing register 4 repeatedly, poll status until FIFO not full and write next data
-                                    else
-                                        d_in <= "00000000" & reg_r;  -- load register address to write
-                                        state <= COMMAND_WR;         -- write command to select register
-                                        return_st <= WSH_WRITE;      -- after selecting register, go to write state
-                                    end if;
-                                else                             -- register is blocked, do nothing
-                                    ack <= '1';                  -- acknowledge wishbone write
-                                    state <= ACK_CLEAR;          -- register is blocked, finish wishbone transaction doing nothing
-                                end if;
-                            end if;
-                            prev_reg <= reg_r;    -- store previous register for detecting changes
-                        else
-                            state <= IDLE;                       -- stay in IDLE state
-                        end if;
-
-                    when WSH_READ =>
-                        state <= DATA_RD;                  -- read data from selected register
-                        return_st <= ACK_CLEAR;            -- after reading data, finish wishbone transaction
-
-                    when WSH_WRITE =>
-                        d_in <= WBS_DATA_I(15 downto 0);   -- load data to write to register
-                        state <= DATA_WR;                  -- write data to selected register and set ack
-                        return_st <= ACK_CLEAR;            -- after writing data, finish wishbone transaction
-
-                    when ACK_CLEAR =>
-                        if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then
-                            ack <= '1';                    -- if ack hasn't already been set and wishbone cycle still activeassert ack
-                            state <= ACK_CLEAR;            -- and stay here until master deasserts CYC or STB
-                        else                               -- otherwise, return to idle state to wait next wishbone command
-                            state <= IDLE;
-                            return_st <= IDLE;
-                            timer <= 0;
-                        end if;
-
-                    when RD4 =>                     -- multi-read state for register 0x04 (Memory Read FIFO)
-                        return_st <= RD4;               -- return state is set back here by default
-                        if status_check = '0' then
-                            state <= STATUS_RD;          -- read status register
-                            status_check <= '1';         -- set flag to indicate status has been checked
-                        else
-                            if d_out(4) = '1' then       -- check if FIFO not empty
-                                status_check <= '0';        -- if empty, check status again
-                            else
-                                state <= DATA_RD;           -- not empty, so read data from register 0x04
-                                return_st <= ACK_CLEAR;     -- after reading data, finish wishbone transaction
-                            end if;
-                        end if;
-
-                    when WR4 =>                     -- multi-write state for register 0x04 (Memory Write FIFO)
-                        return_st <= WR4;               -- return state is always set here for WAIT and read/write calls
-                        if status_check = '0' then
-                            state <= STATUS_RD;          -- read status register
-                            status_check <= '1';         -- set flag to indicate status has been checked
-                        else
-                            if d_out(7) = '1' then       -- check if FIFO not full
-                                status_check <= '0';        -- if full, check status again
-                            else
-                                d_in <= WBS_DATA_I(15 downto 0);    -- not full, so load data to write to register
-                                state <= DATA_WR;                   -- write data to register 0x04
-                                return_st <= ACK_CLEAR;             -- after writing data, finish wishbone transaction
-                            end if;
-                        end if;
 
                     when others =>                         -- should never happen
                         null;
