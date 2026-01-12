@@ -40,9 +40,9 @@ end VIDEO_WSH_P;
 architecture RTL of VIDEO_WSH_P is
 
     -- constants for timing control - RA8876 is slower than we are
-    constant COMMAND_REFRESH_TIME  : Integer := 9; -- 9 ticks between end of last command and availability to do next command (180 ns)
-    constant CMD_CS_DIFF : Integer := 2; -- 40 ns between /CS low and nRD/nWR high
-    constant CMD_HOLD_TIME : Integer := 1; -- 20 ns between nRD/nWR high and /CS high
+    constant CMD_REFRESH_TIME  : Integer := 9;  -- 9 ticks between end of last command and availability to do next command (180 ns)
+    constant CMD_CS_DIFF : Integer := 2;        -- 40 ns between /CS low and nRD/nWR high
+    constant CMD_HOLD_TIME : Integer := 1;      -- 20 ns between nRD/nWR high and /CS high
 
     -- Video control signals
     signal bl    : std_logic := '0';                                        -- Backlight control
@@ -181,7 +181,9 @@ begin
                             n_rd <= '1';                -- complete read command
                             d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
-                                                    -- try deasserting ack here - ends wishbone transaction sooner
+                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1') then
+                                ack <= '1';             -- assert ack now that data is read or written
+                            end if;
                             n_cs <= '1';                -- complete command
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
@@ -198,7 +200,9 @@ begin
                         elsif timer = CMD_CS_DIFF then
                             n_wr  <= '1';               -- complete write command
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
-                                                    -- try deasserting ack here - ends wishbone transaction sooner
+                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1') then
+                                ack <= '1';             -- assert ack now that data is read or written
+                            end if;
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
@@ -706,7 +710,6 @@ begin
                         end case;
 
                     when IDLE =>
-                        -- logic to see if register is still set to 4?
                         if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
                             if WBS_WE_I = '0' then          -- read operation
                                 if reg_r = x"00" then
@@ -727,10 +730,9 @@ begin
                                     d_in <= "00000000" & reg_r;  -- load register address to write
                                     state <= COMMAND_WR;         -- write command to select register
                                     return_st <= WSH_WRITE;      -- after selecting register, go to write state
-                                                                 -- TODO: might be able to set ack here and let write happen in parallel
                                 else                             -- register is blocked, do nothing
                                     ack <= '1';                  -- acknowledge wishbone write
-                                    state <= ACK_CLEAR;          -- register is blocked, finish wishbone transaction
+                                    state <= ACK_CLEAR;          -- register is blocked, finish wishbone transaction doing nothing
                                 end if;
                             end if;
                         else
@@ -739,7 +741,7 @@ begin
 
                     when WSH_READ =>
                         state <= DATA_RD;                  -- read data from selected register
-                        return_st <= ACK_CLEAR;            -- after reading data, set ack and finish wishbone transaction
+                        return_st <= ACK_CLEAR;            -- after reading data, finish wishbone transaction
 
                     when WSH_WRITE =>
                         d_in <= WBS_DATA_I(15 downto 0);   -- load data to write to register
@@ -747,21 +749,21 @@ begin
                         return_st <= ACK_CLEAR;            -- after writing data, finish wishbone transaction
 
                     when ACK_CLEAR =>
-                        if (WBS_CYC_I = '1' AND WBS_STB_I = '1' ) then -- TODO:is this check needed? Don't think so.
-                            ack <= '1';                    -- assert ack now that data is read or written
+                        if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then
+                            ack <= '1';                    -- if ack hasn't already been set and wishbone cycle still activeassert ack
                             state <= ACK_CLEAR;            -- and stay here until master deasserts CYC or STB
+								else										-- otherwise, return to idle state to wait next wishbone command
+								    state <= IDLE;
+									 return_st <= IDLE;
+									 timer <= 0;
                         end if;
 
                     when others =>                         -- should never happen
                         null;
                 end case;
 
-                if (WBS_CYC_I = '0' OR WBS_STB_I = '0') then   -- Break cycle if master deasserts CYC at any point
+                if (WBS_CYC_I = '0' OR WBS_STB_I = '0') then   -- Break cycle and reset ack when master deasserts CYC at any point
                     ack <= '0';
-                    if (reset_done = '1') then  -- return immediately to IDLE if initialization is done
-                        state <= IDLE;
-                        return_st <= IDLE;
-                    end if;
                 end if;
 
             end if;
