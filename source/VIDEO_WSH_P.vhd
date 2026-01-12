@@ -71,7 +71,6 @@ architecture RTL of VIDEO_WSH_P is
     signal lobyte       : std_logic_vector(7 downto 0);                         -- lower byte for word writes (goes in REG)
     signal hibyte       : std_logic_vector(7 downto 0);                         -- upper byte for word writes (goes in REG+1)
     signal word_flg     : std_logic := '0';                                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
-    signal current_reg  : std_logic_vector(7 downto 0);                         -- current register being written to (for word writes)
     signal temp_out     : std_logic_vector(7 downto 0);                         -- temporary storage for lower byte during word reads
 
     type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT, RD4, WR4, WORD_RD, WORD_WR);
@@ -222,7 +221,6 @@ begin
                         if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
                             lo_byte <= WBS_DATA_I(7 downto 0);    -- store lower byte of data input
                             hi_byte <= WBS_DATA_I(15 downto 8);   -- store upper byte of data input
-                            current_reg <= reg_r;                 -- store current register for word write handling
 
                             if WBS_WE_I = '0' then          -- read operation
                                 if reg_r = x"00" then
@@ -320,13 +318,13 @@ begin
                         cmd_index <= cmd_index + 1;     -- complete each step in turn, so index is incremented by default each time through this state
                         case cmd_index is
                             when 0 =>               -- step 0: select register for lower byte read
-                                d_in <= "00000000" & current_reg;  -- load register address to read (lower byte)
+                                d_in <= "00000000" & reg_r;  -- load register address to read (lower byte)
                                 state <= COMMAND_WR;
                             when 1 =>               -- step 1: read lower byte
                                 state <= DATA_RD;
                             when 2 =>               -- step 2: store lower byte and select register for upper byte
                                 temp_out <= d_out(7 downto 0);     -- store lower byte temporarily
-                                d_in <= "00000000" & std_logic_vector(unsigned(current_reg) + 1);  -- load register address to read (upper byte)
+                                d_in <= "00000000" & std_logic_vector(unsigned(reg_r) + 1);  -- load register address to read (upper byte)
                                 state <= COMMAND_WR;
                             when 3 =>               -- step 3: read upper byte
                                 state <= DATA_RD;
