@@ -68,8 +68,8 @@ architecture RTL of VIDEO_WSH_P is
     signal powerup_done : std_logic := '0';                                     -- flag to indicate powerup sequence is done
 
     -- write both bytes of word-length registers
-    signal lobyte       : std_logic_vector(7 downto 0);                         -- lower byte for word writes (goes in REG)
-    signal hibyte       : std_logic_vector(7 downto 0);                         -- upper byte for word writes (goes in REG+1)
+    signal lo_byte       : std_logic_vector(7 downto 0);                         -- lower byte for word writes (goes in REG)
+    signal hi_byte       : std_logic_vector(7 downto 0);                         -- upper byte for word writes (goes in REG+1)
     signal word_flg     : std_logic := '0';                                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
     signal temp_out     : std_logic_vector(7 downto 0);                         -- temporary storage for lower byte during word reads
 
@@ -231,13 +231,12 @@ begin
                                         status_check <= '0';     -- reset command index to for multi command RD4 state
                                         state <= RD4;            -- if reading register 4 repeatedly, poll status until FIFO not empty and read next data
                                     else
+												    d_in <= "00000000" & reg_r;  -- load register address to read
                                         if word_flg = '0' then   -- single byte register
-                                            d_in <= "00000000" & reg_r;  -- load register address to read
                                             state <= COMMAND_WR;               -- write command to select register
                                             return_st <= WSH_READ;             -- after selecting register, go to read state
                                         else                     -- word-length register
-                                            d_in <= "00000000" & current_reg;  -- load register address to read (lower byte)
-                                            command_index <= 0;                -- reset command index for word read sequence
+                                            cmd_index <= 0;                    -- reset command index for word read sequence
                                             state <= WORD_RD;                  -- go to word read state
                                         end if;
                                     end if;
