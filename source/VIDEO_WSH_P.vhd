@@ -213,7 +213,7 @@ begin
                         elsif timer = CMD_CS_DIFF then
                             n_wr  <= '1';               -- complete write command
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
-                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' and word_flag = '0') then
+                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' and word_flg = '0') then
                                 ack <= '1';             -- assert ack now that data is written (don't do that yet for first byte of word writes)
                             end if;
                             if (make_word = '1') then
