@@ -189,13 +189,15 @@ begin
                             n_rd <= '1';                -- complete read command
                             d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
-                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' AND word_flg = '0') then
-                                ack <= '1';             -- assert ack now that data is read (don't do that yet for first byte of word reads)
-                            end if;
-                            if (make_word = '1') then
-                                d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out
-                                make_word <= '0';
-                                ack <= '1';             -- assert ack now that full word data is read
+                            if return_st /= INIT then   -- ignore wishbone-related items during initialization
+                                if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND word_flg = '0') then
+                                    ack <= '1';             -- assert ack now that data is read (don't do that yet for first byte of word reads)
+                                end if;
+                                if (make_word = '1') then
+                                    d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out
+                                    make_word <= '0';
+                                    ack <= '1';             -- assert ack now that full word data is read
+                                end if;
                             end if;
                             n_cs <= '1';                -- complete command
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
@@ -213,12 +215,14 @@ begin
                         elsif timer = CMD_CS_DIFF then
                             n_wr  <= '1';               -- complete write command
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
-                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' and word_flg = '0') then
-                                ack <= '1';             -- assert ack now that data is written (don't do that yet for first byte of word writes)
-                            end if;
-                            if (make_word = '1') then
-                                ack <= '1';             -- assert ack now that full word data is written
-                                make_word <= '0';
+                            if return_st /= INIT then   -- ignore wishbone-related items during initialization
+                                if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND word_flg = '0') then
+                                    ack <= '1';             -- assert ack now that data is written (don't do that yet for first byte of word writes)
+                                end if;
+                                if (make_word = '1') then
+                                    ack <= '1';             -- assert ack now that full word data is written
+                                    make_word <= '0';
+                                end if;
                             end if;
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
