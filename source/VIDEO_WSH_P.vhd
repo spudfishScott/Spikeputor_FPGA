@@ -55,8 +55,8 @@ architecture RTL of VIDEO_WSH_P is
     signal db_oe        : std_logic := '0';                                     -- data bus output enable - set to 1 when sending to screen controller
 
     -- Wishbone interface signals
-    signal ack      : std_logic := '0';                                         -- internal ack signal
-    signal reg_r    : std_logic_vector(7 downto 0) := x"FF";                    -- current register selected (0xFF = ignored)
+    signal ack          : std_logic := '0';                                     -- internal ack signal
+    signal reg_r        : std_logic_vector(7 downto 0) := x"FF";                -- current register selected (0xFF = ignored)
     signal prev_reg     : std_logic_vector(7 downto 0) := x"FF";                -- previous register selected (for detecting changes)
 
     -- Counters and indeces for initialization sequence
@@ -194,7 +194,7 @@ begin
                                 if (make_word = '1') then
                                     d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out
                                     make_word <= '0';
-                                    ack <= '1';             -- assert ack now that full word data is read
+                                    ack <= '1';             -- assert ack now that full word data is read and latched to d_out
                                 end if;
                             end if;
                             n_cs <= '1';                -- complete command
@@ -213,18 +213,6 @@ begin
                         elsif timer = CMD_CS_DIFF then
                             n_wr  <= '1';               -- complete write command
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
---                            if return_st /= INIT then   -- ignore wishbone-related items during initialization
---                                if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND make_word = '0') then
---                                    ack <= '1';             -- assert ack after first write (single byte or first byte of word), but not after second write of word
---                                end if;
---                                -- if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND word_flg = '0') then
---                                --     ack <= '1';             -- assert ack now that data is written (don't do that yet for first byte of word writes)
---                                -- end if;
---                                -- if (make_word = '1') then
---                                --     ack <= '1';             -- assert ack now that full word data is written
---                                --     make_word <= '0';
---                                -- end if;
---                            end if;
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
@@ -291,14 +279,13 @@ begin
 
                     when WSH_WRITE =>
                         d_in <= WBS_DATA_I(15 downto 0);   -- load data to write to register
-								if (WBS_CYC_I = '1' AND WBS_STB_I = '1') then
-                            ack <= '1';             -- assert ack after first write (single byte or first byte of word), but not after second write of word
+                        if (WBS_CYC_I = '1' AND WBS_STB_I = '1') then
+                            ack <= '1';                     -- assert ack when register has been selected, but before actually writing data
                         end if;
                         state <= DATA_WR;                  -- write data to selected register and set ack
                         return_st <= ACK_CLEAR;            -- after writing data, finish wishbone transaction
 
                     when ACK_CLEAR =>
-                     --   make_word <= '0';                  -- clear make_word flag
                         if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then
                             ack <= '1';                    -- if ack hasn't already been set and wishbone cycle still active - assert ack
                             state <= ACK_CLEAR;            -- and stay here until master deasserts CYC or STB
@@ -369,14 +356,13 @@ begin
                                 d_in <= "00000000" & lo_byte;    -- load lower byte to write
                                 state <= DATA_WR;
                             when 2 =>               -- step 2: select register for upper byte write
-									 if (WBS_CYC_I = '1' AND WBS_STB_I = '1') then
-                                ack <= '1';             -- assert ack after first write (single byte or first byte of word), but not after second write of word
-                              end if;
                                 d_in <= "00000000" & std_logic_vector(unsigned(word_reg) + 1);  -- load register address to write (upper byte)
+                                if (WBS_CYC_I = '1' AND WBS_STB_I = '1') then
+                                    ack <= '1';             -- assert ack after first write of word has been written
+                                end if;
                                 state <= COMMAND_WR;
                             when 3 =>               -- step 3: write upper byte
                                 d_in <= "00000000" & hi_byte;    -- load upper byte to write
-                            --    make_word <= '1';       -- set flag to indicate that a word is being written
                                 state <= DATA_WR;
                                 return_st <= ACK_CLEAR;
                             when others =>          -- should not occur, but just in case
@@ -875,12 +861,9 @@ begin
                             when 157 =>     -- step 157: Assert bit 6 (Turn on Screen) and write register 0x12
                                 d_in <= d_out OR "0000000001000000";    -- assert bit 6
                                 state <= DATA_WR;
-                         --       powerup_done <= '1';     -- indicate power up is done
-                         --       return_st <= IDLE;       -- and go to idle when done
-									  when 158 =>
-									      state <= IDLE;
-										--	return_st <= IDLE;
-											powerup_done <= '1';
+                            when 158 =>
+                                state <= IDLE;
+                                powerup_done <= '1';
                             when others =>
                                 cmd_index <= 0;     -- failsafe - go back to the start if we get here
                                 state <= INIT;
