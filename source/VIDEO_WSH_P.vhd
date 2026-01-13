@@ -190,12 +190,12 @@ begin
                             d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' AND word_flg = '0') then
-                                ack <= '1';             -- assert ack now that data is read or written (don't do that yet for first byte of word reads)
+                                ack <= '1';             -- assert ack now that data is read (don't do that yet for first byte of word reads)
                             end if;
                             if (make_word = '1') then
                                 d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out
                                 make_word <= '0';
-                                ack <= '1';             -- assert ack now that full word data is read or written
+                                ack <= '1';             -- assert ack now that full word data is read
                             end if;
                             n_cs <= '1';                -- complete command
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
@@ -213,8 +213,12 @@ begin
                         elsif timer = CMD_CS_DIFF then
                             n_wr  <= '1';               -- complete write command
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
-                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1') then
-                                ack <= '1';             -- assert ack now that data is read or written
+                            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' and word_flag = '0') then
+                                ack <= '1';             -- assert ack now that data is written (don't do that yet for first byte of word writes)
+                            end if;
+                            if (make_word = '1') then
+                                ack <= '1';             -- assert ack now that full word data is written
+                                make_word <= '0';
                             end if;
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
@@ -257,8 +261,13 @@ begin
                                         state <= WR4;            -- if writing register 4 repeatedly, poll status until FIFO not full and write next data
                                     else
                                         d_in <= "00000000" & reg_r;  -- load register address to write
-                                        state <= COMMAND_WR;         -- write command to select register
-                                        return_st <= WSH_WRITE;      -- after selecting register, go to write state
+                                        if word_flg = '0' then   -- single byte register
+                                            state <= COMMAND_WR;         -- write command to select register
+                                            return_st <= WSH_WRITE;      -- after selecting register, go to write state
+                                        else                     -- word-length register
+                                            cmd_index <= 0;              -- reset command index for word write sequence
+                                            state <= WORD_WR;            -- go to word write state
+                                        end if;
                                     end if;
                                 else                             -- register is blocked, do nothing
                                     ack <= '1';                  -- acknowledge wishbone write
@@ -334,6 +343,28 @@ begin
                             when 3 =>               -- step 3: read upper byte
                                 make_word <= '1';       -- set flag to indicate that a word is being read and the two bytes need to be combined
                                 state <= DATA_RD;
+                                return_st <= ACK_CLEAR;
+                            when others =>          -- should not occur, but just in case
+                                state <= ACK_CLEAR;
+                        end case;
+
+                    when WORD_WR =>                 -- write word-length register
+                        return_st <= WORD_WR;           -- return state is always set here
+                        cmd_index <= cmd_index + 1;     -- complete each step in turn, so index is incremented by default each time through this state
+                        case cmd_index is
+                            when 0 =>               -- step 0: select register for lower byte write
+                                d_in <= "00000000" & reg_r;  -- load register address to write (lower byte)
+                                state <= COMMAND_WR;
+                            when 1 =>               -- step 1: write lower byte
+                                d_in <= "00000000" & lo_byte;    -- load lower byte to write
+                                state <= DATA_WR;
+                            when 2 =>               -- step 2: select register for upper byte write
+                                d_in <= "00000000" & std_logic_vector(unsigned(reg_r) + 1);  -- load register address to write (upper byte)
+                                state <= COMMAND_WR;
+                            when 3 =>               -- step 3: write upper byte
+                                d_in <= "00000000" & hi_byte;    -- load upper byte to write
+                                make_word <= '1';       -- set flag to indicate that a word is being written
+                                state <= DATA_WR;
                                 return_st <= ACK_CLEAR;
                             when others =>          -- should not occur, but just in case
                                 state <= ACK_CLEAR;
