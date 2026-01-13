@@ -63,12 +63,12 @@ architecture RTL of VIDEO_WSH_P is
     signal timer        : Integer := 0;                                         -- timer counter
     signal cmd_index    : Integer := 0;                                         -- command index for multi-step commands
     signal status_check : std_logic := '0';                                     -- status register check flag for multi-check commands
-    signal reset_done   : std_logic := '0';                                     -- flag to indicate initialization is done
     signal powerup_done : std_logic := '0';                                     -- flag to indicate powerup sequence is done
 
     -- write both bytes of word-length registers
     signal lo_byte      : std_logic_vector(7 downto 0) := (others => '0');      -- lower byte for word writes (goes in REG)
     signal hi_byte      : std_logic_vector(7 downto 0) := (others => '0');      -- upper byte for word writes (goes in REG+1)
+    signal word_reg     : std_logic_vector(7 downto 0) := (others => '0');      -- temporary storage for word-length register
     signal word_flg     : std_logic := '0';                                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
     signal make_word    : std_logic := '0';                                     -- flag to indicate that a word is being read and the two bytes need to be combined
 
@@ -124,8 +124,6 @@ begin
                 else
                     cmd_index <= 67;    -- if already powered up, skip to warm reset portion
                 end if;
-
-                reset_done <= '0';  -- clear reset done flag
 
                 bl        <= '0';   -- turn off backlight
                 n_rd      <= '1';   -- reset control signals
@@ -216,13 +214,16 @@ begin
                             n_wr  <= '1';               -- complete write command
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             if return_st /= INIT then   -- ignore wishbone-related items during initialization
-                                if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND word_flg = '0') then
-                                    ack <= '1';             -- assert ack now that data is written (don't do that yet for first byte of word writes)
+                                if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND make_word = '0') then
+                                    ack <= '1';             -- assert ack after first write (single byte or first byte of word), but not after second write of word
                                 end if;
-                                if (make_word = '1') then
-                                    ack <= '1';             -- assert ack now that full word data is written
-                                    make_word <= '0';
-                                end if;
+                                -- if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND word_flg = '0') then
+                                --     ack <= '1';             -- assert ack now that data is written (don't do that yet for first byte of word writes)
+                                -- end if;
+                                -- if (make_word = '1') then
+                                --     ack <= '1';             -- assert ack now that full word data is written
+                                --     make_word <= '0';
+                                -- end if;
                             end if;
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
@@ -232,14 +233,13 @@ begin
 
                     when IDLE =>
                         if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
-
                             if WBS_WE_I = '0' then          -- read operation
                                 if reg_r = x"00" then
                                     state <= STATUS_RD;          -- read status register
                                     return_st <= ACK_CLEAR;      -- after reading status, finish wishbone transaction
                                 elsif reg_r /= x"FF" then        -- register to read is exposed
                                     if prev_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-read logic (need to wait until STATUS bit 4 is cleared before next read (Memory Read FIFO not empty))
-                                        status_check <= '0';     -- reset command index to for multi command RD4 state
+                                        status_check <= '0';     -- reset status check flag for multi command RD4 state
                                         state <= RD4;            -- if reading register 4 repeatedly, poll status until FIFO not empty and read next data
                                     else
                                         d_in <= "00000000" & reg_r;  -- load register address to read
@@ -247,6 +247,7 @@ begin
                                             state <= COMMAND_WR;               -- write command to select register
                                             return_st <= WSH_READ;             -- after selecting register, go to read state
                                         else                     -- word-length register
+                                            word_reg <= reg_r;    -- store current register for word read sequence
                                             cmd_index <= 0;                    -- reset command index for word read sequence
                                             state <= WORD_RD;                  -- go to word read state
                                         end if;
@@ -261,7 +262,7 @@ begin
 
                                 if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
                                     if prev_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-write logic (need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full))
-                                        status_check <= '0';     -- reset command index to for multi command WR4 state
+                                        status_check <= '0';     -- reset status check flag for multi command WR4 state
                                         state <= WR4;            -- if writing register 4 repeatedly, poll status until FIFO not full and write next data
                                     else
                                         d_in <= "00000000" & reg_r;  -- load register address to write
@@ -269,6 +270,7 @@ begin
                                             state <= COMMAND_WR;         -- write command to select register
                                             return_st <= WSH_WRITE;      -- after selecting register, go to write state
                                         else                     -- word-length register
+                                            word_reg <= reg_r;    -- store current register for word read sequence
                                             cmd_index <= 0;              -- reset command index for word write sequence
                                             state <= WORD_WR;            -- go to word write state
                                         end if;
@@ -293,6 +295,7 @@ begin
                         return_st <= ACK_CLEAR;            -- after writing data, finish wishbone transaction
 
                     when ACK_CLEAR =>
+                        make_word <= '0';                  -- clear make_word flag
                         if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then
                             ack <= '1';                    -- if ack hasn't already been set and wishbone cycle still active - assert ack
                             state <= ACK_CLEAR;            -- and stay here until master deasserts CYC or STB
@@ -336,13 +339,13 @@ begin
                         cmd_index <= cmd_index + 1;     -- complete each step in turn, so index is incremented by default each time through this state
                         case cmd_index is
                             when 0 =>               -- step 0: select register for lower byte read
-                                d_in <= "00000000" & reg_r;  -- load register address to read (lower byte)
+                                d_in <= "00000000" & word_reg;  -- load register address to read (lower byte)
                                 state <= COMMAND_WR;
                             when 1 =>               -- step 1: read lower byte
                                 state <= DATA_RD;
                             when 2 =>               -- step 2: store lower byte and select register for upper byte
                                 lo_byte <= d_out(7 downto 0);     -- store lower byte temporarily
-                                d_in <= "00000000" & std_logic_vector(unsigned(reg_r) + 1);  -- load register address to read (upper byte)
+                                d_in <= "00000000" & std_logic_vector(unsigned(word_reg) + 1);  -- load register address to read (upper byte)
                                 state <= COMMAND_WR;
                             when 3 =>               -- step 3: read upper byte
                                 make_word <= '1';       -- set flag to indicate that a word is being read and the two bytes need to be combined
@@ -357,13 +360,13 @@ begin
                         cmd_index <= cmd_index + 1;     -- complete each step in turn, so index is incremented by default each time through this state
                         case cmd_index is
                             when 0 =>               -- step 0: select register for lower byte write
-                                d_in <= "00000000" & reg_r;  -- load register address to write (lower byte)
+                                d_in <= "00000000" & word_reg;  -- load register address to write (lower byte)
                                 state <= COMMAND_WR;
                             when 1 =>               -- step 1: write lower byte
                                 d_in <= "00000000" & lo_byte;    -- load lower byte to write
                                 state <= DATA_WR;
                             when 2 =>               -- step 2: select register for upper byte write
-                                d_in <= "00000000" & std_logic_vector(unsigned(reg_r) + 1);  -- load register address to write (upper byte)
+                                d_in <= "00000000" & std_logic_vector(unsigned(word_reg) + 1);  -- load register address to write (upper byte)
                                 state <= COMMAND_WR;
                             when 3 =>               -- step 3: write upper byte
                                 d_in <= "00000000" & hi_byte;    -- load upper byte to write
@@ -759,7 +762,6 @@ begin
                                 state <= DATA_WR;
                             when 123 =>       -- step 123: Select Register 0xD2 - CLEAR SCREEN FROM HERE ON DOWN
                                 if powerup_done = '1' then
-                                    reset_done <= '1';  -- set reset done flag
                                     cmd_index  <= 155;  -- skip clear screen if already powered up
                                 else
                                     d_in <= x"00D2";    -- otherwise, continue power-up sequence
