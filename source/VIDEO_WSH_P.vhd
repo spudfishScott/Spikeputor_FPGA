@@ -4,8 +4,7 @@
 -- Simple read or write 0xFFxx addresses to access the video coprocessor registers and data. Registers that shouldn't be exposed will return 0x0000 and will ignore writes.
 -- Note that the lsb of the address is NOT ignored here.
 -- The STATUS register is read via location 0xFF00. Writes to 0xFF00 are ignored. Actual video register 0 is not exposed.
-
--- TODO: For read/writing register 4 (DATA register), need to handle bulk reads/writes (set a flag until a new address is selected after checking FIFO via STATUS register)
+-- Certain registers accept/produce an entire word (16 bits) at once, others are byte-wide only. See "word_flg" signal assignment for details.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -68,11 +67,11 @@ architecture RTL of VIDEO_WSH_P is
     signal powerup_done : std_logic := '0';                                     -- flag to indicate powerup sequence is done
 
     -- write both bytes of word-length registers
-    signal lo_byte      : std_logic_vector(7 downto 0);                         -- lower byte for word writes (goes in REG)
-    signal hi_byte      : std_logic_vector(7 downto 0);                         -- upper byte for word writes (goes in REG+1)
+    signal lo_byte      : std_logic_vector(7 downto 0) := (others => '0');      -- lower byte for word writes (goes in REG)
+    signal hi_byte      : std_logic_vector(7 downto 0) := (others => '0');      -- upper byte for word writes (goes in REG+1)
     signal word_flg     : std_logic := '0';                                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
     signal make_word    : std_logic := '0';                                     -- flag to indicate that a word is being read and the two bytes need to be combined
-    signal temp_out     : std_logic_vector(7 downto 0);                         -- temporary storage for lower byte during word reads
+
 
     type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT, RD4, WR4, WORD_RD, WORD_WR);
     signal state        : state_type := INIT;
@@ -194,8 +193,9 @@ begin
                                 ack <= '1';             -- assert ack now that data is read or written (don't do that yet for first byte of word reads)
                             end if;
                             if (make_word = '1') then
-                                d_out <= d_out(7 downto 0) & temp_out;   -- combine upper and lower bytes into data out
+                                d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out
                                 make_word <= '0';
+                                ack <= '1';             -- assert ack now that full word data is read or written
                             end if;
                             n_cs <= '1';                -- complete command
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
@@ -224,8 +224,6 @@ begin
 
                     when IDLE =>
                         if (WBS_CYC_I ='1' AND WBS_STB_I = '1') then    -- new transaction requested
-                            lo_byte <= WBS_DATA_I(7 downto 0);    -- store lower byte of data input
-                            hi_byte <= WBS_DATA_I(15 downto 8);   -- store upper byte of data input
 
                             if WBS_WE_I = '0' then          -- read operation
                                 if reg_r = x"00" then
@@ -250,6 +248,9 @@ begin
                                     state <= ACK_CLEAR;          -- finish wishbone transaction
                                 end if;
                             else                            -- write operation
+                                lo_byte <= WBS_DATA_I(7 downto 0);    -- store lower byte of data input
+                                hi_byte <= WBS_DATA_I(15 downto 8);   -- store upper byte of data input
+
                                 if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
                                     if prev_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-write logic (need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full))
                                         status_check <= '0';     -- reset command index to for multi command WR4 state
@@ -327,12 +328,11 @@ begin
                             when 1 =>               -- step 1: read lower byte
                                 state <= DATA_RD;
                             when 2 =>               -- step 2: store lower byte and select register for upper byte
-                                temp_out <= d_out(7 downto 0);     -- store lower byte temporarily
+                                lo_byte <= d_out(7 downto 0);     -- store lower byte temporarily
                                 d_in <= "00000000" & std_logic_vector(unsigned(reg_r) + 1);  -- load register address to read (upper byte)
                                 state <= COMMAND_WR;
                             when 3 =>               -- step 3: read upper byte
                                 make_word <= '1';       -- set flag to indicate that a word is being read and the two bytes need to be combined
-                                word_flag <= '0';       -- clear word flag so ack is asserted in the right place
                                 state <= DATA_RD;
                                 return_st <= ACK_CLEAR;
                             when others =>          -- should not occur, but just in case
