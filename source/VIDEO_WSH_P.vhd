@@ -68,9 +68,10 @@ architecture RTL of VIDEO_WSH_P is
     signal powerup_done : std_logic := '0';                                     -- flag to indicate powerup sequence is done
 
     -- write both bytes of word-length registers
-    signal lo_byte       : std_logic_vector(7 downto 0);                         -- lower byte for word writes (goes in REG)
-    signal hi_byte       : std_logic_vector(7 downto 0);                         -- upper byte for word writes (goes in REG+1)
+    signal lo_byte      : std_logic_vector(7 downto 0);                         -- lower byte for word writes (goes in REG)
+    signal hi_byte      : std_logic_vector(7 downto 0);                         -- upper byte for word writes (goes in REG+1)
     signal word_flg     : std_logic := '0';                                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
+    signal make_word    : std_logic := '0';                                     -- flag to indicate that a word is being read and the two bytes need to be combined
     signal temp_out     : std_logic_vector(7 downto 0);                         -- temporary storage for lower byte during word reads
 
     type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT, RD4, WR4, WORD_RD, WORD_WR);
@@ -190,7 +191,11 @@ begin
                             d_out <= SCRN_DATA(15 downto 0);    -- latch data (all 16 bits) into register
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND reset_done = '1' AND word_flg = '0') then
-                                ack <= '1';             -- assert ack now that data is read or written (don't do that yet for word reads)
+                                ack <= '1';             -- assert ack now that data is read or written (don't do that yet for first byte of word reads)
+                            end if;
+                            if (make_word = '1') then
+                                d_out <= d_out(7 downto 0) & temp_out;   -- combine upper and lower bytes into data out
+                                make_word <= '0';
                             end if;
                             n_cs <= '1';                -- complete command
                             timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
@@ -231,7 +236,7 @@ begin
                                         status_check <= '0';     -- reset command index to for multi command RD4 state
                                         state <= RD4;            -- if reading register 4 repeatedly, poll status until FIFO not empty and read next data
                                     else
-												    d_in <= "00000000" & reg_r;  -- load register address to read
+                                        d_in <= "00000000" & reg_r;  -- load register address to read
                                         if word_flg = '0' then   -- single byte register
                                             state <= COMMAND_WR;               -- write command to select register
                                             return_st <= WSH_READ;             -- after selecting register, go to read state
@@ -275,9 +280,9 @@ begin
 
                     when ACK_CLEAR =>
                         if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then
-                            ack <= '1';                    -- if ack hasn't already been set and wishbone cycle still activeassert ack
+                            ack <= '1';                    -- if ack hasn't already been set and wishbone cycle still active - assert ack
                             state <= ACK_CLEAR;            -- and stay here until master deasserts CYC or STB
-                        else                               -- otherwise, return to idle state to wait next wishbone command
+                        else                               -- otherwise, return to idle state to wait for next wishbone cycle
                             state <= IDLE;
                             return_st <= IDLE;
                             timer <= 0;
@@ -326,11 +331,10 @@ begin
                                 d_in <= "00000000" & std_logic_vector(unsigned(reg_r) + 1);  -- load register address to read (upper byte)
                                 state <= COMMAND_WR;
                             when 3 =>               -- step 3: read upper byte
+                                make_word <= '1';       -- set flag to indicate that a word is being read and the two bytes need to be combined
+                                word_flag <= '0';       -- clear word flag so ack is asserted in the right place
                                 state <= DATA_RD;
-                            when 4 =>               -- step 4: combine lower and upper bytes and finish
-                                d_out <= d_out(7 downto 0) & temp_out;   -- combine upper and lower bytes into data out
-                                ack <= '1';                              -- assert ack now that all 16 bits of data is read
-                                state <= ACK_CLEAR;                      -- finish wishbone transaction
+                                return_st <= ACK_CLEAR;
                             when others =>          -- should not occur, but just in case
                                 state <= ACK_CLEAR;
                         end case;
