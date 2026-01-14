@@ -122,7 +122,7 @@ begin
                     cmd_index <= 0;
                     n_res     <= '1';   -- set chip reset high to begin power up sequence
                 else
-                    cmd_index <= 67;    -- if already powered up, skip to warm reset portion
+                    cmd_index <= 64;    -- if already powered up, skip to warm reset portion
                 end if;
 
                 bl        <= '0';   -- turn off backlight
@@ -192,13 +192,17 @@ begin
                                     ack <= '1';             -- assert ack now that data is read (don't do that yet for first byte of word reads)
                                 end if;
                                 if (make_word = '1') then   -- second byte of word read
-                                    d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out
+                                    if current_reg = x"04" then
+                                        d_out <= lo_byte & d_out(7 downto 0);   -- combine upper and lower bytes into data out for register 0x04 (pixel data is little endian)
+                                    else
+                                        d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out for other word registers
+                                    end if;
                                     make_word <= '0';                       -- clear flag
                                     ack <= '1';             -- assert ack now that full word data is read and latched to d_out
                                 end if;
                             end if;
                             n_cs <= '1';                -- complete command
-                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command - TO TRY: shorten this?
+                            timer <= 0;                 -- one tick delay before next command
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
@@ -215,7 +219,11 @@ begin
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
-                            timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command
+                            if return_st = INIT then
+                                timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command only on init - bizzare, but seems to work
+                            else
+                                timer <= 0;                 -- one tick delay before next command
+                            end if;
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
@@ -304,7 +312,7 @@ begin
                             if d_out(7) = '1' then          -- check if FIFO not full
                                 status_check <= '0';        -- if full, check status again
                             else
-                                d_in <= hi_byte & lo_byte;  -- not full, so load data to write to register
+                                d_in <= lo_byte & hi_byte;  -- flip bytes for little-endian write - pixels are stored little endian
                                 state <= DATA_WR;           -- write data to register 0x04
                                 return_st <= IDLE;          -- after writing data, return to idle state to wait for next wishbone transaction
                             end if;
@@ -387,203 +395,221 @@ begin
                                 if d_out(1) = '1' then
                                     cmd_index <= 3;
                                 end if;
-                            -- SOFTWARE RESET
-                            when 5 =>       -- step 5: select register 0
-                                d_in <= x"0000";  -- set register 0
-                                state <= COMMAND_WR;
-                            when 6 =>       -- step 6: read register 0
-                                state <= DATA_RD;
-                            when 7 =>       -- step 7: assert bit 0 and write to register 0 (Software Reset)
-                                d_in <= d_out OR x"0001";
-                                state <= DATA_WR;
-                            when 8 =>       -- step 8: re-read register 0
-                                state <= DATA_RD;
-                            when 9 =>       -- step 9: if bit 0 is 1, go back to step 8 (Software Reset not complete)
-                                if d_out(0) = '1' then
-                                    cmd_index <= 8;
-                                end if;
+
                             -- SET PLLs
-                            when 10 =>      -- step 10: Select Register 0x05
+                            when 5 =>      -- step 5: Select Register 0x05
                                 d_in <= x"0005";
                                 state <= COMMAND_WR;
-                            when 11 =>      -- step 11: Write 0x06 to Register 0x05 (PLL1 Divided by 8)
+                            when 6 =>      -- step 6: Write 0x06 to Register 0x05 (PLL1 Divided by 8)
                                 d_in <= x"0006";
                                 state <= DATA_WR;
-                            when 12 =>      -- step 12: Select Register 0x06
+                            when 7 =>      -- step 7: Select Register 0x06
                                 d_in <= x"0006";
                                 state <= COMMAND_WR;
-                            when 13 =>      -- step 13: Write 0x27 to Register 0x06 (Pixel Clock frequency)
+                            when 8 =>      -- step 8: Write 0x27 to Register 0x06 (Pixel Clock frequency)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
-                            when 14 =>      -- step 14: Select Register 0x07
+                            when 9 =>      -- step 9: Select Register 0x07
                                 d_in <= x"0007";
                                 state <= COMMAND_WR;
-                            when 15 =>      -- step 15: Write 0x04 to Register 0x07 (PLL 2 Divided by 4)
+                            when 10 =>      -- step 10: Write 0x04 to Register 0x07 (PLL 2 Divided by 4)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
-                            when 16 =>      -- step 16: Select Register 0x08
+                            when 11 =>      -- step 11: Select Register 0x08
                                 d_in <= x"0008";
                                 state <= COMMAND_WR;
-                            when 17 =>      -- step 17: Write 0x27 to Register 0x08 (SDRAM Clock frequency)
+                            when 12 =>      -- step 12: Write 0x27 to Register 0x08 (SDRAM Clock frequency)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
-                            when 18 =>      -- step 18: Select Register 0x09
+                            when 13 =>      -- step 13: Select Register 0x09
                                 d_in <= x"0009";
                                 state <= COMMAND_WR;
-                            when 19 =>      -- step 19: Write 0x04 to Register 0x09 (PLL 3 Divided by 4)
+                            when 14 =>      -- step 14: Write 0x04 to Register 0x09 (PLL 3 Divided by 4)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
-                            when 20 =>      -- step 20: Select Register 0x0A
+                            when 15 =>      -- step 15: Select Register 0x0A
                                 d_in <= x"000A";
                                 state <= COMMAND_WR;
-                            when 21 =>      -- step 21: Write 0x27 to Register 0x0A (System Clock frequency)
+                            when 16 =>      -- step 16: Write 0x27 to Register 0x0A (System Clock frequency)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
-                            when 22 =>      -- step 22: Select Register 0x01
+    -- alternative PLL lock check method (not used here)
+    -- delay(1);
+    -- lcdRegWrite(0x01);
+    -- delay(2);
+    -- lcdDataWrite(0x80);
+    -- delay(2); // wait for pll stable
+    -- if ((lcdDataRead() & 0x80) == 0x80)
+    --     return true;
+    -- else
+    --     return false;
+                            when 17 =>      -- step 17: Select Register 0x01
                                 d_in <= x"0001";
                                 state <= COMMAND_WR;
-                            when 23 =>      -- step 23: Write 0x00 to Register 0x01 (Reconfigure PLLs)
+                            when 18 =>      -- step 18: Write 0x00 to Register 0x01 (Reconfigure PLLs)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 24 =>      -- step 24: Delay 10 uS
-                                timer <= 500;
+                            when 19 =>      -- step 19: Delay 10 uS
+                                timer <= CLK_FREQ / 100_000;
                                 state <= WAIT_ST;
-                            when 25 =>      -- step 25: Write 0x80 to Regsiter 0x01 (Set up PLLs, TFT Output is 24 bpp)
+                            when 20 =>      -- step 20: Write 0x80 to Regsiter 0x01 (Set up PLLs, TFT Output is 24 bpp)
                                 d_in <= x"0080";
                                 state <= DATA_WR;
-                            when 26 =>      -- step 26: Delay 1 ms
-                                timer <= 50_000;
+                            when 21 =>      -- step 21: Delay 1 ms
+                                timer <= CLK_FREQ / 1000;
                                 state <= WAIT_ST;
+
                             -- SET UP SDRAM
-                            when 27 =>      -- step 27: Select Register 0xE0
+                            when 22 =>      -- step 22: Select Register 0xE0
                                 d_in <= x"00E0";
                                 state <= COMMAND_WR;
-                            when 28 =>      -- step 28: Write 0x29 to Register 0xE0 (128 Mbit)
+                            when 23 =>      -- step 23: Write 0x29 to Register 0xE0 (128 Mbit)
                                 d_in <= x"0029";
                                 state <= DATA_WR;
-                            when 29 =>      -- step 29: Select Register 0xE1
+                            when 24 =>      -- step 24: Select Register 0xE1
                                 d_in <= x"00E1";
                                 state <= COMMAND_WR;
-                            when 30 =>      -- step 30: Write 0x03 to Register 0xE1 (CAS = 2, ACAS = 3)
+                            when 25 =>      -- step 25: Write 0x03 to Register 0xE1 (CAS = 2, ACAS = 3)
                                 d_in <= x"0003";
                                 state <= DATA_WR;
-                            when 31 =>      -- step 31: Select Register 0xE2
+                            when 26 =>      -- step 26: Select Register 0xE2
                                 d_in <= x"00E2";
                                 state <= COMMAND_WR;
-                            when 32 =>      -- step 32: Write 0x0B to Register 0xE2 (Auto refresh interval is 779 (0x30B))
+                            when 27 =>      -- step 27: Write 0x0B to Register 0xE2 (Auto refresh interval is 779 (0x30B))
                                 d_in <= x"000B";
                                 state <= DATA_WR;
-                            when 33 =>      -- step 33: Select Register 0xE3
+                            when 28 =>      -- step 28: Select Register 0xE3
                                 d_in <= x"00E3";
                                 state <= COMMAND_WR;
-                            when 34 =>      -- step 34: Write 0x03 to Register 0xE3
+                            when 29 =>      -- step 29: Write 0x03 to Register 0xE3
                                 d_in <= x"0003";
                                 state <= DATA_WR;
-                            when 35 =>      -- step 35: Select Register 0xE4
+                            when 30 =>      -- step 30: Select Register 0xE4
                                 d_in <= x"00E4";
                                 state <= COMMAND_WR;
-                            when 36 =>      -- step 36: Write 0x01 to Register 0xE4 (Begin SDRAM initialization)
+                            when 31 =>      -- step 31: Write 0x01 to Register 0xE4 (Begin SDRAM initialization)
                                 d_in <= x"0001";
                                 state <= DATA_WR;
-                            when 37 =>       -- step 37: read Register 0xE4
+                            when 32 =>       -- step 32: read Register 0xE4
                                 state <= DATA_RD;
-                            when 38 =>       -- step 38: if bit 0 is 0, go back to step 37
+                            when 33 =>       -- step 33: if bit 0 is 0, go back to step 32
                                 if d_out(0) = '0' then
-                                    cmd_index <= 37;
+                                    cmd_index <= 32;
                                 end if;
+
+-- check status register bit 2 and wait until set - SDRAM ready
+
                             -- ADDITIONAL CHIP CONFIG
-                            when 39 =>      -- step 39: Select Register 0x01
+                            when 34 =>      -- step 34: Select Register 0x01
                                 d_in <= x"0001";
                                 state <= COMMAND_WR;
-                            when 40 =>      -- step 40: Write 0x01 to Register 0x01 (24-bit TFT output, 16-bit Host Data Bus)
+                            when 35 =>      -- step 35: Write 0x01 to Register 0x01 (24-bit TFT output, 16-bit Host Data Bus)
                                 d_in <= x"0001";
                                 state <= DATA_WR;
                             -- REGISTERS 0x02 and 0x03 STAY AT THEIR DEFAULT VALUES FOR NOW
+
                             -- SET SCREEN PARAMETERS AND TIMING
-                            when 41 =>      -- step 41: Select Register 0x12
+                            when 36 =>      -- step 36: Select Register 0x12
                                 d_in <= x"0012";
                                 state <= COMMAND_WR;
-                            when 42 =>      -- step 42: Write 0x80 to Register 0x12 (Set screen data for fetching on falling clock)
+                            when 37 =>      -- step 37: Write 0x80 to Register 0x12 (Set screen data for fetching on falling clock)
                                 d_in <= x"0080";
                                 state <= DATA_WR;
-                            when 43 =>      -- step 43: Select Register 0x13
+                            when 38 =>      -- step 38: Select Register 0x13
                                 d_in <= x"0013";
                                 state <= COMMAND_WR;
-                            when 44 =>      -- step 44: Write 0xC3 to Register 0x13 (DE active high, HSYNC and VSYNC active high)
+                            when 39 =>      -- step 39: Write 0xC3 to Register 0x13 (DE active high, HSYNC and VSYNC active high)
                                 d_in <= x"00C3";
                                 state <= DATA_WR;
-                            when 45 =>      -- step 45: Select Register 0x14
+                            when 40 =>      -- step 40: Select Register 0x14
                                 d_in <= x"0014";
                                 state <= COMMAND_WR;
-                            when 46 =>      -- step 46: Write 0x7F to Register 0x14 (bits 11:4 of display width - 1 for 1024 pixels)
+                            when 41 =>      -- step 41: Write 0x7F to Register 0x14 (bits 11:4 of display width - 1 for 1024 pixels)
                                 d_in <= x"007F";
                                 state <= DATA_WR;
-                            when 47 =>      -- step 47: Select Register 0x15
+                            when 42 =>      -- step 42: Select Register 0x15
                                 d_in <= x"0015";
                                 state <= COMMAND_WR;
-                            when 48 =>      -- step 48: Write 0x00 to Register 0x15 (bits 3:0 of display width)
+                            when 43 =>      -- step 43: Write 0x00 to Register 0x15 (bits 3:0 of display width)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 49 =>      -- step 49: Select Register 0x1A
+                            when 44 =>      -- step 44: Select Register 0x1A
                                 d_in <= x"001A";
                                 state <= COMMAND_WR;
-                            when 50 =>      -- step 50: Write 0x57 to Register 0x1A (bits 7:0 of display height - 1 for 600 pixels)
+                            when 45 =>      -- step 45: Write 0x57 to Register 0x1A (bits 7:0 of display height - 1 for 600 pixels)
                                 d_in <= x"0057";
                                 state <= DATA_WR;
-                            when 51 =>      -- step 51: Select Register 0x1B
+                            when 46 =>      -- step 46: Select Register 0x1B
                                 d_in <= x"001B";
                                 state <= COMMAND_WR;
-                            when 52 =>      -- step 52: Write 0x02 to Register 0x1B (bits 10:8 of display height - 1 for 600 pixels)
+                            when 47 =>      -- step 47: Write 0x02 to Register 0x1B (bits 10:8 of display height - 1 for 600 pixels)
                                 d_in <= x"0002";
                                 state <= DATA_WR;
-                            when 53 =>      -- step 53: Select Register 0x16
+                            when 48 =>      -- step 48: Select Register 0x16
                                 d_in <= x"0016";
                                 state <= COMMAND_WR;
-                            when 54 =>      -- step 54: Write 0x13 to Register 0x16 (bits 8:4 of back porch - 1)
+                            when 49 =>      -- step 49: Write 0x13 to Register 0x16 (bits 8:4 of back porch - 1)
                                 d_in <= x"0013";
                                 state <= DATA_WR;
-                            when 55 =>      -- step 55: Select Register 0x17
+                            when 50 =>      -- step 50: Select Register 0x17
                                 d_in <= x"0017";
                                 state <= COMMAND_WR;
-                            when 56 =>      -- step 56: Write 0x00 to Register 0x17 (bits 3:0 of back porch)
+                            when 51 =>      -- step 51: Write 0x00 to Register 0x17 (bits 3:0 of back porch)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 57 =>      -- step 57: Select Register 0x18
+                            when 52 =>      -- step 52: Select Register 0x18
                                 d_in <= x"0018";
                                 state <= COMMAND_WR;
-                            when 58 =>      -- step 58: Write 0x14 to Register 0x18 (front porch / 8 for back porch 160)
+                            when 53 =>      -- step 53: Write 0x14 to Register 0x18 (front porch / 8 for back porch 160)
                                 d_in <= x"0014";
                                 state <= DATA_WR;
-                            when 59 =>      -- step 59: Select Register 0x19
+                            when 54 =>      -- step 54: Select Register 0x19
                                 d_in <= x"0019";
                                 state <= COMMAND_WR;
-                            when 60 =>      -- step 60: Write 0x07 to Register 0x19 (pulse width / 8 - 1 for HSYNC pulse width 70)
+                            when 55 =>      -- step 55: Write 0x07 to Register 0x19 (pulse width / 8 - 1 for HSYNC pulse width 70)
                                 d_in <= x"0007";
                                 state <= DATA_WR;
-                            when 61 =>      -- step 61: Select Register 0x1C
+                            when 56 =>      -- step 56: Select Register 0x1C
                                 d_in <= x"001C";
                                 state <= COMMAND_WR;
-                            when 62 =>      -- step 62: Write 0x16 to Register 0x1C (bits 7:0 of vertical non-display - 1)
+                            when 57 =>      -- step 57: Write 0x16 to Register 0x1C (bits 7:0 of vertical non-display - 1)
                                 d_in <= x"0016";
                                 state <= DATA_WR;
-                            when 63 =>      -- step 63: Select Register 0x1D
+                            when 58 =>      -- step 58: Select Register 0x1D
                                 d_in <= x"001D";
                                 state <= COMMAND_WR;
-                            when 64 =>      -- step 64: Write 0x00 to Register 0x1D (bits 9:8 of vertical non-display - 1)
+                            when 59 =>      -- step 59: Write 0x00 to Register 0x1D (bits 9:8 of vertical non-display - 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 65 =>      -- step 65: Select Register 0x1E
+                            when 60 =>      -- step 60: Select Register 0x1E
                                 d_in <= x"001E";
                                 state <= COMMAND_WR;
-                            when 66 =>      -- step 66: Write 0x0B to Register 0x1E (VSYNC Start Position - 1)
+                            when 61 =>      -- step 61: Write 0x0B to Register 0x1E (VSYNC Start Position - 1)
                                 d_in <= x"000B";
                                 state <= DATA_WR;
-                            when 67 =>      -- step 67: Select Register 0x1F
+                            when 62 =>      -- step 62: Select Register 0x1F
                                 d_in <= x"001F";
                                 state <= COMMAND_WR;
-                            when 68 =>      -- step 68: Write 0x09 to Register 0x1F (VSYNC Pulse width - 1)
+                            when 63 =>      -- step 63: Write 0x09 to Register 0x1F (VSYNC Pulse width - 1)
                                 d_in <= x"0009";
                                 state <= DATA_WR;
+
+                            -- SOFTWARE RESET
+                            when 64 =>       -- step 64: select register 0
+                                d_in <= x"0000";  -- set register 0
+                                state <= COMMAND_WR;
+                            when 65 =>       -- step 65: read register 0
+                                state <= DATA_RD;
+                            when 66 =>       -- step 66: assert bit 0 and write to register 0 (Software Reset)
+                                d_in <= d_out OR x"0001";
+                                state <= DATA_WR;
+                            when 67 =>       -- step 67: re-read register 0
+                                state <= DATA_RD;
+                            when 68 =>       -- step 68: if bit 0 is 1, go back to step 67 (Software Reset not complete)
+                                if d_out(0) = '1' then
+                                    cmd_index <= 67;
+                                end if;
+
                             -- SET RA8876 MAIN AND ACTIVE WINDOW - WARM RESET ENTRY POINT
                             when 69 =>      -- step 69: Select Register 0x10
                                 d_in <= x"0010";
@@ -591,6 +617,9 @@ begin
                             when 70 =>      -- step 70: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window)
                                 d_in <= x"0008";
                                 state <= DATA_WR;
+
+-- Check busy (bit 3) in status register
+
                             when 71 =>      -- step 71: Select Register 0x20
                                 d_in <= x"0020";
                                 state <= COMMAND_WR;
