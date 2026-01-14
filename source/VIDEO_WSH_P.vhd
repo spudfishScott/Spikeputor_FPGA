@@ -122,7 +122,7 @@ begin
                     cmd_index <= 0;
                     n_res     <= '1';   -- set chip reset high to begin power up sequence
                 else
-                    cmd_index <= 64;    -- if already powered up, skip to warm reset portion
+                    cmd_index <= 69;    -- if already powered up, skip to warm reset portion
                 end if;
 
                 bl        <= '0';   -- turn off backlight
@@ -189,14 +189,17 @@ begin
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             if return_st /= INIT then   -- ignore wishbone-related items during initialization
                                 if (current_word_flg = '0') then
+										      if current_reg = x"04" then
+												    d_out <= d_out(7 downto 0) & d_out(15 downto 8); -- swap bytes for reg 4 reads
+												end if;
                                     ack <= '1';             -- assert ack now that data is read (don't do that yet for first byte of word reads)
                                 end if;
                                 if (make_word = '1') then   -- second byte of word read
-                                    if current_reg = x"04" then
-                                        d_out <= lo_byte & d_out(7 downto 0);   -- combine upper and lower bytes into data out for register 0x04 (pixel data is little endian)
-                                    else
+                                --    if current_reg = x"04" then
+                            --            d_out <= lo_byte & d_out(7 downto 0);   -- combine upper and lower bytes into data out for register 0x04 (pixel data is little endian)
+                             --       else
                                         d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out for other word registers
-                                    end if;
+                           --         end if;
                                     make_word <= '0';                       -- clear flag
                                     ack <= '1';             -- assert ack now that full word data is read and latched to d_out
                                 end if;
@@ -222,7 +225,7 @@ begin
                             if return_st = INIT then
                                 timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command only on init - bizzare, but seems to work
                             else
-                                timer <= 0;                 -- one tick delay before next command
+                                timer <= 0; -- CMD_REFRESH_TIME/4;
                             end if;
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
@@ -311,8 +314,8 @@ begin
                         else
                             if d_out(7) = '1' then          -- check if FIFO not full
                                 status_check <= '0';        -- if full, check status again
-                            else
-                                d_in <= lo_byte & hi_byte;  -- flip bytes for little-endian write - pixels are stored little endian
+                            else										-- for graphics writing, flip bytes for little-endian write - pixels are stored little endian- need to track graphics mode internally
+                                d_in <= hi_byte & lo_byte;  -- for text writing
                                 state <= DATA_WR;           -- write data to register 0x04
                                 return_st <= IDLE;          -- after writing data, return to idle state to wait for next wishbone transaction
                             end if;
