@@ -250,8 +250,8 @@ begin
                                 end if;
                             else                            -- write operation
                                 if reg_r /= x"00" AND reg_r /= x"FF" then  -- register to write is exposed
-                                    -- ack <= '1';            -- TO TRY: assert ack as register is being selected and before actually writing any data - we'ev saved everything we need
-                                    if current_reg = reg_r AND reg_r = x"04" then  -- handle register 4 multi-write logic (need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full))
+                                    ack <= '1';                                     -- assert ack as register is being selected and before actually writing any data - we've saved everything we need
+                                    if current_reg = reg_r AND reg_r = x"04" then   -- handle register 4 multi-write logic (need to wait until STATUS bit 7 is cleared before next write (Memory Write FIFO not full))
                                         status_check <= '0';                -- reset status check flag for multi command WR4 state
                                         state <= WR4;                       -- if writing register 4 repeatedly, poll status until FIFO not full and write next data
                                     else
@@ -278,7 +278,6 @@ begin
 
                     when WSH_WRITE =>
                         d_in <= hi_byte & lo_byte;      -- load data to write to register
-                        ack <= '1';                     -- TO TRY: delete this and ack above -- assert ack when register has been selected, but before actually writing data
                         state <= DATA_WR;               -- write data to selected register
                         return_st <= IDLE;              -- after writing data, go to idle to await next wishbone transaction
 
@@ -306,7 +305,6 @@ begin
                                 status_check <= '0';        -- if full, check status again
                             else
                                 d_in <= hi_byte & lo_byte;  -- not full, so load data to write to register
-                                ack <= '1';                 -- TO TRY: delete this and ack above -- assert ack when register has been selected, but before actually writing data
                                 state <= DATA_WR;           -- write data to register 0x04
                                 return_st <= IDLE;          -- after writing data, return to idle state to wait for next wishbone transaction
                             end if;
@@ -344,7 +342,6 @@ begin
                                 state <= COMMAND_WR;
                             when 1 =>               -- step 1: write lower byte
                                 d_in <= "00000000" & lo_byte;       -- load lower byte to write
-                                ack <= '1';             -- TO TRY: delete this and ack above -- assert ack after first register has been selected
                                 state <= DATA_WR;
                             when 2 =>               -- step 2: select register for upper byte write
                                 d_in <= "00000000" & std_logic_vector(unsigned(current_reg) + 1);  -- select register address to write (upper byte)
