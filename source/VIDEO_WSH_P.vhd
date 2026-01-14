@@ -122,7 +122,7 @@ begin
                     cmd_index <= 0;
                     n_res     <= '1';   -- set chip reset high to begin power up sequence
                 else
-                    cmd_index <= 69;    -- if already powered up, skip to warm reset portion
+                    cmd_index <= 600;    -- if already powered up, skip to warm reset portion
                 end if;
 
                 bl        <= '0';   -- turn off backlight
@@ -189,17 +189,13 @@ begin
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             if return_st /= INIT then   -- ignore wishbone-related items during initialization
                                 if (current_word_flg = '0') then
-										      if current_reg = x"04" then
-												    d_out <= d_out(7 downto 0) & d_out(15 downto 8); -- swap bytes for reg 4 reads
-												end if;
+                                    if current_reg = x"04" then -- register 4 outputs 16 bits, but pixels are stored little endian - swap the bytes so they come out GGBB RRGG BBRR
+                                        d_out <= d_out(7 downto 0) & d_out(15 downto 8);
+                                    end if;
                                     ack <= '1';             -- assert ack now that data is read (don't do that yet for first byte of word reads)
                                 end if;
                                 if (make_word = '1') then   -- second byte of word read
-                                --    if current_reg = x"04" then
-                            --            d_out <= lo_byte & d_out(7 downto 0);   -- combine upper and lower bytes into data out for register 0x04 (pixel data is little endian)
-                             --       else
-                                        d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out for other word registers
-                           --         end if;
+                                    d_out <= d_out(7 downto 0) & lo_byte;   -- combine upper and lower bytes into data out for other word registers
                                     make_word <= '0';                       -- clear flag
                                     ack <= '1';             -- assert ack now that full word data is read and latched to d_out
                                 end if;
@@ -314,7 +310,7 @@ begin
                         else
                             if d_out(7) = '1' then          -- check if FIFO not full
                                 status_check <= '0';        -- if full, check status again
-                            else										-- for graphics writing, flip bytes for little-endian write - pixels are stored little endian- need to track graphics mode internally
+                            else    -- TODO: for graphics writing, flip bytes for little-endian write - pixels are stored little endian - need to track graphics mode internally
                                 d_in <= hi_byte & lo_byte;  -- for text writing
                                 state <= DATA_WR;           -- write data to register 0x04
                                 return_st <= IDLE;          -- after writing data, return to idle state to wait for next wishbone transaction
@@ -397,43 +393,45 @@ begin
                             when 4 =>       -- step 4: if status bit 1 is 1, go back to step 3
                                 if d_out(1) = '1' then
                                     cmd_index <= 3;
+                                else
+                                    cmd_index <= 100;
                                 end if;
 
                             -- SET PLLs
-                            when 5 =>      -- step 5: Select Register 0x05
+                            when 100 =>      -- step 100: Select Register 0x05
                                 d_in <= x"0005";
                                 state <= COMMAND_WR;
-                            when 6 =>      -- step 6: Write 0x06 to Register 0x05 (PLL1 Divided by 8)
+                            when 101 =>      -- step 101: Write 0x06 to Register 0x05 (PLL1 Divided by 8)
                                 d_in <= x"0006";
                                 state <= DATA_WR;
-                            when 7 =>      -- step 7: Select Register 0x06
+                            when 102 =>      -- step 102: Select Register 0x06
                                 d_in <= x"0006";
                                 state <= COMMAND_WR;
-                            when 8 =>      -- step 8: Write 0x27 to Register 0x06 (Pixel Clock frequency)
+                            when 103 =>      -- step 103: Write 0x27 to Register 0x06 (Pixel Clock frequency)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
-                            when 9 =>      -- step 9: Select Register 0x07
+                            when 104 =>      -- step 104: Select Register 0x07
                                 d_in <= x"0007";
                                 state <= COMMAND_WR;
-                            when 10 =>      -- step 10: Write 0x04 to Register 0x07 (PLL 2 Divided by 4)
+                            when 105 =>      -- step 105: Write 0x04 to Register 0x07 (PLL 2 Divided by 4)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
-                            when 11 =>      -- step 11: Select Register 0x08
+                            when 106 =>      -- step 106: Select Register 0x08
                                 d_in <= x"0008";
                                 state <= COMMAND_WR;
-                            when 12 =>      -- step 12: Write 0x27 to Register 0x08 (SDRAM Clock frequency)
+                            when 107 =>      -- step 107: Write 0x27 to Register 0x08 (SDRAM Clock frequency)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
-                            when 13 =>      -- step 13: Select Register 0x09
+                            when 108 =>      -- step 108: Select Register 0x09
                                 d_in <= x"0009";
                                 state <= COMMAND_WR;
-                            when 14 =>      -- step 14: Write 0x04 to Register 0x09 (PLL 3 Divided by 4)
+                            when 109 =>      -- step 109: Write 0x04 to Register 0x09 (PLL 3 Divided by 4)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
-                            when 15 =>      -- step 15: Select Register 0x0A
+                            when 110 =>      -- step 110: Select Register 0x0A
                                 d_in <= x"000A";
                                 state <= COMMAND_WR;
-                            when 16 =>      -- step 16: Write 0x27 to Register 0x0A (System Clock frequency)
+                            when 111 =>      -- step 111: Write 0x27 to Register 0x0A (System Clock frequency)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
     -- alternative PLL lock check method (not used here)
@@ -446,451 +444,472 @@ begin
     --     return true;
     -- else
     --     return false;
-                            when 17 =>      -- step 17: Select Register 0x01
+                            when 112 =>      -- step 112: Select Register 0x01
                                 d_in <= x"0001";
                                 state <= COMMAND_WR;
-                            when 18 =>      -- step 18: Write 0x00 to Register 0x01 (Reconfigure PLLs)
+                            when 113 =>      -- step 113: Write 0x00 to Register 0x01 (Reconfigure PLLs)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 19 =>      -- step 19: Delay 10 uS
+                            when 114 =>      -- step 114: Delay 10 uS
                                 timer <= CLK_FREQ / 100_000;
                                 state <= WAIT_ST;
-                            when 20 =>      -- step 20: Write 0x80 to Regsiter 0x01 (Set up PLLs, TFT Output is 24 bpp)
+                            when 115 =>      -- step 115: Write 0x80 to Regsiter 0x01 (Set up PLLs, TFT Output is 24 bpp)
                                 d_in <= x"0080";
                                 state <= DATA_WR;
-                            when 21 =>      -- step 21: Delay 1 ms
+                            when 116 =>      -- step 116: Delay 1 ms
                                 timer <= CLK_FREQ / 1000;
                                 state <= WAIT_ST;
+                                cmd_index <= 200;
 
                             -- SET UP SDRAM
-                            when 22 =>      -- step 22: Select Register 0xE0
+                            when 200 =>      -- step 200: Select Register 0xE0
                                 d_in <= x"00E0";
                                 state <= COMMAND_WR;
-                            when 23 =>      -- step 23: Write 0x29 to Register 0xE0 (128 Mbit)
+                            when 201 =>      -- step 201: Write 0x29 to Register 0xE0 (128 Mbit)
                                 d_in <= x"0029";
                                 state <= DATA_WR;
-                            when 24 =>      -- step 24: Select Register 0xE1
+                            when 202 =>      -- step 202: Select Register 0xE1
                                 d_in <= x"00E1";
                                 state <= COMMAND_WR;
-                            when 25 =>      -- step 25: Write 0x03 to Register 0xE1 (CAS = 2, ACAS = 3)
+                            when 203 =>      -- step 203: Write 0x03 to Register 0xE1 (CAS = 2, ACAS = 3)
                                 d_in <= x"0003";
                                 state <= DATA_WR;
-                            when 26 =>      -- step 26: Select Register 0xE2
+                            when 204 =>      -- step 204: Select Register 0xE2
                                 d_in <= x"00E2";
                                 state <= COMMAND_WR;
-                            when 27 =>      -- step 27: Write 0x0B to Register 0xE2 (Auto refresh interval is 779 (0x30B))
+                            when 205 =>      -- step 205: Write 0x0B to Register 0xE2 (Auto refresh interval is 779 (0x30B))
                                 d_in <= x"000B";
                                 state <= DATA_WR;
-                            when 28 =>      -- step 28: Select Register 0xE3
+                            when 206 =>      -- step 206: Select Register 0xE3
                                 d_in <= x"00E3";
                                 state <= COMMAND_WR;
-                            when 29 =>      -- step 29: Write 0x03 to Register 0xE3
+                            when 207 =>      -- step 207: Write 0x03 to Register 0xE3
                                 d_in <= x"0003";
                                 state <= DATA_WR;
-                            when 30 =>      -- step 30: Select Register 0xE4
+                            when 208 =>      -- step 208: Select Register 0xE4
                                 d_in <= x"00E4";
                                 state <= COMMAND_WR;
-                            when 31 =>      -- step 31: Write 0x01 to Register 0xE4 (Begin SDRAM initialization)
+                            when 209 =>      -- step 209: Write 0x01 to Register 0xE4 (Begin SDRAM initialization)
                                 d_in <= x"0001";
                                 state <= DATA_WR;
-                            when 32 =>       -- step 32: read Register 0xE4
+                            when 210 =>       -- step 210: read Register 0xE4
                                 state <= DATA_RD;
-                            when 33 =>       -- step 33: if bit 0 is 0, go back to step 32
+                            when 211 =>       -- step 211: if bit 0 is 0, go back to step 211
                                 if d_out(0) = '0' then
-                                    cmd_index <= 32;
+                                    cmd_index <= 210;
+                                end if;
+                            when 212 =>       -- step 212: read Status register bit 2 and wait until set - SDRAM ready
+                                state <= STATUS_RD;
+                            when 213 =>       -- step 213: if status bit 2 is 0, go back to step 212
+                                if d_out(2) = '0' then
+                                    cmd_index <= 212;
+                                else
+                                    cmd_index <= 300;
                                 end if;
 
--- check status register bit 2 and wait until set - SDRAM ready
-
                             -- ADDITIONAL CHIP CONFIG
-                            when 34 =>      -- step 34: Select Register 0x01
+                            when 300 =>      -- step 300: Select Register 0x01
                                 d_in <= x"0001";
                                 state <= COMMAND_WR;
-                            when 35 =>      -- step 35: Write 0x01 to Register 0x01 (24-bit TFT output, 16-bit Host Data Bus)
+                            when 301 =>      -- step 301: Write 0x01 to Register 0x01 (24-bit TFT output, 16-bit Host Data Bus)
                                 d_in <= x"0001";
                                 state <= DATA_WR;
+                                cmd_index <= 400;
                             -- REGISTERS 0x02 and 0x03 STAY AT THEIR DEFAULT VALUES FOR NOW
 
                             -- SET SCREEN PARAMETERS AND TIMING
-                            when 36 =>      -- step 36: Select Register 0x12
+                            when 400 =>      -- step 400: Select Register 0x12
                                 d_in <= x"0012";
                                 state <= COMMAND_WR;
-                            when 37 =>      -- step 37: Write 0x80 to Register 0x12 (Set screen data for fetching on falling clock)
+                            when 401 =>      -- step 401: Write 0x80 to Register 0x12 (Set screen data for fetching on falling clock)
                                 d_in <= x"0080";
                                 state <= DATA_WR;
-                            when 38 =>      -- step 38: Select Register 0x13
+                            when 402 =>      -- step 402: Select Register 0x13
                                 d_in <= x"0013";
                                 state <= COMMAND_WR;
-                            when 39 =>      -- step 39: Write 0xC3 to Register 0x13 (DE active high, HSYNC and VSYNC active high)
+                            when 403 =>      -- step 403: Write 0xC3 to Register 0x13 (DE active high, HSYNC and VSYNC active high)
                                 d_in <= x"00C3";
                                 state <= DATA_WR;
-                            when 40 =>      -- step 40: Select Register 0x14
+                            when 404 =>      -- step 404: Select Register 0x14
                                 d_in <= x"0014";
                                 state <= COMMAND_WR;
-                            when 41 =>      -- step 41: Write 0x7F to Register 0x14 (bits 11:4 of display width - 1 for 1024 pixels)
+                            when 405 =>      -- step 405: Write 0x7F to Register 0x14 (bits 11:4 of display width - 1 for 1024 pixels)
                                 d_in <= x"007F";
                                 state <= DATA_WR;
-                            when 42 =>      -- step 42: Select Register 0x15
+                            when 406 =>      -- step 406: Select Register 0x15
                                 d_in <= x"0015";
                                 state <= COMMAND_WR;
-                            when 43 =>      -- step 43: Write 0x00 to Register 0x15 (bits 3:0 of display width)
+                            when 407 =>      -- step 407: Write 0x00 to Register 0x15 (bits 3:0 of display width)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 44 =>      -- step 44: Select Register 0x1A
+                            when 408 =>      -- step 408: Select Register 0x1A
                                 d_in <= x"001A";
                                 state <= COMMAND_WR;
-                            when 45 =>      -- step 45: Write 0x57 to Register 0x1A (bits 7:0 of display height - 1 for 600 pixels)
+                            when 409 =>      -- step 409: Write 0x57 to Register 0x1A (bits 7:0 of display height - 1 for 600 pixels)
                                 d_in <= x"0057";
                                 state <= DATA_WR;
-                            when 46 =>      -- step 46: Select Register 0x1B
+                            when 410 =>      -- step 410: Select Register 0x1B
                                 d_in <= x"001B";
                                 state <= COMMAND_WR;
-                            when 47 =>      -- step 47: Write 0x02 to Register 0x1B (bits 10:8 of display height - 1 for 600 pixels)
+                            when 411 =>      -- step 411: Write 0x02 to Register 0x1B (bits 10:8 of display height - 1 for 600 pixels)
                                 d_in <= x"0002";
                                 state <= DATA_WR;
-                            when 48 =>      -- step 48: Select Register 0x16
+                            when 412 =>      -- step 412: Select Register 0x16
                                 d_in <= x"0016";
                                 state <= COMMAND_WR;
-                            when 49 =>      -- step 49: Write 0x13 to Register 0x16 (bits 8:4 of back porch - 1)
+                            when 413 =>      -- step 413: Write 0x13 to Register 0x16 (bits 8:4 of back porch - 1)
                                 d_in <= x"0013";
                                 state <= DATA_WR;
-                            when 50 =>      -- step 50: Select Register 0x17
+                            when 414 =>      -- step 414: Select Register 0x17
                                 d_in <= x"0017";
                                 state <= COMMAND_WR;
-                            when 51 =>      -- step 51: Write 0x00 to Register 0x17 (bits 3:0 of back porch)
+                            when 415 =>      -- step 415: Write 0x00 to Register 0x17 (bits 3:0 of back porch)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 52 =>      -- step 52: Select Register 0x18
+                            when 416 =>      -- step 416: Select Register 0x18
                                 d_in <= x"0018";
                                 state <= COMMAND_WR;
-                            when 53 =>      -- step 53: Write 0x14 to Register 0x18 (front porch / 8 for back porch 160)
+                            when 417 =>      -- step 417: Write 0x14 to Register 0x18 (front porch / 8 for back porch 160)
                                 d_in <= x"0014";
                                 state <= DATA_WR;
-                            when 54 =>      -- step 54: Select Register 0x19
+                            when 418 =>      -- step 418: Select Register 0x19
                                 d_in <= x"0019";
                                 state <= COMMAND_WR;
-                            when 55 =>      -- step 55: Write 0x07 to Register 0x19 (pulse width / 8 - 1 for HSYNC pulse width 70)
+                            when 419 =>      -- step 419: Write 0x07 to Register 0x19 (pulse width / 8 - 1 for HSYNC pulse width 70)
                                 d_in <= x"0007";
                                 state <= DATA_WR;
-                            when 56 =>      -- step 56: Select Register 0x1C
+                            when 420 =>      -- step 420: Select Register 0x1C
                                 d_in <= x"001C";
                                 state <= COMMAND_WR;
-                            when 57 =>      -- step 57: Write 0x16 to Register 0x1C (bits 7:0 of vertical non-display - 1)
+                            when 421 =>      -- step 421: Write 0x16 to Register 0x1C (bits 7:0 of vertical non-display - 1)
                                 d_in <= x"0016";
                                 state <= DATA_WR;
-                            when 58 =>      -- step 58: Select Register 0x1D
+                            when 422 =>      -- step 422: Select Register 0x1D
                                 d_in <= x"001D";
                                 state <= COMMAND_WR;
-                            when 59 =>      -- step 59: Write 0x00 to Register 0x1D (bits 9:8 of vertical non-display - 1)
+                            when 423 =>      -- step 423: Write 0x00 to Register 0x1D (bits 9:8 of vertical non-display - 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 60 =>      -- step 60: Select Register 0x1E
+                            when 424 =>      -- step 424: Select Register 0x1E
                                 d_in <= x"001E";
                                 state <= COMMAND_WR;
-                            when 61 =>      -- step 61: Write 0x0B to Register 0x1E (VSYNC Start Position - 1)
+                            when 425 =>      -- step 425: Write 0x0B to Register 0x1E (VSYNC Start Position - 1)
                                 d_in <= x"000B";
                                 state <= DATA_WR;
-                            when 62 =>      -- step 62: Select Register 0x1F
+                            when 426 =>      -- step 426: Select Register 0x1F
                                 d_in <= x"001F";
                                 state <= COMMAND_WR;
-                            when 63 =>      -- step 63: Write 0x09 to Register 0x1F (VSYNC Pulse width - 1)
+                            when 427 =>      -- step 427: Write 0x09 to Register 0x1F (VSYNC Pulse width - 1)
                                 d_in <= x"0009";
                                 state <= DATA_WR;
+                            when 428 =>      -- step 428: Delay 1
+                                timer <= CLK_FREQ / 1000;         -- 1 ms delay
+                                state <= WAIT_ST;
+                                cmd_index <= 500;
 
                             -- SOFTWARE RESET
-                            when 64 =>       -- step 64: select register 0
+                            when 500 =>       -- step 500: select register 0
                                 d_in <= x"0000";  -- set register 0
                                 state <= COMMAND_WR;
-                            when 65 =>       -- step 65: read register 0
+                            when 501 =>       -- step 501: read register 0
                                 state <= DATA_RD;
-                            when 66 =>       -- step 66: assert bit 0 and write to register 0 (Software Reset)
+                            when 502 =>       -- step 502: assert bit 0 and write to register 0 (Software Reset)
                                 d_in <= d_out OR x"0001";
                                 state <= DATA_WR;
-                            when 67 =>       -- step 67: re-read register 0
+                            when 503 =>       -- step 503: re-read register 0
                                 state <= DATA_RD;
-                            when 68 =>       -- step 68: if bit 0 is 1, go back to step 67 (Software Reset not complete)
+                            when 504 =>       -- step 504: if bit 0 is 1, go back to step 503 (Software Reset not complete)
                                 if d_out(0) = '1' then
-                                    cmd_index <= 67;
+                                    cmd_index <= 503;
+                                else
+                                    cmd_index <= 600;
                                 end if;
 
                             -- SET RA8876 MAIN AND ACTIVE WINDOW - WARM RESET ENTRY POINT
-                            when 69 =>      -- step 69: Select Register 0x10
+                            when 600 =>      -- step 600: Select Register 0x10
                                 d_in <= x"0010";
                                 state <= COMMAND_WR;
-                            when 70 =>      -- step 70: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window)
+                            when 601 =>      -- step 601: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window)
                                 d_in <= x"0008";
                                 state <= DATA_WR;
-
--- Check busy (bit 3) in status register
-
-                            when 71 =>      -- step 71: Select Register 0x20
+                            when 602 =>      -- step 602: read Status register bit 3 and wait until clear - core task done/idle
+                                state <= STATUS_RD;
+                            when 603 =>      -- step 603: if status bit 3 is 1, go back to step 602
+                                if d_out(3) = '1' then
+                                    cmd_index <= 602;
+                                end if;
+                            when 604 =>      -- step 604: Select Register 0x20
                                 d_in <= x"0020";
                                 state <= COMMAND_WR;
-                            when 72 =>      -- step 72: Write 0x00 to Register 0x20 (Main Image Start Address byte 0 - least significant byte)
+                            when 605 =>      -- step 605: Write 0x00 to Register 0x20 (Main Image Start Address byte 0 - least significant byte)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 73 =>      -- step 73: Select Register 0x21
+                            when 606 =>      -- step 606: Select Register 0x21
                                 d_in <= x"0021";
                                 state <= COMMAND_WR;
-                            when 74 =>      -- step 74: Write 0x00 to Register 0x21 (Main Image Start Address byte 1)
+                            when 607 =>      -- step 607: Write 0x00 to Register 0x21 (Main Image Start Address byte 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 75 =>      -- step 75: Select Register 0x22
+                            when 608 =>      -- step 608: Select Register 0x22
                                 d_in <= x"0022";
                                 state <= COMMAND_WR;
-                            when 76 =>      -- step 76: Write 0x00 to Register 0x22 (Main Image Start Address byte 2)
+                            when 609 =>      -- step 609: Write 0x00 to Register 0x22 (Main Image Start Address byte 2)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 77 =>      -- step 77: Select Register 0x23
+                            when 610 =>      -- step 610: Select Register 0x23
                                 d_in <= x"0023";
                                 state <= COMMAND_WR;
-                            when 78 =>      -- step 78: Write 0x00 to Register 0x23 (Main Image Start Address byte 3 - most significant byte)
+                            when 611 =>      -- step 611: Write 0x00 to Register 0x23 (Main Image Start Address byte 3 - most significant byte)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 79 =>      -- step 79: Select Register 0x24
+                            when 612 =>      -- step 612: Select Register 0x24
                                 d_in <= x"0024";
                                 state <= COMMAND_WR;
-                            when 80 =>      -- step 80: Write 0x00 to Register 0x24 (bits 7:0 of main image width = 0x00 for 1024)
+                            when 613 =>      -- step 613: Write 0x00 to Register 0x24 (bits 7:0 of main image width = 0x00 for 1024)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 81 =>      -- step 81: Select Register 0x25
+                            when 614 =>      -- step 614: Select Register 0x25
                                 d_in <= x"0025";
                                 state <= COMMAND_WR;
-                            when 82 =>      -- step 82: Write 0x04 to Register 0x25 (bits 12:8 of main image width = 0x04 for 1024)
+                            when 615 =>      -- step 615: Write 0x04 to Register 0x25 (bits 12:8 of main image width = 0x04 for 1024)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
-                            when 83 =>      -- step 83: Select Register 0x26
+                            when 616 =>      -- step 616: Select Register 0x26
                                 d_in <= x"0026";
                                 state <= COMMAND_WR;
-                            when 84 =>      -- step 84: Write 0x00 to Register 0x26 (Main Window Upper-Left X byte 0)
+                            when 617 =>      -- step 617: Write 0x00 to Register 0x26 (Main Window Upper-Left X byte 0)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 85 =>      -- step 85: Select Register 0x27
+                            when 618 =>      -- step 618: Select Register 0x27
                                 d_in <= x"0027";
                                 state <= COMMAND_WR;
-                            when 86 =>      -- step 86: Write 0x00 to Register 0x27 (Main Window Upper-Left X byte 1)
+                            when 619 =>      -- step 619: Write 0x00 to Register 0x27 (Main Window Upper-Left X byte 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 87 =>      -- step 87: Select Register 0x28
+                            when 620 =>      -- step 620: Select Register 0x28
                                 d_in <= x"0028";
                                 state <= COMMAND_WR;
-                            when 88 =>      -- step 88: Write 0x00 to Register 0x28 (Main Window Upper-Left Y byte 0)
+                            when 621 =>      -- step 621: Write 0x00 to Register 0x28 (Main Window Upper-Left Y byte 0)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 89 =>      -- step 89: Select Register 0x29
+                            when 622 =>      -- step 622: Select Register 0x29
                                 d_in <= x"0029";
                                 state <= COMMAND_WR;
-                            when 90 =>      -- step 90: Write 0x00 to Register 0x29 (Main Window Upper-Left Y byte 1)
+                            when 623 =>      -- step 623: Write 0x00 to Register 0x29 (Main Window Upper-Left Y byte 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 91 =>      -- step 91: Select Register 0x50
+                            when 624 =>      -- step 624: Select Register 0x50
                                 d_in <= x"0050";
                                 state <= COMMAND_WR;
-                            when 92 =>      -- step 92: Write 0x00 to Register 0x50 (Canvas Start Address byte 0)
+                            when 625 =>      -- step 625: Write 0x00 to Register 0x50 (Canvas Start Address byte 0)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 93 =>      -- step 93: Select Register 0x51
+                            when 626 =>      -- step 626: Select Register 0x51
                                 d_in <= x"0051";
                                 state <= COMMAND_WR;
-                            when 94 =>      -- step 94: Write 0x00 to Register 0x51 (Canvas Start Address byte 1)
+                            when 627 =>      -- step 627: Write 0x00 to Register 0x51 (Canvas Start Address byte 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 95 =>      -- step 95: Select Register 0x52
+                            when 628 =>      -- step 628: Select Register 0x52
                                 d_in <= x"0052";
                                 state <= COMMAND_WR;
-                            when 96 =>      -- step 96: Write 0x00 to Register 0x52 (Canvas Start Address byte 2)
+                            when 629 =>      -- step 629: Write 0x00 to Register 0x52 (Canvas Start Address byte 2)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 97 =>      -- step 97: Select Register 0x53
+                            when 630 =>      -- step 630: Select Register 0x53
                                 d_in <= x"0053";
                                 state <= COMMAND_WR;
-                            when 98 =>      -- step 98: Write 0x00 to Register 0x53 (Canvas Start Address byte 3)
+                            when 631 =>      -- step 631: Write 0x00 to Register 0x53 (Canvas Start Address byte 3)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 99 =>      -- step 99: Select Register 0x54
+                            when 632 =>      -- step 632: Select Register 0x54
                                 d_in <= x"0054";
                                 state <= COMMAND_WR;
-                            when 100 =>     -- step 100: Write 0x00 to Register 0x54 (bits 7:2 of canvas image width = 0x00 for 1024)
+                            when 633 =>     -- step 633: Write 0x00 to Register 0x54 (bits 7:2 of canvas image width = 0x00 for 1024)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 101 =>     -- step 101: Select Register 0x55
+                            when 634 =>     -- step 634: Select Register 0x55
                                 d_in <= x"0055";
                                 state <= COMMAND_WR;
-                            when 102 =>     -- step 102: Write 0x04 to Register 0x55 (bits 12:8 of canvas image width = 0x04 for 1024)
+                            when 635 =>     -- step 635: Write 0x04 to Register 0x55 (bits 12:8 of canvas image width = 0x04 for 1024)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
-                            when 103 =>     -- step 103: Select Register 0x56
+                            when 636 =>     -- step 636: Select Register 0x56
                                 d_in <= x"0056";
                                 state <= COMMAND_WR;
-                            when 104 =>     -- step 104: Write 0x00 to Register 0x56 (Canvas Window Upper-Left X byte 0)
+                            when 637 =>     -- step 637: Write 0x00 to Register 0x56 (Canvas Window Upper-Left X byte 0)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 105 =>     -- step 105: Select Register 0x57
+                            when 638 =>     -- step 638: Select Register 0x57
                                 d_in <= x"0057";
                                 state <= COMMAND_WR;
-                            when 106 =>     -- step 106: Write 0x00 to Register 0x57 (Canvas Window Upper-Left X byte 1)
+                            when 639 =>     -- step 639: Write 0x00 to Register 0x57 (Canvas Window Upper-Left X byte 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 107 =>     -- step 107: Select Register 0x58
+                            when 640 =>     -- step 640: Select Register 0x58
                                 d_in <= x"0058";
                                 state <= COMMAND_WR;
-                            when 108 =>     -- step 108: Write 0x00 to Register 0x58 (Canvas Window Upper-Left Y byte 0)
+                            when 641 =>     -- step 641: Write 0x00 to Register 0x58 (Canvas Window Upper-Left Y byte 0)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 109 =>     -- step 109: Select Register 0x59
+                            when 642 =>     -- step 642: Select Register 0x59
                                 d_in <= x"0059";
                                 state <= COMMAND_WR;
-                            when 110 =>     -- step 110: Write 0x00 to Register 0x59 (Canvas Window Upper-Left Y byte 1)
+                            when 643 =>     -- step 643: Write 0x00 to Register 0x59 (Canvas Window Upper-Left Y byte 1)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 111 =>     -- step 111: Select Register 0x5A
+                            when 644 =>     -- step 644: Select Register 0x5A
                                 d_in <= x"005A";
                                 state <= COMMAND_WR;
-                            when 112 =>     -- step 112: Write 0x00 to Register 0x5A (bits 7:0 of Active Window width = 0x00 for 1024)
+                            when 645 =>     -- step 645: Write 0x00 to Register 0x5A (bits 7:0 of Active Window width = 0x00 for 1024)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 113 =>     -- step 113: Select Register 0x5B
+                            when 646 =>     -- step 646: Select Register 0x5B
                                 d_in <= x"005B";
                                 state <= COMMAND_WR;
-                            when 114 =>     -- step 114: Write 0x04 to Register 0x5B (bits 12:8 of Active Window width = 0x04 for 1024)
+                            when 647 =>     -- step 647: Write 0x04 to Register 0x5B (bits 12:8 of Active Window width = 0x04 for 1024)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
-                            when 115 =>     -- step 115: Select Register 0x5C
+                            when 648 =>     -- step 648: Select Register 0x5C
                                 d_in <= x"005C";
                                 state <= COMMAND_WR;
-                            when 116 =>     -- step 116: Write 0x58 to Register 0x5C (bits 7:0 of Active Window height = 0x58 for 600)
+                            when 649 =>     -- step 649: Write 0x58 to Register 0x5C (bits 7:0 of Active Window height = 0x58 for 600)
                                 d_in <= x"0058";
                                 state <= DATA_WR;
-                            when 117 =>     -- step 117: Select Register 0x5D
+                            when 650 =>     -- step 650: Select Register 0x5D
                                 d_in <= x"005D";
                                 state <= COMMAND_WR;
-                            when 118 =>     -- step 118: Write 0x02 to Register 0x5D (bits 12:8 of Active Window height = 0x02 for 600)
+                            when 651 =>     -- step 651: Write 0x02 to Register 0x5D (bits 12:8 of Active Window height = 0x02 for 600)
                                 d_in <= x"0002";
                                 state <= DATA_WR;
-                            when 119 =>     -- step 119: Select Register 0x5E
+                            when 652 =>     -- step 652: Select Register 0x5E
                                 d_in <= x"005E";
                                 state <= COMMAND_WR;
-                            when 120 =>     -- step 120: Write 0x03 to Register 0x5E (X-Y coordinate mode, 24 bpp active canvas/window)
+                            when 653 =>     -- step 653: Write 0x03 to Register 0x5E (X-Y coordinate mode, 24 bpp active canvas/window)
                                 d_in <= x"0003";
                                 state <= DATA_WR;
-                            when 121 =>     -- step 121: Select Register 0x10
+                            when 654 =>     -- step 654: Select Register 0x10
                                 d_in <= x"0010";
                                 state <= COMMAND_WR;
-                            when 122 =>     -- step 122: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window - final)
+                            when 655 =>     -- step 655: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window - final)
                                 d_in <= x"0008";
                                 state <= DATA_WR;
-                            when 123 =>       -- step 123: Select Register 0xD2 - CLEAR SCREEN FROM HERE ON DOWN
+                            when 656 =>       -- step 656: Select Register 0xD2 - CLEAR SCREEN FROM HERE ON DOWN
                                 if powerup_done = '1' then
-                                    cmd_index  <= 155;  -- skip clear screen if already powered up
+                                    cmd_index  <= 700;  -- skip clear screen if already powered up
                                 else
                                     d_in <= x"00D2";    -- otherwise, continue power-up sequence
                                     state <= COMMAND_WR;
                                 end if;
-                            when 124 =>       -- step 124: Write 0x00 to Register 0xD2 (Foreground Red)
+                            when 657 =>       -- step 657: Write 0x00 to Register 0xD2 (Foreground Red)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 125 =>       -- step 125: Select Register 0xD3
+                            when 658 =>       -- step 658: Select Register 0xD3
                                 d_in <= x"00D3";
                                 state <= COMMAND_WR;
-                            when 126 =>       -- step 126 Write 0x00 to Register 0xD3 (Foreground Green)
+                            when 659 =>       -- step 659 Write 0x00 to Register 0xD3 (Foreground Green)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 127 =>       -- step 127: Select Register 0xD4
+                            when 660 =>       -- step 660: Select Register 0xD4
                                 d_in <= x"00D4";
                                 state <= COMMAND_WR;
-                            when 128 =>       -- step 128: Write 0x80 to Register 0xD4 (Foreground Blue) - set color to dark blue
+                            when 661 =>       -- step 661: Write 0x80 to Register 0xD4 (Foreground Blue) - set color to dark blue
                                 d_in <= x"0080";
                                 state <= DATA_WR;
-                            when 129 =>       -- step 129: Select Register 0x68
+                            when 662 =>       -- step 662: Select Register 0x68
                                 d_in <= x"0068";
                                 state <= COMMAND_WR;
-                            when 130 =>       -- step 130: Write 0x00 to Register 0x68 (Line Start X low byte = 0x00)
+                            when 663 =>       -- step 663: Write 0x00 to Register 0x68 (Line Start X low byte = 0x00)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 131 =>       -- step 131: Select Register 0x69
+                            when 664 =>       -- step 664: Select Register 0x69
                                 d_in <= x"0069";
                                 state <= COMMAND_WR;
-                            when 132 =>       -- step 132: Write 0x00 to Register 0x69 (Line Start X high byte = 0x00)
+                            when 665 =>       -- step 665: Write 0x00 to Register 0x69 (Line Start X high byte = 0x00)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 133 =>      -- step 133: Select Register 0x6A
+                            when 666 =>      -- step 666: Select Register 0x6A
                                 d_in <= x"0000";
                                 state <= COMMAND_WR;
-                            when 134 =>      -- step 134: Write 0x00 to Register 0x6A (Line Start Y low byte = 0x00)
+                            when 667 =>      -- step 667: Write 0x00 to Register 0x6A (Line Start Y low byte = 0x00)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 135 =>      -- step 135: Select Register 0x6B
+                            when 668 =>      -- step 668: Select Register 0x6B
                                 d_in <= x"006B";
                                 state <= COMMAND_WR;
-                            when 136 =>      -- step 136: Write 0x00 to Register 0x6B (Line Start Y high byte = 0x00)
+                            when 669 =>      -- step 669: Write 0x00 to Register 0x6B (Line Start Y high byte = 0x00)
                                 d_in <= x"0000";
                                 state <= DATA_WR;
-                            when 137 =>      -- step 137: Select Register 0x6C
+                            when 670 =>      -- step 670: Select Register 0x6C
                                 d_in <= x"006C";
                                 state <= COMMAND_WR;
-                            when 138 =>      -- step 138: Write 0xFF to Register 0x6C (Line End X low byte = 0xFF)
+                            when 671 =>      -- step 671: Write 0xFF to Register 0x6C (Line End X low byte = 0xFF)
                                 d_in <= x"00FF";
                                 state <= DATA_WR;
-                            when 139 =>      -- step 139: Select Register 0x6D
+                            when 672 =>      -- step 672: Select Register 0x6D
                                 d_in <= x"006D";
                                 state <= COMMAND_WR;
-                            when 140 =>      -- step 140: Write 0x03 to Register 0x6D (Line End X high byte = 0x03) X end = 1023 = 0x3FF
+                            when 673 =>      -- step 673: Write 0x03 to Register 0x6D (Line End X high byte = 0x03) X end = 1023 = 0x3FF
                                 d_in <= x"0003";
                                 state <= DATA_WR;
-                            when 141 =>      -- step 141: Select Register 0x6E
+                            when 674 =>      -- step 674: Select Register 0x6E
                                 d_in <= x"006E";
                                 state <= COMMAND_WR;
-                            when 142 =>      -- step 142: Write 0x57 to Register 0x6E (Line End Y low byte = 0x57)
+                            when 675 =>      -- step 675: Write 0x57 to Register 0x6E (Line End Y low byte = 0x57)
                                 d_in <= x"0057";
                                 state <= DATA_WR;
-                            when 143 =>      -- step 143: Select Register 0x6F
+                            when 676 =>      -- step 676: Select Register 0x6F
                                 d_in <= x"006F";
                                 state <= COMMAND_WR;
-                            when 144 =>      -- step 144: Write 0x02 to Register 0x6F (Line End Y high byte = 0x02) Y end = 599 = 0x257
+                            when 677 =>      -- step 677: Write 0x02 to Register 0x6F (Line End Y high byte = 0x02) Y end = 599 = 0x257
                                 d_in <= x"0002";
                                 state <= DATA_WR;
-                            when 145 =>      -- step 145: read Status register
+                            when 678 =>      -- step 678: read Status register
                                 state <= STATUS_RD;
-                            when 146 =>      -- step 146: if status bit 3 is 1, go back to step 145 (Core Task is Busy)
+                            when 679 =>      -- step 679: if status bit 3 is 1, go back to step 678 (Core Task is Busy)
                                 if d_out(3) = '1' then
-                                    cmd_index <= 145;    -- still busy, check again
+                                    cmd_index <= 678;    -- still busy, check again
                                 end if;
-                            when 147 =>      -- step 147: Select register 0x76
+                            when 680 =>      -- step 680: Select register 0x76
                                 d_in <= x"0076";
                                 state <= COMMAND_WR;
-                            when 148 =>      -- step 148: Write 0xE0 to register 0x76 (Draw the filled square to clear the screen)
+                            when 681 =>      -- step 681: Write 0xE0 to register 0x76 (Draw the filled square to clear the screen)
                                 d_in <= x"00E0";
                                 state <= DATA_WR;
-                            when 149 =>     -- step 149: Select register 0x67
+                            when 682 =>     -- step 682: Select register 0x67
                                 d_in <= x"0067";
                                 state <= COMMAND_WR;
-                            when 150 =>      -- step 150: Read Register 0x67
+                            when 683 =>      -- step 683: Read Register 0x67
                                 state <= DATA_RD;
-                            when 151 =>      -- step 151: Check to see if bit 7 is set (line/triangle drawing function is processing)
+                            when 684 =>      -- step 684: Check to see if bit 7 is set (line/triangle drawing function is processing)
                                 if d_out(7) = '1' then
-                                    cmd_index <= 150;    -- still busy, check again
+                                    cmd_index <= 683;    -- still busy, check again
                                 end if;
-                            when 152 =>      -- step 152: Select Register 0x76
+                            when 685 =>      -- step 685: Select Register 0x76
                                 d_in <= x"0076";
                                 state <= COMMAND_WR;
-                            when 153 =>      -- step 153: Read Register 0x76
+                            when 686 =>      -- step 686: Read Register 0x76
                                 state <= DATA_RD;
-                            when 154 =>      -- step 154: Check to see if bit 7 is set (ellipse/curve/square) drawing function is processing)
+                            when 687 =>      -- step 687: Check to see if bit 7 is set (ellipse/curve/square) drawing function is processing)
                                 if d_out(7) = '1' then
-                                    cmd_index <= 153;    -- still busy, check again
+                                    cmd_index <= 868;    -- still busy, check again
+                                else
+                                    cmd_index <= 700;    -- proceed to next step
                                 end if;
-                            when 155 =>     -- step 155: Drawing completed, turn on backlight and Select Register 0x12
+
+                            when 700 =>     -- step 700: Drawing completed, turn on backlight and Select Register 0x12
                                 bl   <= '1';
                                 d_in <= x"0012";
                                 state <= COMMAND_WR;
-                            when 156 =>     -- step 156: Read Register 0x12
+                            when 701 =>     -- step 701: Read Register 0x12
                                 state <= DATA_RD;
-                            when 157 =>     -- step 157: Assert bit 6 (Turn on Screen) and write register 0x12
+                            when 702 =>     -- step 702: Assert bit 6 (Turn on Screen) and write register 0x12
                                 d_in <= d_out OR "0000000001000000";    -- assert bit 6
                                 state <= DATA_WR;
-                            when 158 =>
+                            when 703 =>
                                 state <= IDLE;
                                 powerup_done <= '1';
+
                             when others =>
                                 cmd_index <= 0;     -- failsafe - go back to the start if we get here
                                 state <= INIT;
