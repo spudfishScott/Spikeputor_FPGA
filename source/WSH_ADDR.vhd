@@ -5,13 +5,7 @@
 --  WE_I   - from the master arbiter
 --  STB_I  - from the master arbiter
 --  TGD_I  - route the data bus to update the SEGMENT register
-        -- This is no longer used
-        --  BANK_SEL register: - works with both ADDR_I and possible TGA_I to select RAM/ROM or SDRAM/ROM providers
-        --      Bank Select = "X00": All access to RAM, ROM not available, 0xE000-0xFFFF not available
-        --                  = "X01": (Default) 0x0000-0x7FFF - RAM read, 0x8000-0xFFFF ROM read, always write to RAM (except 0xE000-0xFFFF, for which there is no RAM)
-        --                  = "X10": 0x0000-0x7FFF - ROM read, 0x8000-0xFBFF RAM read, 0xE000-0xFFFF reads as 0, always write to RAM (except for 0xE000-0xFFFF)
-        --                  = "X11": 0x0000-0xFFFF - ROM read, always write to RAM (except for 0xE000-0xFFFF)
-        --      If TGA_I is not 0, RAM?ROM is determined by msb of TGA_I (1 = ROM, 0 = RAM)
+        --      If TGA_I is not 0, RAM?ROM is determined by msb (bit 23) of ADDR_I (1 = ROM, 0 = RAM)
 --  Px_DATA_O - data output from each provider
 --
 -- In addition to standard RAM (P0), SDRAM (P10), and ROM (P1), the following providers are accessed through specific addresses, which override the above:
@@ -40,11 +34,11 @@ entity WSH_ADDR is
         ADDR_I      : in std_logic_vector(23 downto 0);     -- standard address bus - bottom 16 bits is on Segment 0, msb = ROM/RAM for extended memory, bits 22->16 = segment number
         WE_I        : in std_logic;                         -- write enable flag
         STB_I       : in std_logic;                         -- wishbone strobe signal
-        TGD_I       : in std_logic;                         -- TGD_I and WE_I are high, route to P9, SEGMENT write
+        TGD_I       : in std_logic;                         -- when TGD_I and WE_I are high, route to P9, SEGMENT write
 
         -- Data out from providers
-        P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0)
-        P1_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from ROM (P1)
+        P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0) 0x0000-0xDFFF
+        P1_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from ROM (P1) 0xE000-0xFFFF, 0x810000-0xBFFFFF
         P2_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPO (P2)
         P3_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPI (P3)
         P4_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SOUND (P4)
@@ -53,7 +47,7 @@ entity WSH_ADDR is
         P7_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from STORAGE (P7)
         P8_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from KEYBOARD (P8)
         P9_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SEGMENT (P9)
-        P10_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from SDRAM (P10)
+        P10_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from SDRAM (P10) 0x010000-0x7FFFFF
         P11_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from MATH (P11)
 
         -- Output signals
@@ -64,15 +58,15 @@ end WSH_ADDR;
 
 architecture RTL of WSH_ADDR is
                             -- (map low byte of address to video coprocessor registers, except 0x00 => STATUS, and protect against registers that should not be exposed)
-    constant VIDEO_ADDR     : std_logic_vector(15 downto 0) := x"FF00"; -- VIDEO address start
+    constant VIDEO_ADDR     : std_logic_vector(15 downto 0) := x"FF00"; -- VIDEO address start (0xFF00-0xFFDF)
     constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FFF0"; -- keyboard address - read only
     constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FFF1"; -- GPO address - read/write
     constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FFF2"; -- GPI address - read only
 
--- sound
--- serial
--- storage
--- math fpu
+-- math fpu - two 32-bit input addresses, one 32-bit output addresses, one control/status address - 7 total (0xFFE0-0xFFE6)
+-- sound - use VGA output for sound? three voices, 4-bits each. So one address for volume and waveform control of all three voices, one address for frequency control for each voice - 4 total
+-- serial - one address I/O
+-- storage - one address I/O
 
     signal p_sel   : integer range 0 to 11 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- FPGA RAM selected
@@ -90,7 +84,7 @@ begin
                    else '0';
     ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111")                -- standard RAM:0x0000-0xDFFF, Segment 0
                    else '0';
-    sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0  and not a ROM address
+    sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0 and not a ROM address
                    else '0';
 
     -- assign p_sel based on addressing logic described above
@@ -102,7 +96,7 @@ begin
         -- to do the rest 4, 6, 7, 11
         else    8 when spec = '1' AND p_addr = KEYBOARD_ADDR                              -- read only KEYBOARD
         else    5 when spec = '1' AND p_addr(15 downto 8) = VIDEO_ADDR(15 downto 8) 
-                                  AND p_addr(7 downto 4) /= "1111"                        -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFEF)
+                                  AND p_addr(7 downto 4) < x"E"                           -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    1;                                                                        -- default to read ROM
 
