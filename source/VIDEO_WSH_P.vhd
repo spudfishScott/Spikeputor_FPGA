@@ -218,11 +218,11 @@ begin
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
-                            if return_st = INIT and powerup_done = '0' and cmd_index > 99 then
-                                timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command only on init - bizzare, but seems to work
-                            else
+--                            if return_st = INIT and powerup_done = '0' then
+--                                timer <= CMD_REFRESH_TIME/4;  -- set timer to delay before next command only on init - bizzare, but seems to work
+--                            else
                                 timer <= 0;                 -- one tick delay before next command for non-initialization - why is this ok but not during init?
-                            end if;
+--                            end if;
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
@@ -394,8 +394,33 @@ begin
                                 if d_out(1) = '1' then
                                     cmd_index <= 3;
                                 else
-                                    cmd_index <= 100;
+                                    cmd_index <= 10;
                                 end if;
+										  
+										                              -- SOFTWARE RESET
+                            when 10 =>       -- step 500: select register 0
+                                d_in <= x"0000";  -- set register 0
+                                state <= COMMAND_WR;
+                            when 11 =>       -- step 501: read register 0
+                                state <= DATA_RD;
+                            when 12 =>       -- step 502: assert bit 0 and write to register 0 (Software Reset)
+                                d_in <= d_out OR x"0001";
+                                state <= DATA_WR;
+                            when 13 =>       -- step 503: re-read register 0
+                                state <= DATA_RD;
+                            when 14 =>       -- step 504: if bit 0 is 1, go back to step 503 (Software Reset not complete)
+                                if d_out(0) = '1' then
+                                    cmd_index <= 13;
+                                end if;
+									 when 15 =>
+									     timer <= 2500; --50 us delay
+										  state <= WAIT_ST;
+									 when 16 =>
+									     if SCRN_WAIT_N = '0' then
+										     cmd_index <= 16;
+										else
+										    cmd_index <= 100;
+										  end if;  
 
                             -- SET PLLs
                             when 100 =>      -- step 100: Select Register 0x05
@@ -605,30 +630,22 @@ begin
                             when 428 =>      -- step 428: Delay 1
                                 timer <= CLK_FREQ / 1000;         -- 1 ms delay
                                 state <= WAIT_ST;
-                                cmd_index <= 500;
+                                cmd_index <= 600;
 
-                            -- SOFTWARE RESET
-                            when 500 =>       -- step 500: select register 0
-                                d_in <= x"0000";  -- set register 0
-                                state <= COMMAND_WR;
-                            when 501 =>       -- step 501: read register 0
-                                state <= DATA_RD;
-                            when 502 =>       -- step 502: assert bit 0 and write to register 0 (Software Reset)
-                                d_in <= d_out OR x"0001";
-                                state <= DATA_WR;
-                            when 503 =>       -- step 503: re-read register 0
-                                state <= DATA_RD;
-                            when 504 =>       -- step 504: if bit 0 is 1, go back to step 503 (Software Reset not complete)
-                                if d_out(0) = '1' then
-                                    cmd_index <= 503;
-                                else
-                                    cmd_index <= 600;
-                                end if;
+
 
                             -- SET RA8876 MAIN AND ACTIVE WINDOW - WARM RESET ENTRY POINT
                             when 600 =>      -- step 600: Select Register 0x10
                                 d_in <= x"0010";
                                 state <= COMMAND_WR;
+										  
+--									 when 591 =>
+--									     if SCRN_WAIT_N = '0' then
+--										     cmd_index <= 591;
+--										else
+--										    cmd_index <= 601;
+--										  end if; 
+										  
                             when 601 =>      -- step 601: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window)
                                 d_in <= x"0008";
                                 state <= DATA_WR;
