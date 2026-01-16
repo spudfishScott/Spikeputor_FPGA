@@ -218,10 +218,10 @@ begin
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
-                            if return_st = INIT then
+                            if return_st = INIT and powerup_done = '0' and cmd_index > 99 then
                                 timer <= CMD_REFRESH_TIME;  -- set timer to delay before next command only on init - bizzare, but seems to work
                             else
-                                timer <= 0; -- CMD_REFRESH_TIME/4;
+                                timer <= 0;                 -- one tick delay before next command for non-initialization - why is this ok but not during init?
                             end if;
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
