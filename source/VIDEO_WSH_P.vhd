@@ -38,8 +38,7 @@ end VIDEO_WSH_P;
 
 architecture RTL of VIDEO_WSH_P is
 
-    -- constants for timing control - RA8876 is slower than we are
-    constant CMD_REFRESH_TIME  : Integer := 8;  -- 8 ticks between end of last read/write data command and availability to do next command (160 ns)
+    -- constants for timing control
     constant CMD_CS_DIFF : Integer := 2;        -- 40 ns between /CS low and nRD/nWR high
     constant CMD_HOLD_TIME : Integer := 1;      -- 20 ns between nRD/nWR high and /CS high
 
@@ -65,13 +64,15 @@ architecture RTL of VIDEO_WSH_P is
     signal status_check : std_logic := '0';                                     -- status register check flag for multi-check commands
     signal powerup_done : std_logic := '0';                                     -- flag to indicate powerup sequence is done
 
+    -- Specialty flags
+    signal text_mode : std_logic := '0';                                        -- flag to indicate if text mode is enabled (little-endian pixel writes if not text mode)
+
     -- write both bytes of word-length registers
     signal lo_byte      : std_logic_vector(7 downto 0) := (others => '0');      -- lower byte for word writes (goes in REG)
     signal hi_byte      : std_logic_vector(7 downto 0) := (others => '0');      -- upper byte for word writes (goes in REG+1)
     signal current_reg  : std_logic_vector(7 downto 0) := (others => '0');      -- storage for current register (to detect changes and handle multi-read/write logic)
     signal current_word_flg : std_logic := '0';                                 -- stores the word_flg value at the start of a wishbone transaction
     signal make_word    : std_logic := '0';                                     -- flag to indicate that a word is being read and the two bytes need to be combined
-
 
     type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT, RD4, WR4, WORD_RD, WORD_WR);
     signal state        : state_type := INIT;
@@ -118,23 +119,25 @@ begin
                 timer     <= 0;         -- reset timer and command index
                 status_check <= '0';    -- reset status check flag
                 
-                if powerup_done = '0' then
+                if powerup_done = '0' then -- TO TRY: always do a hardware reset, just don't clear screen on soft reset. Works?
                     cmd_index <= 0;
                     n_res     <= '1';   -- set chip reset high to begin power up sequence
                 else
                     cmd_index <= 600;    -- if already powered up, skip to warm reset portion
                 end if;
 
-                bl        <= '0';   -- turn off backlight
-                n_rd      <= '1';   -- reset control signals
+                bl        <= '0';               -- turn off backlight
+                n_rd      <= '1';               -- reset control signals
                 n_wr      <= '1';
                 n_cs      <= '1';
                 rs        <= '0';
                 db_oe     <= '0';
-                d_out <= (others => '0');   -- reset data in/out
+                d_out <= (others => '0');       -- reset data in/out
                 d_in  <= (others => '0');
+                text_mode <= '0';               -- default to graphics mode
 
-                ack    <= '0';              -- clear ack signal
+                ack    <= '0';                  -- clear ack signal
+
             else
                 case state is
                     when WAIT_ST =>
@@ -218,11 +221,7 @@ begin
                         elsif timer = CMD_CS_DIFF + CMD_HOLD_TIME then
                             n_cs  <= '1';               -- complete command
                             db_oe <= '0';               -- set inout bus to input again
---                            if return_st = INIT and powerup_done = '0' then
---                                timer <= CMD_REFRESH_TIME/4;  -- set timer to delay before next command only on init - bizzare, but seems to work
---                            else
                                 timer <= 0;                 -- one tick delay before next command for non-initialization - why is this ok but not during init?
---                            end if;
                             state <= WAIT_ST;           -- wait, then go back to the state this was "called" from
                         end if;
 
@@ -263,6 +262,9 @@ begin
                                         state <= WR4;                       -- if writing register 4 repeatedly, poll status until FIFO not full and write next data
                                     else
                                         d_in <= "00000000" & reg_r;  -- load register address to write
+                                        if reg_r = x"03" then
+                                            text_mode <= WBS_DATA_I(2); -- update text mode flag when writing REG 3
+                                        end if;
                                         if word_flg = '0' then          -- single byte register
                                             state <= COMMAND_WR;            -- write command to select register
                                             return_st <= WSH_WRITE;         -- after selecting register, go to write state
@@ -310,8 +312,12 @@ begin
                         else
                             if d_out(7) = '1' then          -- check if FIFO not full
                                 status_check <= '0';        -- if full, check status again
-                            else    -- TODO: for graphics writing, flip bytes for little-endian write - pixels are stored little endian - need to track graphics mode internally
-                                d_in <= hi_byte & lo_byte;  -- for text writing
+                            else
+                                if text_mode = '0' then
+                                    d_in <= lo_byte & hi_byte;  -- for graphics writing, flip bytes for little-endian write
+                                else
+                                    d_in <= hi_byte & lo_byte;  -- for text writing
+                                end if;
                                 state <= DATA_WR;           -- write data to register 0x04
                                 return_st <= IDLE;          -- after writing data, return to idle state to wait for next wishbone transaction
                             end if;
@@ -396,31 +402,31 @@ begin
                                 else
                                     cmd_index <= 10;
                                 end if;
-										  
-										                              -- SOFTWARE RESET
-                            when 10 =>       -- step 500: select register 0
+
+                            -- SOFTWARE RESET
+                            when 10 =>       -- step 10: select register 0
                                 d_in <= x"0000";  -- set register 0
                                 state <= COMMAND_WR;
-                            when 11 =>       -- step 501: read register 0
+                            when 11 =>       -- step 11: read register 0
                                 state <= DATA_RD;
-                            when 12 =>       -- step 502: assert bit 0 and write to register 0 (Software Reset)
+                            when 12 =>       -- step 12: assert bit 0 and write to register 0 (Software Reset)
                                 d_in <= d_out OR x"0001";
                                 state <= DATA_WR;
-                            when 13 =>       -- step 503: re-read register 0
+                            when 13 =>       -- step 13: re-read register 0
                                 state <= DATA_RD;
-                            when 14 =>       -- step 504: if bit 0 is 1, go back to step 503 (Software Reset not complete)
+                            when 14 =>       -- step 14: if bit 0 is 1, go back to step 13 (Software Reset not complete)
                                 if d_out(0) = '1' then
                                     cmd_index <= 13;
                                 end if;
-									 when 15 =>
-									     timer <= 2500; --50 us delay
-										  state <= WAIT_ST;
-									 when 16 =>
-									     if SCRN_WAIT_N = '0' then
-										     cmd_index <= 16;
-										else
-										    cmd_index <= 100;
-										  end if;  
+                            when 15 =>       -- step 15: delay 50 us
+                                timer <= 2500; --50 us delay
+                                state <= WAIT_ST;
+                            when 16 =>      -- step 16: read /WAIT signal
+                                if SCRN_WAIT_N = '0' then
+                                    cmd_index <= 16;
+                                else
+                                    cmd_index <= 100;
+                                end if;  
 
                             -- SET PLLs
                             when 100 =>      -- step 100: Select Register 0x05
@@ -459,16 +465,6 @@ begin
                             when 111 =>      -- step 111: Write 0x27 to Register 0x0A (System Clock frequency)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
-    -- alternative PLL lock check method (not used here)
-    -- delay(1);
-    -- lcdRegWrite(0x01);
-    -- delay(2);
-    -- lcdDataWrite(0x80);
-    -- delay(2); // wait for pll stable
-    -- if ((lcdDataRead() & 0x80) == 0x80)
-    --     return true;
-    -- else
-    --     return false;
                             when 112 =>      -- step 112: Select Register 0x01
                                 d_in <= x"0001";
                                 state <= COMMAND_WR;
@@ -632,20 +628,10 @@ begin
                                 state <= WAIT_ST;
                                 cmd_index <= 600;
 
-
-
                             -- SET RA8876 MAIN AND ACTIVE WINDOW - WARM RESET ENTRY POINT
                             when 600 =>      -- step 600: Select Register 0x10
                                 d_in <= x"0010";
                                 state <= COMMAND_WR;
-										  
---									 when 591 =>
---									     if SCRN_WAIT_N = '0' then
---										     cmd_index <= 591;
---										else
---										    cmd_index <= 601;
---										  end if; 
-										  
                             when 601 =>      -- step 601: Write 0x08 to Register 0x10 (Disable PIPs, 24 bpp main window)
                                 d_in <= x"0008";
                                 state <= DATA_WR;
