@@ -144,10 +144,11 @@ architecture Structural of DE0_Spikeputor is
 
     -- clock logic
     signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
+    signal startup_res  : std_logic := '0';                                 -- startup reset signal
     signal SYS_CLK     : std_logic;                                         -- system clock signal
     signal RESET       : std_logic;                                         -- system reset signal
     signal MAN_CLK     : std_logic;                                         -- system manual clock
-    
+
     -- Input synchronized signals
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
     signal button_sync : std_logic_vector(2 downto 0) := (others => '0');
@@ -160,8 +161,20 @@ architecture Structural of DE0_Spikeputor is
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL)
-    RESET   <= NOT button_sync(0);                                           -- Reset is Button 0 (active low) now, but might not always be
+    RESET   <= startup_res OR (NOT button_sync(0));                          -- Reset is startup reset or Button 0 (active low) now, but might not always be
     MAN_CLK <= NOT button_sync(1);                                           -- Button 1 is manual clock (active low) now, but might not always be
+
+    	 -- startup
+	 PG1: entity work.PULSE_GEN
+		generic map ( 
+		   PULSE_WIDTH => 10_000_000,
+		   RESET_LOW => false
+		)
+		port map (
+			START_PULSE => '1',
+			CLK_IN      => SYS_CLK,
+			PULSE_OUT   => startup_res
+		);
 
     -- Input Synchronizers
     DIP_SYNC_E : entity work.SYNC_REG

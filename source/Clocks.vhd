@@ -80,7 +80,7 @@ end Behavior;
 ------------------------------------------------------------------------------------------------------------------
 -- Timed Pulse Generator
 -- Generates a pulse of specified width in clock ticks
--- pulse starts immediately and ends after the specified number of clock ticks
+-- pulse starts immediately when start_pulse goes to '1' and ends after the specified number of clock ticks
 -- If RESET_LOW is true, If START_PULSE is low before pulse is finished, the pulse is deactivated and the counter resets
 library ieee;
 use ieee.std_logic_1164.all;
