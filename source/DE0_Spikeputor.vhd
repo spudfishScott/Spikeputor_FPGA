@@ -144,7 +144,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- clock logic
     signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
-    signal startup_res  : std_logic := '0';                                 -- startup reset signal
+    signal startup_res  : std_logic := '1';                                 -- startup reset signal
     signal SYS_CLK     : std_logic;                                         -- system clock signal
     signal RESET       : std_logic;                                         -- system reset signal
     signal MAN_CLK     : std_logic;                                         -- system manual clock
@@ -164,24 +164,24 @@ begin
     RESET   <= startup_res OR (NOT button_sync(0));                          -- Reset is startup reset or Button 0 (active low) now, but might not always be
     MAN_CLK <= NOT button_sync(1);                                           -- Button 1 is manual clock (active low) now, but might not always be
 
-    	 -- startup
-	 PG1: entity work.PULSE_GEN
-		generic map ( 
-		   PULSE_WIDTH => 10_000_000,
-		   RESET_LOW => false
-		)
-		port map (
-			START_PULSE => '1',
-			CLK_IN      => SYS_CLK,
-			PULSE_OUT   => startup_res
-		);
+    -- startup reset pulse generator
+    PG1: entity work.PULSE_GEN
+        generic map ( 
+           PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
+           RESET_LOW => false
+        )
+        port map (
+            START_PULSE => '1',
+            CLK_IN      => SYS_CLK,
+            PULSE_OUT   => startup_res
+        );
 
     -- Input Synchronizers
     DIP_SYNC_E : entity work.SYNC_REG
         generic map ( WIDTH => 10 )
         port map (
             CLK_IN   => SYS_CLK,
-            ASYNC_IN => SW,
+            ASYNC_IN => SW, -- switches
             SYNC_OUT => sw_sync
         );
 
@@ -189,7 +189,7 @@ begin
         generic map ( WIDTH => 3 )
         port map (
             CLK_IN   => SYS_CLK,
-            ASYNC_IN => BUTTON,
+            ASYNC_IN => BUTTON, -- buttons
             SYNC_OUT => button_sync
         );
 

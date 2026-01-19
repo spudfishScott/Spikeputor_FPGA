@@ -119,7 +119,7 @@ begin
                 timer     <= 0;         -- reset timer and command index
                 status_check <= '0';    -- reset status check flag
                 
-                if powerup_done = '0' then -- TO TRY: always do a hardware reset, just don't clear screen on soft reset. Works?
+                if powerup_done = '0' then
                     cmd_index <= 0;
                     n_res     <= '1';   -- set chip reset high to begin power up sequence
                 else
@@ -400,33 +400,8 @@ begin
                                 if d_out(1) = '1' then
                                     cmd_index <= 3;
                                 else
-                                    cmd_index <= 10;
+                                    cmd_index <= 100; -- software reset seemed to be causing trouble at every turn, so see if we can do without it
                                 end if;
-
-                            -- SOFTWARE RESET
-                            when 10 =>       -- step 10: select register 0
-                                d_in <= x"0000";  -- set register 0
-                                state <= COMMAND_WR;
-                            when 11 =>       -- step 11: read register 0
-                                state <= DATA_RD;
-                            when 12 =>       -- step 12: assert bit 0 and write to register 0 (Software Reset)
-                                d_in <= d_out OR x"0001";
-                                state <= DATA_WR;
-                            when 13 =>       -- step 13: re-read register 0
-                                state <= DATA_RD;
-                            when 14 =>       -- step 14: if bit 0 is 1, go back to step 13 (Software Reset not complete)
-                                if d_out(0) = '1' then
-                                    cmd_index <= 13;
-                                end if;
-                            when 15 =>       -- step 15: delay 50 us
-                                timer <= 2500; --50 us delay
-                                state <= WAIT_ST;
-                            when 16 =>      -- step 16: read /WAIT signal
-                                if SCRN_WAIT_N = '0' then
-                                    cmd_index <= 16;
-                                else
-                                    cmd_index <= 100;
-                                end if;  
 
                             -- SET PLLs
                             when 100 =>      -- step 100: Select Register 0x05
