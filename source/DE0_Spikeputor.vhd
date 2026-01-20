@@ -6,56 +6,65 @@ library ieee;
 entity DE0_Spikeputor is
     port (
         -- Clock Input
-        CLOCK_50   : in std_logic;
+        CLOCK_50     : in std_logic;
         -- Push Button
-        BUTTON     : in std_logic_vector(2 downto 0);
+        BUTTON       : in std_logic_vector(2 downto 0);
         -- DPDT Switch
-        SW         : in std_logic_vector(9 downto 0);
+        SW           : in std_logic_vector(9 downto 0);
         -- 7-SEG Display
-        HEX0_D     : out std_logic_vector(6 downto 0);
-        HEX0_DP    : out std_logic;
-        HEX1_D     : out std_logic_vector(6 downto 0);
-        HEX1_DP    : out std_logic;
-        HEX2_D     : out std_logic_vector(6 downto 0);
-        HEX2_DP    : out std_logic;
-        HEX3_D     : out std_logic_vector(6 downto 0);
-        HEX3_DP    : out std_logic;
+        HEX0_D       : out std_logic_vector(6 downto 0);
+        HEX0_DP      : out std_logic;
+        HEX1_D       : out std_logic_vector(6 downto 0);
+        HEX1_DP      : out std_logic;
+        HEX2_D       : out std_logic_vector(6 downto 0);
+        HEX2_DP      : out std_logic;
+        HEX3_D       : out std_logic_vector(6 downto 0);
+        HEX3_DP      : out std_logic;
         -- LED
-        LEDG       : out std_logic_vector(9 downto 0);
+        LEDG         : out std_logic_vector(9 downto 0);
         -- FLASH
-        FL_BYTE_N  : out std_logic;
-        FL_CE_N    : out std_logic;
-        FL_OE_N    : out std_logic;
-        FL_RST_N   : out std_logic;
-        FL_WE_N    : out std_logic;
-        FL_WP_N    : out std_logic;
-        FL_ADDR    : out std_logic_vector(21 downto 0);
-        FL_DQ      : in std_logic_vector(15 downto 0);
-        FL_RY      : in std_logic;
+        FL_BYTE_N    : out std_logic;
+        FL_CE_N      : out std_logic;
+        FL_OE_N      : out std_logic;
+        FL_RST_N     : out std_logic;
+        FL_WE_N      : out std_logic;
+        FL_WP_N      : out std_logic;
+        FL_ADDR      : out std_logic_vector(21 downto 0);
+        FL_DQ        : in std_logic_vector(15 downto 0);
+        FL_RY        : in std_logic;
         --SDRAM
-        DRAM_CLK   : out std_logic;
-        DRAM_CKE   : out std_logic;
-        DRAM_CS_N  : out std_logic;
-        DRAM_RAS_N : out std_logic;
-        DRAM_CAS_N : out std_logic;
-        DRAM_WE_N  : out std_logic;
-        DRAM_BA_0  : out std_logic;
-        DRAM_BA_1  : out std_logic;
-        DRAM_ADDR  : out std_logic_vector(11 downto 0);
-        DRAM_DQ    : inout std_logic_vector(15 downto 0);
-        DRAM_UDQM  : out std_logic;
-        DRAM_LDQM  : out std_logic;
+        DRAM_CLK     : out std_logic;
+        DRAM_CKE     : out std_logic;
+        DRAM_CS_N    : out std_logic;
+        DRAM_RAS_N   : out std_logic;
+        DRAM_CAS_N   : out std_logic;
+        DRAM_WE_N    : out std_logic;
+        DRAM_BA_0    : out std_logic;
+        DRAM_BA_1    : out std_logic;
+        DRAM_ADDR    : out std_logic_vector(11 downto 0);
+        DRAM_DQ      : inout std_logic_vector(15 downto 0);
+        DRAM_UDQM    : out std_logic;
+        DRAM_LDQM    : out std_logic;
         --PS/2 KEYBOARD
-        PS2_KBCLK  : inout std_logic;
-        PS2_KBDAT  : inout std_logic;
-
-        -- TODO: GPIO - relabel GPIO1_D in project
+        PS2_KBCLK    : inout std_logic;
+        PS2_KBDAT    : inout std_logic;
+        -- GPIO - use GPIO1_D pins, but relabel
         -- GPI        : in std_logic_vector(31 downto 16);   -- 16 bits of GPI
         -- GPO        : out std_logic_vector(15 downto 0);   -- 16 bits of GPO
 
-        GPIO1_D    : out std_logic_vector(31 downto 0);   -- diagnostic outputs for now
-        -- reassign these pins directly in the assignment table and select in, out, or inout as appropriate
-        GPIO0_D    : inout std_logic_vector(24 downto 0)  -- [1:0] = dotstar out, [2:7] (BL_CTL, /RESET, /CS, /WR, /RD, RS) out, [8] = WAIT_N in, [24:9] = DATA inout
+        GPIO1_D      : out std_logic_vector(31 downto 0);   -- diagnostic outputs for now, eventually GPIO
+        -- Video Interface
+        VIDEO_BL     : out std_logic;
+        VIDEO_RST_N  : out std_logic;
+        VIDEO_CS_N   : out std_logic;
+        VIDEO_WR_N   : out std_logic;
+        VIDEO_RD_N   : out std_logic;
+        VIDEO_RS     : out std_logic;
+        VIDEO_WAIT_N : in std_logic;
+        VIDEO_DATA   : inout std_logic_vector(15 downto 0);
+        -- DotStar LED Strip Interface
+        DOTSTAR_DATA : out std_logic;
+        DOTSTAR_CLK  : out std_logic
     );
 end DE0_Spikeputor;
 
@@ -441,9 +450,14 @@ begin
             WBS_WE_I    => arb_we,
 
             -- video chip control signals
-            SCRN_CTRL   => GPIO0_D(7 downto 2),
-            SCRN_WAIT_N => GPIO0_D(8),
-            SCRN_DATA   => GPIO0_D(24 downto 9)
+            SCRN_BL     => VIDEO_BL,
+            SCRN_RST_N  => VIDEO_RST_N,
+            SCRN_CS_N   => VIDEO_CS_N,
+            SCRN_WR_N   => VIDEO_WR_N,
+            SCRN_RD_N   => VIDEO_RD_N,
+            SCRN_RS     => VIDEO_RS,
+            SCRN_WAIT_N => VIDEO_WAIT_N,
+            SCRN_DATA   => VIDEO_DATA
         );
 
     -- KEYBOARD Instance as Wishbone provider (P8)
@@ -566,15 +580,13 @@ begin
             GPO         => GPO_REG,                                                             -- bits: General Purpose Input (16 bits)
             GPI         => GPI,                                                                 -- bits: General Purpose Output (16 bits)
 
-            DATA_OUT    => GPIO0_D(0),                                                          -- DotStar data and clock signals
-            CLK_OUT     => GPIO0_D(1),
+            DATA_OUT    => DOTSTAR_DATA,                                                        -- DotStar data and clock signals
+            CLK_OUT     => DOTSTAR_CLK,
             BUSY        => led_busy
         );
 
     -- TODO: send these to the 20x4 LCD driver, along with SEGMENT, PC, and MDATA, and RWADDR
     -- the LCD driver shows INST/CONST, instruction interpreted, Next PC, and SEGMENT:RWADDR (-> or <-) MDATA during r/w operations
-    -- GPIO1_D(31 downto 16) <= inst_out;                              -- output inst_out to upper 16 bits of GPIO1
-    -- GPIO1_D(15 downto 0)  <= const_out;                             -- output const_out to lower 16 bits of GPIO1
     GPIO1_D(31 downto 16) <= rwaddr_out;                             -- output rwaddr_out to upper 16 bits of GPIO1
     GPIO1_D(15 downto 0)  <= mdata_out(15 downto 0);                 -- output mdata_out to lower 16 bits of GPIO1
 

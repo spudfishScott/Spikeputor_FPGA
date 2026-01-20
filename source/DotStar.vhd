@@ -51,9 +51,9 @@ end dotstar_driver;
 architecture rtl of dotstar_driver is
 
     constant NUM_SETS         : integer := 23;                                                      -- number of LED sets in the whole display array
-    constant MAX_LEDS_PER_SET : integer := 22;                                                      -- max number of LEDs in each set (one more than actual so zero padding always works)
+    constant MAX_LEDS_PER_SET : integer := 28;                                                      -- max number of LEDs in each set (one more than actual so zero padding always works)
     constant TOTAL_LEDS       : integer := 405;                                                     -- total number of LEDs (added the list above)
-    constant EXTRA_LEDs       : integer := 432 - TOTAL_LEDS;                                        -- extra LEDs to make total a multiple of 72 (for end of strip)
+    constant EXTRA_LEDs       : integer := 432 - TOTAL_LEDS + 1;                                    -- extra LEDs to make total a multiple of 72 (for end of strip) - temporary (then fix MAX_LEDS_PER_SET = 22)
 
     constant START_BITS       : integer := 32;                                                      -- number of bits in start frame (all '0's)
     constant BITS_PER_LED     : integer := 32;                                                      -- number of bits per LED (1 brightness + 3 colors x 8 bits each)

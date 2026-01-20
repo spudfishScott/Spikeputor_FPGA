@@ -30,8 +30,13 @@ entity VIDEO_WSH_P is
         WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
 
         -- Video Chip control signals
-        SCRN_CTRL   : out   std_logic_vector(5 downto 0);    -- Screen Control output only (BL_CTL, /RESET, /CS, /WR, /RD, RS) GPIO0 7 -> 2
-        SCRN_WAIT_N : in    std_logic;                       -- /WAIT signal input only (GPIO0 8)
+        SCRN_BL     : in std_logic;                         -- Backlight control
+        SCRN_RST_N  : in std_logic;                         -- /RESET signal
+        SCRN_CS_N   : in std_logic;                         -- /CS signal
+        SCRN_WR_N   : in std_logic;                         -- /WR signal
+        SCRN_RD_N   : in std_logic;                         -- /RD signal
+        SCRN_RS     : in std_logic;                         -- RS signal
+        SCRN_WAIT_N : out std_logic;                        -- /WAIT signal
         SCRN_DATA   : inout std_logic_vector(15 downto 0)    -- DATAIO signal (GPIO0 24 -> 9)
     );
 end VIDEO_WSH_P;
@@ -74,18 +79,19 @@ architecture RTL of VIDEO_WSH_P is
     signal current_word_flg : std_logic := '0';                                 -- stores the word_flg value at the start of a wishbone transaction
     signal make_word    : std_logic := '0';                                     -- flag to indicate that a word is being read and the two bytes need to be combined
 
+    -- state machine states and signals
     type state_type is (IDLE, ACK_CLEAR, WSH_READ, WSH_WRITE, STATUS_RD, COMMAND_WR, DATA_RD, DATA_WR, WAIT_ST, INIT, RD4, WR4, WORD_RD, WORD_WR);
     signal state        : state_type := INIT;
     signal return_st    : state_type := INIT;
 
 begin
     -- signals mapped to pin outputs
-    SCRN_CTRL(5) <= bl;
-    SCRN_CTRL(4) <= n_res;
-    SCRN_CTRL(3) <= n_cs;
-    SCRN_CTRL(2) <= n_wr;
-    SCRN_CTRL(1) <= n_rd;
-    SCRN_CTRL(0) <= rs;
+    SCRN_BL      <= bl;
+    SCRN_RST_N   <= n_res;
+    SCRN_CS_N    <= n_cs;
+    SCRN_WR_N    <= n_wr;
+    SCRN_RD_N    <= n_rd;
+    SCRN_RS      <= rs;
 
     -- send d_in into the screen controller when db_oe is 1, otherwise set data_out to screen controller output
     SCRN_DATA(15 downto 0) <= d_in when db_oe = '1' else (others => 'Z');
