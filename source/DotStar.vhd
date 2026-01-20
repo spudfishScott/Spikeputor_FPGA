@@ -53,6 +53,7 @@ architecture rtl of dotstar_driver is
     constant NUM_SETS         : integer := 23;                                                      -- number of LED sets in the whole display array
     constant MAX_LEDS_PER_SET : integer := 22;                                                      -- max number of LEDs in each set (one more than actual so zero padding always works)
     constant TOTAL_LEDS       : integer := 405;                                                     -- total number of LEDs (added the list above)
+    constant EXTRA_LEDs       : integer := 432 - TOTAL_LEDS;                                        -- extra LEDs to make total a multiple of 72 (for end of strip)
 
     constant START_BITS       : integer := 32;                                                      -- number of bits in start frame (all '0's)
     constant BITS_PER_LED     : integer := 32;                                                      -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
@@ -146,7 +147,7 @@ begin
                         end if;
 
                     when LOAD_SET =>                                -- get next set of LEDs to send
-                        if set_index /= NUM_SETS+1 then             -- if not finished all LED sets
+                        if set_index /= NUM_SETS+2 then             -- if not finished all LED sets + extra set for zero padding the end of the last strip
                             -- for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
                             case set_index is
                                 when 23 =>
@@ -222,8 +223,8 @@ begin
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto SEGMENT'length => '0') & SEGMENT;
                                     num_leds <= SEGMENT'length;
                                 when others =>
-                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto INST'length => '0') & INST;
-                                    num_leds <= INST'length;
+                                    set_reg  <= (others => '0');
+                                    num_leds <= EXTRA_LEDs;  -- pad with extra LEDs to make total a multiple of 72
                             end case;
 
                             led_index <= 0;                         -- start with first LED in the set
