@@ -30,13 +30,13 @@ entity VIDEO_WSH_P is
         WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
 
         -- Video Chip control signals
-        SCRN_BL     : in std_logic;                         -- Backlight control
-        SCRN_RST_N  : in std_logic;                         -- /RESET signal
-        SCRN_CS_N   : in std_logic;                         -- /CS signal
-        SCRN_WR_N   : in std_logic;                         -- /WR signal
-        SCRN_RD_N   : in std_logic;                         -- /RD signal
-        SCRN_RS     : in std_logic;                         -- RS signal
-        SCRN_WAIT_N : out std_logic;                        -- /WAIT signal
+        SCRN_BL     : out std_logic;                         -- Backlight control
+        SCRN_RST_N  : out std_logic;                         -- /RESET signal
+        SCRN_CS_N   : out std_logic;                         -- /CS signal
+        SCRN_WR_N   : out std_logic;                         -- /WR signal
+        SCRN_RD_N   : out std_logic;                         -- /RD signal
+        SCRN_RS     : out std_logic;                         -- RS signal
+        SCRN_WAIT_N : in std_logic;                          -- /WAIT signal
         SCRN_DATA   : inout std_logic_vector(15 downto 0)    -- DATAIO signal (GPIO0 24 -> 9)
     );
 end VIDEO_WSH_P;
