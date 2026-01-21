@@ -104,11 +104,11 @@ BEGIN
     VARIABLE count  :  INTEGER RANGE 0 TO divider * 4;  -- timing for clock generation
   
     BEGIN
-        IF (RESET_N = '0') THEN                     -- reset asserted
-            stretch <= '0';
-            count := 0;
-        ELSE
-            IF (rising_edge(CLK)) THEN
+        IF (rising_edge(CLK)) THEN
+            IF (RESET_N = '0') THEN                     -- reset asserted
+                stretch <= '0';
+                count := 0;
+            ELSE
                 data_clk_prev <= data_clk;              -- store previous value of data clock
 
                 IF (count = divider * 4 - 1) THEN       -- end of timing cycle
@@ -142,7 +142,8 @@ BEGIN
     --state machine and writing to sda during scl low (data_clk rising edge)
     PROCESS(CLK)
     BEGIN
-        IF (RESET_N = '0') THEN                         -- reset asserted
+        IF (rising_edge(CLK)) THEN
+            IF (RESET_N = '0') THEN                         -- reset asserted
                 state <= ready;                             -- return to initial state
                 scl_ena <= '0';                             -- sets scl high impedance
                 sda_int <= '1';                             -- sets sda high impedance
@@ -151,8 +152,7 @@ BEGIN
 
                 data_rd_int <= "00000000";                  -- clear data read port
                 busy_int <= '1';                            -- indicate not available
-        ELSE
-            IF (rising_edge(CLK)) THEN
+            ELSE
                 IF (data_clk = '1' AND data_clk_prev = '0') THEN    -- data clock rising edge
                     CASE state IS
                         WHEN READY =>                   -- idle state
@@ -285,8 +285,6 @@ BEGIN
 
                 END IF;
             END IF;
-
         END IF;
-
     END PROCESS;  
 END logic;
