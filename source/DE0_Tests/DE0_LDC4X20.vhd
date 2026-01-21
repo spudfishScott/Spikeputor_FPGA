@@ -22,8 +22,7 @@ entity DE0_LCD4X20 is
         -- LED
         LEDG       : out std_logic_vector(9 downto 0);
         -- LCD I2C Interface
-        LCD_SDA    : inout std_logic; -- GPIO0[31]
-        LCD_SCL    : out   std_logic; -- GPIO0[30]
+        GPIO0 : inout std_logic_vector(31 downto 30)
     );
 end DE0_LCD4X20;
 
@@ -39,7 +38,7 @@ architecture RTL of DE0_LCD4X20 is
     signal loop_counter : integer range 0 to 100 := 0;                      -- general purpose loop counter
     signal initialized : std_logic := '0';                                  -- indicates LCD initialization complete
 
-    TYPE machine IS (STARTUP, DELAY, READY, SEND);                          -- needed states
+    TYPE machine IS (STARTUP, DELAY, READY, SEND, IDLE);                          -- needed states
     SIGNAL state : machine := STARTUP;                                      -- state machine initial state
     SIGNAL return_state : machine := STARTUP;                               -- state to return to after delay
 begin
@@ -55,8 +54,8 @@ begin
         DATA_RD   => OPEN,
         ACK_ERROR => LEDG(9),                           -- indicate acknowledge error on LEDG(9)
 
-        SDA       => LCD_SDA,                           -- serial data signal of i2c bus
-        SCL       => LCD_SCL                            -- serial clock signal of i2c bus
+        SDA       => GPIO0[31],                           -- serial data signal of i2c bus
+        SCL       => GPIO0[30]                            -- serial clock signal of i2c bus
     );
 
     LEDG(7 downto 0) <= std_logic_vector(to_unsigned(cmd_index, 8));   -- show cmd_index on the on-board LEDs
