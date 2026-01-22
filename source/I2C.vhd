@@ -120,10 +120,10 @@ BEGIN
                 IF (count < divider) THEN                                       -- first 1/4 cycle of clocking
                     scl_clk <= '0';
                     data_clk <= '0';
-                ELSIF (count = divider) AND (count < divider * 2) THEN      -- second 1/4 cycle of clocking
+                ELSIF (count >= divider) AND (count < divider * 2) THEN      -- second 1/4 cycle of clocking
                     scl_clk <= '0';
                     data_clk <= '1';
-                ELSIF (count = divider * 2) AND (count < divider * 3) THEN  -- third 1/4 cycle of clocking
+                ELSIF (count >= divider * 2) AND (count < divider * 3) THEN  -- third 1/4 cycle of clocking
                     scl_clk <= '1';                 -- release scl
                     IF (SCL = '0') THEN             -- detect if provider is stretching clock
                         stretch <= '1';
