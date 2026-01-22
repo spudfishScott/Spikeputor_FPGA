@@ -71,7 +71,7 @@ architecture RTL of DE0_LCD4X20 is
 
     LEDG(7 downto 0) <= std_logic_vector(to_unsigned(cmd_index, 8));   -- show cmd_index on the on-board LEDs
     LEDG(8) <= '0';                                                    -- unused LEDG(8)
-    LEDG(9) <= i2c_error;                                              -- show i2c acknowledge error on LEDG(9)
+    LEDG(9) <= '0';
 
     HEX0_DP <= '1';
     HEX1_DP <= '1';
@@ -97,8 +97,6 @@ architecture RTL of DE0_LCD4X20 is
                 cmd_index <= 0;
                 subcmd_idx <= 0;
                 delay_counter <= 0;
-                
-                initialized <= '0';
 
                 busy_prev <= '0';
                 cmd_latched <= '0';
@@ -108,25 +106,22 @@ architecture RTL of DE0_LCD4X20 is
                         cmd_index <= cmd_index + 1;         -- increment command index
                         send_return1 <= STARTUP;            -- set return state to come back here
                         send_return2 <= STARTUP;            -- set delay return to come back here
+                        data_cmd <= '0';                    -- always send commands from here
                         case cmd_index is
                             when 0 =>               -- delay for startup 50 ms
-                                delay_counter <= 2500000;   -- 50ms delay at 50MHz
+                                delay_counter <= CLK_FREQ/20;
                                 state <= DELAY;
 
                             when 1 =>               -- function set command
                                 i2c_data_wr <= x"00";       -- turn off backlight, begin communication
                                 state <= SEND;
                             
-                            when 2 =>               -- delay for 1000 ms
-                                delay_counter <= 50000000;  -- 1000ms delay at 50MHz
+                            when 2 =>               -- delay for 1 s
+                                delay_counter <= CLK_FREQ;
                                 state <= DELAY;
 
-                            -- typical sequence to write 4 bits is: data in high nybble, command flags in low nybble. Write three bytes:
-                                -- 1. low nybble is just BACKLIGHT ON
-                                -- 2. low nybble is BACKLIGHT ON + ENABLE HIGH
-                                -- 3. low nybble is just BACKLIGHT ON + ENABLE LOW
-
                             -- try to set four bit mode by first insuring eight bit mode, then setting four bit mode
+                            -- send first command - if it was in four bit mode, but only halfway transmitted, this could execute anything, so long pause afterwards
                             when 3 =>               -- "expander write" is OR backlight on
                                 i2c_data_wr <= x"38";       -- function set: 8-bit
                                 state <= SEND;
@@ -143,21 +138,17 @@ architecture RTL of DE0_LCD4X20 is
                                 i2c_data_wr <= x"38";       -- pulse enable low
                                 state <= SEND;
 
-                            when 7 =>               -- delay after pulse 50 us
-                                delay_counter <= 2500;      -- 50us delay at 50MHz
+                            when 7 =>               -- delay after pulse 5 ms
+                                delay_counter <= CLK_FREQ/200;
                                 state <= DELAY;
-                            
-                            when 8 =>               -- delay for 5 ms
-                                delay_counter <= 250000;
-                                state <= DELAY;
-                                subcmd_idx <= subcmd_idx + 1;
-                                if subcmd_idx < 2 then
-                                    cmd_index <= 3;         -- repeat for a total of three times - LCD is now in 8 bit mode!
-                                else
-                                    subcmd_idx <= 0;        -- reset subcommand index
-                                end if;
 
-                            when 9 =>               -- Now set to 4-bit mode
+                            -- send two more nybbles to assure the LCD controller is in 8 bit mode - normal pauses here
+                            when 8 =>
+                                data_wr <= x"33";           -- send byte 0x33 as a command
+                                state <= SENDBYTE
+
+                            -- Now set to 4-bit mode via a single nybble command
+                            when 9 =>
                                 i2c_data_wr <= x"28";       -- function set: 4-bit
                                 state <= SEND;
 
@@ -166,7 +157,7 @@ architecture RTL of DE0_LCD4X20 is
                                 state <= SEND;
 
                             when 11 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
+                                delay_counter <= CLK_FREQ/1_000_000;
                                 state <= DELAY;
 
                             when 12 =>              -- "pulse enable" step 2
@@ -174,227 +165,54 @@ architecture RTL of DE0_LCD4X20 is
                                 state <= SEND;
 
                             when 13 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
+                                delay_counter <= CLK_FREQ/20_000;
                                 state <= DELAY;
 
-                            -- to send a byte in 4 bit mode, send two, 4-bit nybbles as above. Each nybble has bit 0 set for data and cleared for commands
-                            -- command: function set: 4-bit, 2 line, 5x8 dots : 0x28 = two nybbles: 0x2 and 0x8
-                            when 14 =>        -- high nybble (0x2)
-                                i2c_data_wr <= x"28";
-                                state <= SEND;
+                            -- command: function set: 4-bit, 2 line, 5x8 dots : 0x28
+                            when 14 =>
+                                data_wr <= x"28";
+                                state <= SENDBYTE;
+
+                            -- command: display on, cursor off, blink off : 0x0C
+                            when 15 =>
+                                data_wr <= x"0C";
+                                state <= SENDBYTE;
                             
-                            when 15 =>              -- "pulse enable"
-                                i2c_data_wr <= x"2C";       -- pulse enable high
-                                state <= SEND;
+                            -- command: clear screen : 0x01
+                            when 16 =>
+                                data_wr <= x"01";
+                                state <= SENDBYTE;
 
-                            when 16 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
+                            -- long delay for clear screen! 2ms delay
+                            when 17 =>
+                                delay_counter <= CLK_FREQ/500;
                                 state <= DELAY;
 
-                            when 17 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"28";       -- pulse enable low
-                                state <= SEND;
+                            -- command: set default text direction left to right, entry shift decrement : 0x06
+                            when 18 =>
+                                data_wr <= x"06";
+                                state <= SENDBYTE;
 
-                            when 18 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
+                            -- command: set cursor position to home position : 0x02
+                            when 19 =>
+                                data_wr <= x"02";
+                                state <= SENDBYTE;
 
-                            when 19 =>        -- low nybble (0x8)
-                                i2c_data_wr <= x"88";
-                                state <= SEND;
-
-                            when 20 =>              -- "pulse enable"
-                                i2c_data_wr <= x"8C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 21 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 22 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"88";       -- pulse enable low
-                                state <= SEND;
-
-                            when 23 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
-
-                            -- command: display on, cursor off, blink off : 0x0C  = two nybbles: 0x0 and 0x8
-                            when 24 =>        -- high nybble (0x0)
-                                i2c_data_wr <= x"08";
-                                state <= SEND;
-                            
-                            when 25 =>              -- "pulse enable"
-                                i2c_data_wr <= x"0C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 26 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 27 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"08";       -- pulse enable low
-                                state <= SEND;
-
-                            when 28 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
-
-                            when 29 =>        -- low nybble (0xC)
-                                i2c_data_wr <= x"C8";
-                                state <= SEND;
-
-                            when 30 =>              -- "pulse enable"
-                                i2c_data_wr <= x"CC";       -- pulse enable high
-                                state <= SEND;
-
-                            when 31 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 32 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"C8";       -- pulse enable low
-                                state <= SEND;
-
-                            when 33 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
-                            
-                            -- command: clear screen : 0x01 = two nybbles: 0x0 and 0x1
-                            when 34 =>        -- high nybble (0x0)
-                                i2c_data_wr <= x"08";
-                                state <= SEND;
-                            
-                            when 35 =>              -- "pulse enable"
-                                i2c_data_wr <= x"0C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 36 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 37 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"08";       -- pulse enable low
-                                state <= SEND;
-
-                            when 38 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
-
-                            when 39 =>        -- low nybble (0x1)
-                                i2c_data_wr <= x"18";
-                                state <= SEND;
-
-                            when 40 =>              -- "pulse enable"
-                                i2c_data_wr <= x"1C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 41 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 42 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"18";       -- pulse enable low
-                                state <= SEND;
-
-                            when 43 =>              -- delay after pulse 2 ms
-                                delay_counter <= 100000;     -- long delay! 2ms delay at 50MHz
-                                state <= DELAY;
-
-                            -- command: set default text direction left to right, entry shift decrement : 0x06 = two nybbles: 0x0 and 0x6
-                            when 44 =>        -- high nybble (0x0)
-                                i2c_data_wr <= x"08";
-                                state <= SEND;
-                            
-                            when 45 =>              -- "pulse enable"
-                                i2c_data_wr <= x"0C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 46 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 47 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"08";       -- pulse enable low
-                                state <= SEND;
-
-                            when 48 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
-
-                            when 49 =>        -- low nybble (0x7)
-                                i2c_data_wr <= x"68";
-                                state <= SEND;
-
-                            when 50 =>              -- "pulse enable"
-                                i2c_data_wr <= x"6C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 51 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 52 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"68";       -- pulse enable low
-                                state <= SEND;
-
-                            when 53 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
-
-                            -- command: set cursor position to home position : 0x02 = two nybbles: 0x0 and 0x2
-                            when 54 =>        -- high nybble (0x0)
-                                i2c_data_wr <= x"08";
-                                state <= SEND;
-                            
-                            when 55 =>              -- "pulse enable"
-                                i2c_data_wr <= x"0C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 56 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 57 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"08";       -- pulse enable low
-                                state <= SEND;
-
-                            when 58 =>              -- delay after pulse 50 us
-                                delay_counter <= 2500;       -- 50us delay at 50MHz
-                                state <= DELAY;
-
-                            when 59 =>        -- low nybble (0x2)
-                                i2c_data_wr <= x"28";
-                                state <= SEND;
-
-                            when 60 =>              -- "pulse enable"
-                                i2c_data_wr <= x"2C";       -- pulse enable high
-                                state <= SEND;
-
-                            when 61 =>              -- delay after pulse 1 us
-                                delay_counter <= 50;         -- 1us delay at 50MHz
-                                state <= DELAY;
-
-                            when 62 =>              -- "pulse enable" step 2
-                                i2c_data_wr <= x"28";       -- pulse enable low
-                                state <= SEND;
-
-                            when 63 =>              -- delay after pulse 50 us
-                                delay_counter <= 100000;     -- long delay! 2ms delay at 50MHz
+                            -- long delay for home cursor! 2ms delay
+                            when 20 =>
+                                delay_counter <= CLK_FREQ/500;
                                 state <= DELAY;
 
                             when others =>
-                                cmd_index <= 0;           -- reset command index
+                                cmd_index <= 0;             -- reset command index
                                 state <= READY;             -- go to ready state
-                                return_state <= READY;
-                                initialized <= '1';         -- indicate initialization complete
                         end case;
 
                     when DELAY =>                   -- delay for delay_count counts
                         if delay_counter = 0 then
-                        state <= send_return1;      -- countdown over, return to caller
+                            state <= send_return1;                  -- countdown over, return to caller
                         else
-                            delay_counter <= delay_counter - 1;
+                            delay_counter <= delay_counter - 1;     -- decrement delay counter
                         end if;
                     
                     when READY =>                   -- ready for test commands/data
@@ -456,7 +274,7 @@ architecture RTL of DE0_LCD4X20 is
 
                     when SENDBYTE =>                -- send byte to I2C based on data_wr and data_cmd
                         subcmd_idx <= subcmd_idx + 1;       -- increment command index
-                        send_return1 <= SENDBYTE;           -- set return state to come back here
+                        send_return1 <= SENDBYTE;           -- set return state to come back here - send_return2 is state of the caller
 
                         case subcmd_idx is
                                 -- send the byte as two nybbles in bits 7-4, bit 3 is always on (backlight), bit 2 is enable, bit 1 is always off (write), bit 0 is data_cmd
@@ -502,7 +320,7 @@ architecture RTL of DE0_LCD4X20 is
 
                             when others =>          -- done
                                 subcmd_idx <= 0;        -- reset subcmd_idx
-                                state <= send_return2;  -- return to caller
+                                state <= send_return2;  -- return to caller (using return2 because send_return1 was used here to return from SEND and DELAY)
                         end case;
 
                     when SEND =>                    -- send command/data to LCD
