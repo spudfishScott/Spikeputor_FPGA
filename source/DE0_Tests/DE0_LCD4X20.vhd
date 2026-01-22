@@ -32,6 +32,7 @@ architecture RTL of DE0_LCD4X20 is
     signal i2c_ena : std_logic := '0';                                      -- signal to enable i2c transaction
     signal i2c_data_wr : std_logic_vector(7 downto 0) := (others => '0');   -- data to write to i2c provider
     signal i2c_busy : std_logic := '0';                                     -- indicates i2c transaction in progress
+    signal i2c_error : std_logic := '0';                                    -- indicates i2c acknowledge error
 
     signal delay_counter : integer range 0 to 50000000 := 0;                -- counter for delay timing
     signal cmd_index : integer range 0 to 500 := 0;                         -- index for commands to send to LCD on startup
@@ -52,7 +53,7 @@ begin
         DATA_WR   => i2c_data_wr,                       -- data to write to provider
         BUSY      => i2c_busy,                          -- indicates transaction in progress
         DATA_RD   => OPEN,
-        ACK_ERROR => LEDG(9),                           -- indicate acknowledge error on LEDG(9)
+        ACK_ERROR => i2c_error,                           -- indicate acknowledge error on LEDG(9)
 
         SDA       => GPIO0_D(31),                       -- serial data signal of i2c bus
         SCL       => GPIO0_D(30)                        -- serial clock signal of i2c bus
@@ -99,7 +100,7 @@ begin
                                     state <= DELAY;
 
                                 when 1 =>               -- function set command
-                                    i2c_data_wr <= x"08";       -- turn on backlight, begin communication
+                                    i2c_data_wr <= x"00";       -- turn off backlight, begin communication
                                     state <= SEND;
                                 
                                 when 2 =>               -- delay for 1000 ms
@@ -132,8 +133,8 @@ begin
                                     delay_counter <= 2500;      -- 50us delay at 50MHz
                                     state <= DELAY;
                                 
-                                when 8 =>               -- delay for 4.1 ms
-                                    delay_counter <= 205000;    -- 4.1ms delay at 50MHz
+                                when 8 =>               -- delay for 5 ms
+                                    delay_counter <= 250000
                                     state <= DELAY;
                                     loop_counter <= loop_counter + 1;
                                     if loop_counter < 2 then

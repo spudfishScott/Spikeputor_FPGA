@@ -37,7 +37,7 @@ use ieee.numeric_std.all;
 ENTITY i2c_master IS
     GENERIC (
         INPUT_CLK : INTEGER := 50_000_000;          -- input clock speed from user logic in Hz
-        BUS_CLK   : INTEGER := 400_000              -- speed the i2c bus (scl) will run at in Hz
+        BUS_CLK   : INTEGER := 200_000              -- speed the i2c bus (scl) will run at in Hz
     );
 
     PORT (
