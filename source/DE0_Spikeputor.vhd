@@ -153,7 +153,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- clock logic
     signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
-    signal startup_res  : std_logic := '1';                                 -- startup reset signal
+    signal startup_res : std_logic := '1';                                  -- startup reset signal
     signal SYS_CLK     : std_logic;                                         -- system clock signal
     signal RESET       : std_logic;                                         -- system reset signal
     signal MAN_CLK     : std_logic;                                         -- system manual clock
@@ -162,9 +162,11 @@ architecture Structural of DE0_Spikeputor is
     signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
     signal button_sync : std_logic_vector(2 downto 0) := (others => '0');
 
-    -- DotStar Control
-    signal refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
+    -- DotStar and LCD Control
+    signal led_refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
+    signal lcd_refresh : std_logic := 0;                                     -- signal to start the LCD refresh process
     signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
+    signal lcd_busy    : std_logic := '0';                                   -- the LCD interface is busy with an update
     signal last_cyc_sig : std_logic := '0';                                  -- to detect edge of wishbone cycle for wishbone update request
 
 begin
@@ -322,7 +324,7 @@ begin
         );
 
     -- Spikeputor DMA as Wishbone master (M1)
-    -- TBD
+    -- TODO
 
     -- Spikeputor CPU Clock Throttle Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M
@@ -541,16 +543,19 @@ begin
     begin
         if rising_edge(SYS_CLK) then 
             last_cyc_sig <= arb_cyc;    -- to detect falling edge of CYC_O signal for DotStar update requests
+        --uncomment when GPO is fully implemented
+        --GPO                   <= GPO_REG;
         end if;
     end process;
 
-    refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+    led_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+    lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
 
     DOTSTAR : entity work.dotstar_driver 
         generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
         port map (
             CLK         => SYS_CLK,
-            START       => refresh,
+            START       => led_refresh,
 
             INST        => inst_out,                                                            -- bits: Instruction (16 bits)
             CONST       => const_out,                                                           -- bits: Constant (16 bits)
@@ -585,13 +590,29 @@ begin
             BUSY        => led_busy
         );
 
-    -- TODO: send these to the 20x4 LCD driver, along with SEGMENT, PC, and MDATA, and RWADDR
-    -- the LCD driver shows INST/CONST, instruction interpreted, Next PC, and SEGMENT:RWADDR (-> or <-) MDATA during r/w operations
+    -- the LCD driver shows INST/CONST, instruction interpreted, Next PC, and SEGMENT:RWADDR (-> or <-) MDATA during r/w operations - communicates with actual LCD display via the I2C interface lines
+    LCD : entity work.LCD_I2C
+        generic map ( CLK_FREQ => CLK_FREQ )
+        port map (
+            CLK         => SYS_CLK,
+            RST         => RESET,
+            START       => lcd_refresh,                                                         -- set high to begin an update of the LCD panel
+
+            INST        => inst_out,                                                            -- current instruction
+            CONST       => const_out,                                                           -- current constant
+            ADDR        => rwaddr_out,                                                          -- current address being read or written
+            SEGMENT     => SEGMENT,                                                             -- current segment
+            PC          => pc_out,                                                              -- current program counter value
+            MDATA       => mdata_out,                                                           -- current data for memory read/write (includes write flag)
+
+            SCL         => GPIO_0(30),                                                          -- LCD SCL signal - eventually change to LCD_SCL
+            SDA         => GPIO_0(31),                                                          -- LCD SDA signal - eventually change to LCD_SDA
+            BUSY        => lcd_busy
+        );
+
+    -- remove when above is done, then fully implement GPO/GPI
     GPIO1_D(31 downto 16) <= rwaddr_out;                             -- output rwaddr_out to upper 16 bits of GPIO1
     GPIO1_D(15 downto 0)  <= mdata_out(15 downto 0);                 -- output mdata_out to lower 16 bits of GPIO1
-
-    --uncomment when GPO is fully implemented
-    --GPO                   <= GPO_REG;
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS 

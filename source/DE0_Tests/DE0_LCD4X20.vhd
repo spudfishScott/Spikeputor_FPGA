@@ -145,7 +145,7 @@ architecture RTL of DE0_LCD4X20 is
                             -- send two more nybbles to assure the LCD controller is in 8 bit mode - normal pauses here
                             when 8 =>
                                 data_wr <= x"33";           -- send byte 0x33 as a command
-                                state <= SENDBYTE
+                                state <= SENDBYTE;
 
                             -- Now set to 4-bit mode via a single nybble command
                             when 9 =>

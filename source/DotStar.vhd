@@ -93,15 +93,15 @@ begin
     DATA_OUT  <= data_out_int;
     BUSY      <= active;
 
-    regin_sig <= "1" & REGIN(15 downto 0);  -- the wdsel LED will always be lit with something, the rest is a normal 16 bit value
-    cmp_sig   <= "1" & ALU_CMP(4 downto 0); -- the CMPFN LED will always be lit with something, the rest are normals signals
-
     process(CLK) is
     begin
         if rising_edge(CLK) then
 
             if active = '0' then            -- start a new transaction only if not already active
                 if START = '1' then         -- if starting, initialize clock divider and set active
+                -- TODO: latch all 23 inputs here to keep the total path lengths small, thus increasing the possibility of speeding up the clock via PLL
+                    regin_sig <= "1" & REGIN(15 downto 0);  -- the wdsel LED will always be lit with something, the rest is a normal 16 bit value
+                    cmp_sig   <= "1" & ALU_CMP(4 downto 0); -- the CMPFN LED will always be lit with something, the rest are normals signals
                     active  <= '1';
                     clk_div <= 0;
                     phase   <= '0';
@@ -372,7 +372,7 @@ begin
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         led_reg(COLOR_RANGE) <= x"000004";          -- INST and CONST, and ALU Output are all red LEDs
                                     end if;
-                                when 2 => -- TODO: Maybe blank these unless reading or writing is happening
+                                when 2 => -- TODO: Maybe blank these unless reading or writing is happening (from inst register)
                                     if led_index = 16 then      -- msb of MDATA is read/write signal
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"040004";      -- magenta LED for write (1)
