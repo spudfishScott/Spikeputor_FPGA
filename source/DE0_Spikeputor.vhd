@@ -604,7 +604,7 @@ begin
             CONST       => const_out,                                                           -- current constant
             ADDR        => rwaddr_out,                                                          -- current address being read or written
             SEGMENT     => SEGMENT,                                                             -- current segment
-            PC          => pc_out(15 downto 0),                                                 -- current program counter value
+            PC          => pc_out,                                                              -- current program counter value (includes JT)
             MDATA       => mdata_out,                                                           -- current data for memory read/write (includes write flag)
 
             SCL         => GPIO0_D(30),                                                          -- LCD SCL signal - eventually change to LCD_SCL

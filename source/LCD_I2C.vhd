@@ -13,7 +13,7 @@ entity LCD_I2C is
         CONST   : in std_logic_vector(15 downto 0);                                         -- current constant
         ADDR    : in std_logic_vector(15 downto 0);                                         -- current address being read or written
         SEGMENT : in std_logic_vector(7 downto 0);                                          -- current segment
-        PC      : in std_logic_vector(15 downto 0);                                         -- current program counter value
+        PC      : in std_logic_vector(16 downto 0);                                         -- current program counter value (includes JT)
         MDATA   : in std_logic_vector(16 downto 0);                                         -- current data for memory read/write (includes write flag)
 
         SCL     : inout std_logic;                                                          -- LCD SCL signal - eventually change to LCD_SCL
@@ -54,6 +54,7 @@ architecture RTL of LCD_I2C is
     signal s_mdata      : std_logic_vector(15 downto 0) := (others => '0');      -- local copy of memory data
     signal s_seg        : std_logic_vector(7 downto 0) := (others => '0');       -- local copy of SEGMENT
     signal s_wr         : std_logic := '0';                                      -- local copy of write flag
+	 signal s_jt         : std_logic := '0';                                      -- local copy of JT flag
 
     -- strings to print and translation logic
     signal string_reg   : std_logic_vector(47 downto 0) := (others => '0');      -- up to six byte string to print
@@ -96,16 +97,16 @@ begin
                 busy_prev <= '0';
                 cmd_latched <= '0';
             else
-
-                if state /= FORMAT then
+				    if state /= FORMAT then
                     s_inst <= INST;
                     s_const <= CONST;
-                    s_PC <= PC;
+                    s_PC <= PC(15 downto 0);
                     s_addr <= ADDR;
                     s_mdata <= MDATA(15 downto 0);
                     s_wr <= MDATA(16);
                     s_seg <= SEGMENT;
-                end if;
+						  s_jt <= PC(16);
+					 end if;
 
                 case state is
                     when STARTUP =>                 -- send initialization commands to LCD
@@ -398,9 +399,17 @@ begin
                                                 string_reg <= x"205354432020";          -- " STC  "
                                                 rc_first <= true;
                                             when "100" =>
-                                                string_reg <= x"204245512020";          -- " BEQ  "
+														      if s_jt = '0' then
+                                                    string_reg <= x"204245512020";      -- " BEQ  "
+																else
+																    string_reg <= x"20424551205E";      -- " BEQ *"
+																end if;
                                             when "101" =>
-                                                string_reg <= x"20424E452020";          -- " BNE  "
+														      if s_jt = '0' then
+                                                    string_reg <= x"20424E452020";      -- " BNE  "
+																else
+																    string_reg <= x"20424E45205E";      -- " BNE  *"
+																end if;
                                             when "110" =>
                                                 string_reg <= x"204C44532020";          -- " LDS  "
                                                 rc_only <= true;
@@ -421,17 +430,16 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement the loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 3;                                         -- come back here after last character, but to next step
-                                    loop_index <= 14;                                       -- next step, print 15 spaces
+                                    loop_index <= 13;                                       -- next step, print 14 spaces
                                 end if;
 
-                            when 3 =>                           -- print 15 spaces
+                            when 3 =>                           -- print 14 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 4;                                         -- come back here after last space, but to next step, print arrow
                                 end if;
-                                    -- TODO: Print "->"
 
                             when 4 =>                           -- print arrow
                                 data_wr <= x"7E";
@@ -494,7 +502,7 @@ begin
 
                             when 9 =>                       -- convert CONST to 4 hexadecimal digit string if needed
                                 if (s_inst(10) = '0' OR rc_only) then           -- this step not needed, go to next step
-                                    cmd_index <= 9;                                         -- go to next step, print spaces or second argument (register)
+                                    cmd_index <= 10;                                         -- go to next step, print spaces or second argument (register)
                                     loop_index <= 4;                                        -- print 5 characters
                                 else                                            -- convert CONST and add to the string register
                                     string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
@@ -615,10 +623,10 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 18;                                        -- come back here after last character, but to next step
-                                    loop_index <= 2;                                        -- next up, print 2 spaces
+                                    loop_index <= 4;                                        -- next up, print 5 spaces
                                 end if;
 
-                            when 18 =>                      -- print 3 spaces
+                            when 18 =>                      -- print 5 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
