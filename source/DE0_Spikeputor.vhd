@@ -164,7 +164,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- DotStar and LCD Control
     signal led_refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
-    signal lcd_refresh : std_logic := 0;                                     -- signal to start the LCD refresh process
+    signal lcd_refresh : std_logic := '0';                                   -- signal to start the LCD refresh process
     signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
     signal lcd_busy    : std_logic := '0';                                   -- the LCD interface is busy with an update
     signal last_cyc_sig : std_logic := '0';                                  -- to detect edge of wishbone cycle for wishbone update request

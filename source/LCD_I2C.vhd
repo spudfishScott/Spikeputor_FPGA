@@ -68,7 +68,7 @@ architecture RTL of LCD_I2C is
     signal send_return2 : machine := STARTUP;
 
     -- Function to convert 4-bit hex digit to ASCII
-    function to_hex_ascii(digit : std_logic_vector(3 downto 0)) return std_logic_vector(7 downto 0) is
+    function to_hex_ascii(digit : std_logic_vector(3 downto 0)) return std_logic_vector is
     begin
         if to_integer(unsigned(digit)) > 9 then     -- digit is A-F
             return std_logic_vector(to_unsigned(to_integer(unsigned(digit)) + 55, 8)); -- covert digit value (10-15) to ascii character ('A'-'F')
@@ -89,9 +89,9 @@ begin
                 send_return1 <= STARTUP;
                 send_return2 <= STARTUP;
 
-                cmd_index <= 0;
+                cmd_index  <= 0;
                 subcmd_idx <= 0;
-                delay_counter <= 0;
+                delay_cntr <= 0;
 
                 busy_prev <= '0';
                 cmd_latched <= '0';
@@ -104,7 +104,7 @@ begin
                         data_cmd <= '0';                    -- always send commands from here
                         case cmd_index is
                             when 0 =>               -- delay for startup 50 ms
-                                delay_counter <= CLK_FREQ/20;
+                                delay_cntr <= CLK_FREQ/20;
                                 state <= DELAY;
 
                             when 1 =>               -- function set command
@@ -112,7 +112,7 @@ begin
                                 state <= SEND;
                             
                             when 2 =>               -- delay for 1 s
-                                delay_counter <= CLK_FREQ;
+                                delay_cntr <= CLK_FREQ;
                                 state <= DELAY;
 
                             -- try to set four bit mode by first insuring eight bit mode, then setting four bit mode
@@ -126,7 +126,7 @@ begin
                                 state <= SEND;
 
                             when 5 =>               -- delay after pulse 1 us
-                                delay_counter <= 50;        -- 1us delay at 50MHz
+                                delay_cntr <= 50;           -- 1us delay at 50MHz
                                 state <= DELAY;
 
                             when 6 =>               -- "pulse enable" step 2
@@ -134,7 +134,7 @@ begin
                                 state <= SEND;
 
                             when 7 =>               -- delay after pulse 5 ms
-                                delay_counter <= CLK_FREQ/200;
+                                delay_cntr <= CLK_FREQ/200;
                                 state <= DELAY;
 
                             -- send two more nybbles to assure the LCD controller is in 8 bit mode - normal pauses here
@@ -152,7 +152,7 @@ begin
                                 state <= SEND;
 
                             when 11 =>              -- delay after pulse 1 us
-                                delay_counter <= CLK_FREQ/1_000_000;
+                                delay_cntr <= CLK_FREQ/1_000_000;
                                 state <= DELAY;
 
                             when 12 =>              -- "pulse enable" step 2
@@ -160,7 +160,7 @@ begin
                                 state <= SEND;
 
                             when 13 =>              -- delay after pulse 50 us
-                                delay_counter <= CLK_FREQ/20_000;
+                                delay_cntr <= CLK_FREQ/20_000;
                                 state <= DELAY;
 
                             -- command: function set: 4-bit, 2 line, 5x8 dots : 0x28
@@ -180,7 +180,7 @@ begin
 
                             -- long delay for clear screen! 2ms delay
                             when 17 =>
-                                delay_counter <= CLK_FREQ/500;
+                                delay_cntr <= CLK_FREQ/500;
                                 state <= DELAY;
 
                             -- command: set default text direction left to right, entry shift decrement : 0x06
@@ -195,7 +195,7 @@ begin
 
                             -- long delay for home cursor! 2ms delay
                             when 20 =>
-                                delay_counter <= CLK_FREQ/500;
+                                delay_cntr <= CLK_FREQ/500;
                                 state <= DELAY;
 
                             when others =>
@@ -241,9 +241,9 @@ begin
 
                                 if (s_inst(9) = '0') then           -- Not a LD/ST/BR opcode, so ALU
                                     case s_inst(15 downto 14) is        -- switch on ALU Function
-                                        when 0 =>   -- ALU Compare
+                                        when "00" =>   -- ALU Compare
                                             case s_inst(13 downto 11) is    -- switching on ALU Function Operation
-                                                when => 1
+                                                when 1 =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"434D50455120";   -- "CMPEQ "
                                                     else
@@ -271,7 +271,7 @@ begin
                                                     string_reg <= x"3F3F3F3F3F3F";       -- "??????"
                                             end case;
 
-                                        when 1 =>   -- ALU Arithmetic
+                                        when "01" =>   -- ALU Arithmetic
                                             if (s_inst(13 downto 11) = "000") then
                                                 if (s_inst(10) = '0') then
                                                     string_reg <= x"204144442020";      -- " ADD  "
@@ -288,7 +288,7 @@ begin
                                                 string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                             end if;
                                             
-                                        when 2 =>   -- ALU Bitwise Math
+                                        when "10" =>   -- ALU Bitwise Math
                                             case s_inst(13 downto 11) is    -- switching on ALU Function Operation
                                                 when 0 =>
                                                     if (s_inst(10) = '0') then
@@ -342,7 +342,7 @@ begin
                                                     string_reg <= x"3F3F3F3F3F3F";       -- "??????"
                                             end case;
 
-                                        when 3 =>   -- ALU Shift
+                                        when "11" =>   -- ALU Shift
                                             case s_inst(13 downto 11) is    -- switching on ALU function
                                                 when 0 =>
                                                     if (s_inst(10) = '0') then
@@ -504,11 +504,11 @@ begin
                                     data_wr <= x"20";                                       -- print only spaces if no_rb is true
                                 elsif s_inst(10) = '0' then                     -- print either space or Rb if no constant
                                     case loop_index is
-                                        where 3 =>
+                                        when 3 =>
                                             data_wr <= x"52";                               -- ascii for 'R'
-                                        where 2 =>                                          -- convert Rb to ascii digit
+                                        when 2 =>                                          -- convert Rb to ascii digit
                                             data_wr <= to_hex_ascii(s_inst(8 downto 6));
-                                        where others =>
+                                        when others =>
                                             data_wr <= x"20";                               -- otherwise get ascii for leading and trailing space    
                                     end case;
                                 else                                            -- constant exists, print digits of CONST or trailing space
@@ -585,9 +585,9 @@ begin
 
                             when 14 =>                      -- print arrow corresponding to read or write
                                 if s_wr = '0' then
-                                    data_wr = x"7E";                                        -- read: right arrow from address to data
+                                    data_wr <= x"7E";                                       -- read: right arrow from address to data
                                 else
-                                    data_wr = x"7F";                                        -- write: left arrow from data to address
+                                    data_wr <= x"7F";                                       -- write: left arrow from data to address
                                 end if;
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 cmd_index <= 15;                                            -- come back here, but to next step
