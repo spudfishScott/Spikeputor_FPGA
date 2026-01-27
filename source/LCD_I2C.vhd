@@ -80,7 +80,7 @@ architecture RTL of LCD_I2C is
 begin
 
     BUSY <= '0' when state = READY else '1';        -- module is BUSY except when in READY state
-
+									 
     process(CLK)
     begin
         if rising_edge(CLK) then
@@ -96,6 +96,14 @@ begin
                 busy_prev <= '0';
                 cmd_latched <= '0';
             else
+									 s_inst <= INST;                   
+                            s_const <= CONST;
+                            s_PC <= PC;
+                            s_addr <= ADDR;
+                            s_mdata <= MDATA(15 downto 0);
+                            s_wr <= MDATA(16);
+                            s_seg <= SEGMENT;
+									 
                 case state is
                     when STARTUP =>                 -- send initialization commands to LCD
                         cmd_index <= cmd_index + 1;         -- increment command index
@@ -205,14 +213,6 @@ begin
 
                     when READY =>                   -- waiting to start updating the panel info
                         if (START = '1') then               -- got a start signal when not busy
-                            s_inst <= INST;                     -- latch in all values
-                            s_const <= CONST;
-                            s_PC <= PC;
-                            s_addr <= ADDR;
-                            s_mdata <= MDATA(15 downto 0);
-                            s_wr <= MDATA(16);
-                            s_seg <= SEGMENT;
-
                             cmd_index <= 0;                     -- reset cmd_index
                             loop_index <= 8;                    -- set loop index for next step (print 9 spaces)
                             state <= FORMAT;                    -- move to FORMAT state (sets BUSY)
@@ -342,35 +342,37 @@ begin
 
                                         when "11" =>   -- ALU Shift
                                             case s_inst(13 downto 11) is    -- switching on ALU function
-                                                when "00" =>
+                                                when "000" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"205348522020";   -- " SHR  "
                                                     else
                                                         string_reg <= x"205348524320";   -- " SHRC "
                                                     end if;
-                                                when "01" =>
+                                                when "001" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"2053484C2020";   -- " SHL  "
                                                     else
                                                         string_reg <= x"2053484C4320";   -- " SHLC "
                                                     end if;
-                                                when "10" =>
+                                                when "010" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"205352412020";   -- " SRA  "
                                                     else
                                                         string_reg <= x"205352414320";   -- " SRAC "
                                                     end if;
-                                                when "11" =>
+                                                when "011" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"20524C432020";   -- " SLC  "
                                                     else
                                                         string_reg <= x"20524C434320";   -- " SLCC "
                                                     end if;
+																when others =>
+																    string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                             end case;
                                     end case;
                                 else                                -- LD/ST/BR opcode
                                     if (s_inst(15 downto 10) = "101010") then   -- JMP/LD/ST
-                                        case s_inst(9 downto 7) is      -- switching on Rb
+                                        case s_inst(8 downto 6) is      -- switching on Rb
                                             when "000" =>
                                                 string_reg <= x"204A4D502020";          -- " JMP  "
                                             when "010" =>
@@ -384,7 +386,7 @@ begin
                                                 string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                         end case;
                                     elsif (s_inst(15 downto 11) = "01000") then -- JMPC/LDC/STC/BEQ/BNE/LDS/STS
-                                        case s_inst(9 downto 7) is
+                                        case s_inst(8 downto 6) is
                                             when "000" =>
                                                 string_reg <= x"204A4D504320";          -- " JMPC "
                                             when "010" =>
@@ -393,17 +395,17 @@ begin
                                                 string_reg <= x"205354432020";          -- " STC  "
                                                 rc_first <= true;
                                             when "100" =>
-                                                string_req <= x"204245512020";          -- " BEQ  "
+                                                string_reg <= x"204245512020";          -- " BEQ  "
                                             when "101" =>
-                                                string_req <= x"20424E452020";          -- " BNE  "
+                                                string_reg <= x"20424E452020";          -- " BNE  "
                                             when "110" =>
-                                                string_req <= x"204C44532020";          -- " LDS  "
+                                                string_reg <= x"204C44532020";          -- " LDS  "
                                                 rc_only <= true;
                                             when "111" =>
-                                                string_req <= x"205354532020";          -- " STS  "
+                                                string_reg <= x"205354532020";          -- " STS  "
                                                 rc_only <= true;
                                             when others =>
-                                                string_req <= x"3F3F3F3F3F3F";          -- "??????"
+                                                string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                         end case;
                                     else
                                         string_reg <= x"3F3F3F3F3F3F";                  -- "??????"
@@ -416,10 +418,10 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement the loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 3;                                         -- come back here after last character, but to next step
-                                    loop_index <= 4;                                        -- next step, print 5 spaces
+                                    loop_index <= 14;                                        -- next step, print 5 spaces
                                 end if;
 
-                            when 3 =>                           -- print 5 spaces
+                            when 3 =>                           -- print 15 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
@@ -443,10 +445,10 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 6;                                         -- come back here after last character, but to next step
-                                    loop_index <= 22;                                       -- next up, print 23 spaces
+                                    loop_index <= 12;                                       -- next up, print 23 spaces
                                 end if;
 
-                            when 6 =>                           -- print 23 spaces
+                            when 6 =>                           -- print 13 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
@@ -467,9 +469,9 @@ begin
                                         if (rc_only) then
                                             data_wr <= x"20";                               -- ascii for space
                                         elsif (rc_first) then
-                                            data_wr <= to_hex_ascii(s_inst(5 downto 3));    -- convert Rc to ascii digit
+                                            data_wr <= to_hex_ascii("0" & s_inst(5 downto 3));    -- convert Rc to ascii digit
                                         else
-                                            data_wr <= to_hex_ascii(s_inst(2 downto 0));    -- convert Ra to ascii digit
+                                            data_wr <= to_hex_ascii("0" & s_inst(2 downto 0));    -- convert Ra to ascii digit
                                         end if;
                                     when others =>                      -- print space
                                         data_wr <= x"20";                                   -- ascii for space
@@ -503,7 +505,7 @@ begin
                                         when 3 =>
                                             data_wr <= x"52";                               -- ascii for 'R'
                                         when 2 =>                                          -- convert Rb to ascii digit
-                                            data_wr <= to_hex_ascii(s_inst(8 downto 6));
+                                            data_wr <= to_hex_ascii("0" & s_inst(8 downto 6));
                                         when others =>
                                             data_wr <= x"20";                               -- otherwise get ascii for leading and trailing space    
                                     end case;
@@ -525,13 +527,13 @@ begin
                                 if rc_only then                                 -- print space if rc only
                                     data_wr <= x"20";                                       -- ascii for space
                                 else                                            -- print "Rx" for third argument
-                                    if (loop_index = 0) then
+                                    if (loop_index = 1) then
                                         data_wr <= x"52";                                   -- ascii for 'R'
                                     else
                                         if (rc_first) then
-                                            data_wr <= to_hex_ascii(s_inst(2 downto 0));    -- Rc was first, so now convert Ra to ascii digit
+                                            data_wr <= to_hex_ascii("0" & s_inst(2 downto 0));    -- Rc was first, so now convert Ra to ascii digit
                                         else
-                                            data_wr <= to_hex_ascii(s_inst(5 downto 3));    -- convert Rc to ascii digit
+                                            data_wr <= to_hex_ascii("0" & s_inst(5 downto 3));    -- convert Rc to ascii digit
                                         end if;
                                     end if;
                                 end if;
@@ -567,7 +569,7 @@ begin
 
                             when 13 =>                      -- print SEG:ADDR
                                 if loop_index > 4 then
-                                    data_wr <= string_reg(loop_index * 8 - 1 downto loop_index * 8 - 7);    -- get next byte of SEGMENT to print
+                                    data_wr <= string_reg(loop_index * 8 - 1 downto loop_index * 8 - 8);    -- get next byte of SEGMENT to print
                                 elsif loop_index = 4 then
                                     data_wr <= x"3A";                                       -- ascii for ":"
                                 else
@@ -604,16 +606,20 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 17;                                        -- come back here after last character, but to next step
-                                    loop_index <= 1;                                        -- next up, print 2 spaces
+                                    loop_index <= 2;                                        -- next up, print 2 spaces
                                 end if;
 
-                            when 17 =>                      -- print 2 spaces
+                            when 17 =>                      -- print 3 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
                                     state <= READY;                                         -- all done with update! go back to ready
                                 end if;
+								    when others =>
+									     state <= READY;
+										  loop_index <= 0;
+										  cmd_index <= 0;
                         end case;
                     
                     when SENDBYTE =>                -- send byte to I2C based on data_wr and data_cmd
@@ -631,7 +637,7 @@ begin
                                 state <= SEND;
 
                             when 2 =>               -- delay after pulse 1 us (1/1us = 1_000_000)
-                                delay_counter <= CLK_FREQ/1_000_000;
+                                delay_cntr <= CLK_FREQ/1_000_000;
                                 state <= DELAY;
 
                             when 3 =>               -- "pulse enable" step 2
@@ -639,7 +645,7 @@ begin
                                 state <= SEND;
 
                             when 4 =>               -- delay after pulse 50 us (1/50us = 20_000)
-                                delay_counter <= CLK_FREQ/20_000;
+                                delay_cntr <= CLK_FREQ/20_000;
                                 state <= DELAY;
 
                             when 5 =>               -- send low nybble
@@ -651,7 +657,7 @@ begin
                                 state <= SEND;
 
                             when 7 =>               -- delay after pulse 1 us
-                                delay_counter <= CLK_FREQ/1_000_000;
+                                delay_cntr <= CLK_FREQ/1_000_000;
                                 state <= DELAY;
 
                             when 8 =>               -- "pulse enable" step 2
@@ -659,7 +665,7 @@ begin
                                 state <= SEND;
 
                             when 9 =>               -- delay after pulse 50 us
-                                delay_counter <= CLK_FREQ/20_000;
+                                delay_cntr <= CLK_FREQ/20_000;
                                 state <= DELAY;
 
                             when others =>          -- done

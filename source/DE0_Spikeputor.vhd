@@ -64,7 +64,9 @@ entity DE0_Spikeputor is
         VIDEO_DATA   : inout std_logic_vector(15 downto 0);
         -- DotStar LED Strip Interface
         DOTSTAR_DATA : out std_logic;
-        DOTSTAR_CLK  : out std_logic
+        DOTSTAR_CLK  : out std_logic;
+		  -- LCD I2C Interface -- relabel to SDA and SCL
+		  GPIO0_D      : inout std_logic_vector(31 downto 30)
     );
 end DE0_Spikeputor;
 
@@ -602,11 +604,11 @@ begin
             CONST       => const_out,                                                           -- current constant
             ADDR        => rwaddr_out,                                                          -- current address being read or written
             SEGMENT     => SEGMENT,                                                             -- current segment
-            PC          => pc_out,                                                              -- current program counter value
+            PC          => pc_out(15 downto 0),                                                 -- current program counter value
             MDATA       => mdata_out,                                                           -- current data for memory read/write (includes write flag)
 
-            SCL         => GPIO_0(30),                                                          -- LCD SCL signal - eventually change to LCD_SCL
-            SDA         => GPIO_0(31),                                                          -- LCD SDA signal - eventually change to LCD_SDA
+            SCL         => GPIO0_D(30),                                                          -- LCD SCL signal - eventually change to LCD_SCL
+            SDA         => GPIO0_D(31),                                                          -- LCD SDA signal - eventually change to LCD_SDA
             BUSY        => lcd_busy
         );
 
