@@ -243,25 +243,25 @@ begin
                                     case s_inst(15 downto 14) is        -- switch on ALU Function
                                         when "00" =>   -- ALU Compare
                                             case s_inst(13 downto 11) is    -- switching on ALU Function Operation
-                                                when 1 =>
+                                                when "001" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"434D50455120";   -- "CMPEQ "
                                                     else
                                                         string_reg <= x"434D50455143";   -- "CMPEQC"
                                                     end if;
-                                                when 3 =>
+                                                when "011" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"434D50554C20";   -- "CMPUL "
                                                     else
                                                         string_reg <= x"434D50554C43";   -- "CMPULC"
                                                     end if;
-                                                when 5 =>
+                                                when "101" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"434D504C5420";   -- "CMPLT "
                                                     else
                                                         string_reg <= x"434D504C5443";   -- "CMPLTC"
                                                     end if;
-                                                when 7 =>
+                                                when "111" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"434D5054C450";   -- "CMPLE "
                                                     else
@@ -290,97 +290,93 @@ begin
                                             
                                         when "10" =>   -- ALU Bitwise Math
                                             case s_inst(13 downto 11) is    -- switching on ALU Function Operation
-                                                when 0 =>
+                                                when "000" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"204E4F522020";   -- " NOR  "
                                                     else
                                                         string_reg <= x"204E4F524320";   -- " NORC "
                                                     end if;
-                                                when 1 =>
+                                                when "001" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"204E414E4420";   -- " NAND "
                                                     else
                                                         string_reg <= x"204E414E4443";   -- " NANDC"
                                                     end if;
-                                                when 2 =>
+                                                when "010" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"20426E412020";   -- " BnA  "
                                                     else
                                                         string_reg <= x"20426E414320";   -- " BnAC "
                                                     end if;
-                                                when 3 =>
+                                                when "011" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"20584F522020";   -- " XOR  "
                                                     else
                                                         string_reg <= x"20584F524320";   -- " XORC "
                                                     end if;
-                                                when 4 =>
+                                                when "100" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"20414E442020";   -- " AND  "
                                                     else
                                                         string_reg <= x"20414E444320";   -- " ANDC "
                                                     end if;
-                                                when 5 =>
+                                                when "101" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"202041202020";   -- "  A   "
                                                     else
                                                         string_reg <= x"202041432020";   -- "  AC  "
                                                     end if;
-                                                when 6 =>
+                                                when "110" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"202042202020";   -- "  B   "
                                                     else
                                                         string_reg <= x"202042432020";   -- "  BC  "
                                                     end if;
-                                                when 7 =>
+                                                when "111" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"20204F522020";   -- "  OR  "
                                                     else
                                                         string_reg <= x"20204F524320";   -- "  ORC "
                                                     end if;
-                                                when others =>
-                                                    string_reg <= x"3F3F3F3F3F3F";       -- "??????"
                                             end case;
 
                                         when "11" =>   -- ALU Shift
                                             case s_inst(13 downto 11) is    -- switching on ALU function
-                                                when 0 =>
+                                                when "00" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"205348522020";   -- " SHR  "
                                                     else
                                                         string_reg <= x"205348524320";   -- " SHRC "
                                                     end if;
-                                                when 1 =>
+                                                when "01" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"2053484C2020";   -- " SHL  "
                                                     else
                                                         string_reg <= x"2053484C4320";   -- " SHLC "
                                                     end if;
-                                                when 2 =>
+                                                when "10" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"205352412020";   -- " SRA  "
                                                     else
                                                         string_reg <= x"205352414320";   -- " SRAC "
                                                     end if;
-                                                when 3 =>
+                                                when "11" =>
                                                     if (s_inst(10) = '0') then
                                                         string_reg <= x"20524C432020";   -- " SLC  "
                                                     else
                                                         string_reg <= x"20524C434320";   -- " SLCC "
                                                     end if;
-                                                when others =>
-                                                    string_reg <= x"3F3F3F3F3F3F";       -- "??????"
                                             end case;
                                     end case;
                                 else                                -- LD/ST/BR opcode
                                     if (s_inst(15 downto 10) = "101010") then   -- JMP/LD/ST
                                         case s_inst(9 downto 7) is      -- switching on Rb
-                                            when 0 =>
+                                            when "000" =>
                                                 string_reg <= x"204A4D502020";          -- " JMP  "
-                                            when 2 =>
+                                            when "010" =>
                                                 string_reg <= x"20204C442020";          -- "  LD  "
                                                 no_rb <= true;
-                                            when 3 =>
+                                            when "011" =>
                                                 string_reg <= x"202053542020";          -- "  ST  "
                                                 no_rb <= true;
                                                 rc_first <= true;
@@ -389,21 +385,21 @@ begin
                                         end case;
                                     elsif (s_inst(15 downto 11) = "01000") then -- JMPC/LDC/STC/BEQ/BNE/LDS/STS
                                         case s_inst(9 downto 7) is
-                                            when 0 =>
+                                            when "000" =>
                                                 string_reg <= x"204A4D504320";          -- " JMPC "
-                                            when 2 =>
+                                            when "010" =>
                                                 string_reg <= x"204C44432020";          -- " LDC  "
-                                            when 3 =>
+                                            when "011" =>
                                                 string_reg <= x"205354432020";          -- " STC  "
                                                 rc_first <= true;
-                                            when 4 =>
+                                            when "100" =>
                                                 string_req <= x"204245512020";          -- " BEQ  "
-                                            when 5 =>
+                                            when "101" =>
                                                 string_req <= x"20424E452020";          -- " BNE  "
-                                            when 6 =>
+                                            when "110" =>
                                                 string_req <= x"204C44532020";          -- " LDS  "
                                                 rc_only <= true;
-                                            when 7 =>
+                                            when "111" =>
                                                 string_req <= x"205354532020";          -- " STS  "
                                                 rc_only <= true;
                                             when others =>
@@ -706,7 +702,7 @@ begin
         DATA_WR   => i2c_data_wr,                       -- data to write to provider
         BUSY      => i2c_busy,                          -- indicates transaction in progress
         DATA_RD   => OPEN,                              -- never reading
-        ACK_ERROR => OPEN,                              -- indicate acknowledge error on LEDG(9)
+        ACK_ERROR => OPEN,                              -- no error checking (for now)
 
         SDA       => SDA,                               -- serial data signal of i2c bus
         SCL       => SCL                                -- serial clock signal of i2c bus
