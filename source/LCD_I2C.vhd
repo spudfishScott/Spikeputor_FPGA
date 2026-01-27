@@ -97,7 +97,7 @@ begin
                 busy_prev <= '0';
                 cmd_latched <= '0';
             else
-				    if state /= FORMAT then
+                if state /= FORMAT then
                     s_inst <= INST;
                     s_const <= CONST;
                     s_PC <= PC(15 downto 0);
@@ -105,8 +105,8 @@ begin
                     s_mdata <= MDATA(15 downto 0);
                     s_wr <= MDATA(16);
                     s_seg <= SEGMENT;
-						  s_jt <= PC(16);
-					 end if;
+                    s_jt <= PC(16);
+                end if;
 
                 case state is
                     when STARTUP =>                 -- send initialization commands to LCD
@@ -399,17 +399,17 @@ begin
                                                 string_reg <= x"205354432020";          -- " STC  "
                                                 rc_first <= true;
                                             when "100" =>
-														      if s_jt = '0' then
+                                                if s_jt = '0' then
                                                     string_reg <= x"204245512020";      -- " BEQ  "
-																else
-																    string_reg <= x"20424551205E";      -- " BEQ *"
-																end if;
+                                                else
+                                                    string_reg <= x"20424551205E";      -- " BEQ *"
+                                                end if;
                                             when "101" =>
-														      if s_jt = '0' then
+                                                if s_jt = '0' then
                                                     string_reg <= x"20424E452020";      -- " BNE  "
-																else
-																    string_reg <= x"20424E45205E";      -- " BNE  *"
-																end if;
+                                                else
+                                                    string_reg <= x"20424E45205E";      -- " BNE  *"
+                                                end if;
                                             when "110" =>
                                                 string_reg <= x"204C44532020";          -- " LDS  "
                                                 rc_only <= true;

@@ -49,10 +49,8 @@ entity DE0_Spikeputor is
         PS2_KBCLK    : inout std_logic;
         PS2_KBDAT    : inout std_logic;
         -- GPIO - use GPIO1_D pins, but relabel
-        -- GPI        : in std_logic_vector(31 downto 16);   -- 16 bits of GPI
-        -- GPO        : out std_logic_vector(15 downto 0);   -- 16 bits of GPO
-
-        GPIO1_D      : out std_logic_vector(31 downto 0);   -- diagnostic outputs for now, eventually GPIO
+        SPK_GPI      : in std_logic_vector(15 downto 0);   -- 16 bits of GPI (GPIO_1[31 to 16])
+        SPK_GPO      : out std_logic_vector(15 downto 0);   -- 16 bits of GPO (GPIO_1[15 to 0])
         -- Video Interface
         VIDEO_BL     : out std_logic;
         VIDEO_RST_N  : out std_logic;
@@ -65,8 +63,9 @@ entity DE0_Spikeputor is
         -- DotStar LED Strip Interface
         DOTSTAR_DATA : out std_logic;
         DOTSTAR_CLK  : out std_logic;
-		  -- LCD I2C Interface -- relabel to SDA and SCL
-		  GPIO0_D      : inout std_logic_vector(31 downto 30)
+        -- LCD I2C Interface -- relabel to SDA and SCL
+        LCD_SCL      : inout std_logic;
+        LCD_SDA      : inout std_logic
     );
 end DE0_Spikeputor;
 
@@ -77,8 +76,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- Signal Declarations
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
-    signal GPO_REG     : std_logic_vector(15 downto 0) := x"0000";
-    signal GPI         : std_logic_vector(15 downto 0) := x"5A5A";      -- delete when GPI is fully implemented - replace with direct input from DE0 GPIO1 port
+    signal GPO_REG     : std_logic_vector(15 downto 0) := (others => '0');
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
@@ -430,7 +428,7 @@ begin
             WBS_DATA_O  => data3,
 
             -- GPI register input
-            GPI         => GPI                  -- 16 bits from GPI port
+            GPI         => SPK_GPI             -- 16 bits from GPI port
         );
 
     -- VIDEO Instance as Wishbone provider (P5)
@@ -545,13 +543,12 @@ begin
     begin
         if rising_edge(SYS_CLK) then 
             last_cyc_sig <= arb_cyc;    -- to detect falling edge of CYC_O signal for DotStar update requests
-        --uncomment when GPO is fully implemented
-        --GPO                   <= GPO_REG;
         end if;
     end process;
 
     led_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
     lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
+    SPK_GPO <= GPO_REG;         -- send internal GPO register to external GPO
 
     DOTSTAR : entity work.dotstar_driver 
         generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
@@ -584,8 +581,8 @@ begin
             REG7        => reg7_out,                                                            -- bits: Reg 7 to Channel A Out, Reg 7 to Channel B Out, Write to Register 7, Register 7 (16 bits)
             REGIN       => regin_out,                                                           -- bits: WDSEL (2 bits), Reg Input (16 bits)
 
-            GPO         => GPO_REG,                                                             -- bits: General Purpose Input (16 bits)
-            GPI         => GPI,                                                                 -- bits: General Purpose Output (16 bits)
+            GPO         => GPO_REG,                                                             -- bits: General Purpose Output (16 bits)
+            GPI         => SPK_GPI,                                                             -- bits: General Purpose Input (16 bits)
 
             DATA_OUT    => DOTSTAR_DATA,                                                        -- DotStar data and clock signals
             CLK_OUT     => DOTSTAR_CLK,
@@ -607,14 +604,10 @@ begin
             PC          => pc_out,                                                              -- current program counter value (includes JT)
             MDATA       => mdata_out,                                                           -- current data for memory read/write (includes write flag)
 
-            SCL         => GPIO0_D(30),                                                          -- LCD SCL signal - eventually change to LCD_SCL
-            SDA         => GPIO0_D(31),                                                          -- LCD SDA signal - eventually change to LCD_SDA
+            SCL         => LCD_SCL                                                          -- LCD SCL signal - eventually change to LCD_SCL
+            SDA         => LCD_SDA,                                                          -- LCD SDA signal - eventually change to LCD_SDA
             BUSY        => lcd_busy
         );
-
-    -- remove when above is done, then fully implement GPO/GPI
-    GPIO1_D(31 downto 16) <= rwaddr_out;                             -- output rwaddr_out to upper 16 bits of GPIO1
-    GPIO1_D(15 downto 0)  <= mdata_out(15 downto 0);                 -- output mdata_out to lower 16 bits of GPIO1
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS 
