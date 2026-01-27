@@ -566,8 +566,13 @@ begin
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 13;                                        -- come back here after last space, but to next step
-                                    loop_index <= 47;                                       -- next step, convert SEGMENT and ADDRESS to ascii string
+                                    if s_inst(9 downto 7) = "101" then							  -- LD/LDC/ST/STC 
+													cmd_index <= 13;                                        -- come back here after last space, but to next step
+													loop_index <= 47;                                       -- next step, convert SEGMENT and ADDRESS to ascii string
+												else																	  -- not a load or store memory operation	
+													cmd_index <= 18;													  -- next step, print 17 spaces
+													loop_index <= 16;
+												end if;
                                 end if;
 
                             when 13 =>                      -- convert SEGMENT and ADDRESS to 6 hexidecimal digit string
@@ -626,7 +631,7 @@ begin
                                     loop_index <= 4;                                        -- next up, print 5 spaces
                                 end if;
 
-                            when 18 =>                      -- print 5 spaces
+                            when 18 =>                      -- print spaces to the end
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index

@@ -604,8 +604,8 @@ begin
             PC          => pc_out,                                                              -- current program counter value (includes JT)
             MDATA       => mdata_out,                                                           -- current data for memory read/write (includes write flag)
 
-            SCL         => LCD_SCL                                                          -- LCD SCL signal - eventually change to LCD_SCL
-            SDA         => LCD_SDA,                                                          -- LCD SDA signal - eventually change to LCD_SDA
+            SCL         => LCD_SCL,                                                             -- LCD SCL signal
+            SDA         => LCD_SDA,                                                             -- LCD SDA signal
             BUSY        => lcd_busy
         );
 
