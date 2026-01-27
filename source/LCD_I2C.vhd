@@ -80,7 +80,7 @@ architecture RTL of LCD_I2C is
 begin
 
     BUSY <= '0' when state = READY else '1';        -- module is BUSY except when in READY state
-									 
+
     process(CLK)
     begin
         if rising_edge(CLK) then
@@ -96,14 +96,17 @@ begin
                 busy_prev <= '0';
                 cmd_latched <= '0';
             else
-									 s_inst <= INST;                   
-                            s_const <= CONST;
-                            s_PC <= PC;
-                            s_addr <= ADDR;
-                            s_mdata <= MDATA(15 downto 0);
-                            s_wr <= MDATA(16);
-                            s_seg <= SEGMENT;
-									 
+
+                if state /= FORMAT then
+                    s_inst <= INST;
+                    s_const <= CONST;
+                    s_PC <= PC;
+                    s_addr <= ADDR;
+                    s_mdata <= MDATA(15 downto 0);
+                    s_wr <= MDATA(16);
+                    s_seg <= SEGMENT;
+                end if;
+
                 case state is
                     when STARTUP =>                 -- send initialization commands to LCD
                         cmd_index <= cmd_index + 1;         -- increment command index
@@ -214,7 +217,7 @@ begin
                     when READY =>                   -- waiting to start updating the panel info
                         if (START = '1') then               -- got a start signal when not busy
                             cmd_index <= 0;                     -- reset cmd_index
-                            loop_index <= 8;                    -- set loop index for next step (print 9 spaces)
+                            loop_index <= 6;                    -- set loop index for next step (print 7 spaces)
                             state <= FORMAT;                    -- move to FORMAT state (sets BUSY)
                         end if;
 
@@ -224,7 +227,7 @@ begin
                         data_cmd <= '1';                        -- only sending data
 
                         case cmd_index is
-                            when 0 =>                           -- print 9 spaces
+                            when 0 =>                           -- print 7 spaces
                                 data_wr <= x"20";                                       -- ascii for space
                                 state <= SENDBYTE;                                      -- next state -> send the byte
                                 loop_index <= loop_index - 1;                           -- decrement loop index
@@ -366,8 +369,8 @@ begin
                                                     else
                                                         string_reg <= x"20524C434320";   -- " SLCC "
                                                     end if;
-																when others =>
-																    string_reg <= x"3F3F3F3F3F3F";          -- "??????"
+                                        when others =>
+                                            string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                             end case;
                                     end case;
                                 else                                -- LD/ST/BR opcode
@@ -418,7 +421,7 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement the loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 3;                                         -- come back here after last character, but to next step
-                                    loop_index <= 14;                                        -- next step, print 5 spaces
+                                    loop_index <= 14;                                       -- next step, print 15 spaces
                                 end if;
 
                             when 3 =>                           -- print 15 spaces
@@ -426,38 +429,44 @@ begin
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 4;                                         -- come back here after last space, but to next step
-                                    loop_index <= 15;                                       -- next step, convert NEXT_PC to hex string
+                                    cmd_index <= 4;                                         -- come back here after last space, but to next step, print arrow
                                 end if;
+                                    -- TODO: Print "->"
 
-                            when 4 =>                           -- convert NEXT_PC to 4 hexadecimal digit string
+                            when 4 =>                           -- print arrow
+                                data_wr <= x"7E";
+                                state <= SENDBYTE;
+                                loop_index <= 15;                                       -- next step, convert NEXT_PC to hex string
+                                cmd_index <= 5;
+
+                            when 5 =>                           -- convert NEXT_PC to 4 hexadecimal digit string
                                 string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
                                     <= to_hex_ascii(s_pc(loop_index downto loop_index - 3));
                                 loop_index <= loop_index - 4;                               -- decrement loop index to next digit
                                 if (loop_index = 3) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 5;                                         -- come back here after converting last digit, but to next step
+                                    cmd_index <= 6;                                         -- come back here after converting last digit, but to next step
                                     loop_index <= 31;                                       -- next step, print four characters of the hex string
                                 end if;
 
-                            when 5 =>                           -- print hex string to the LCD, character by character
+                            when 6 =>                           -- print hex string to the LCD, character by character
                                 data_wr <= string_reg(loop_index downto loop_index - 7);    -- get next byte to print
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 8;                               -- decrement loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 6;                                         -- come back here after last character, but to next step
-                                    loop_index <= 12;                                       -- next up, print 23 spaces
+                                    cmd_index <= 7;                                         -- come back here after last character, but to next step
+                                    loop_index <= 12;                                       -- next up, print 13 spaces
                                 end if;
 
-                            when 6 =>                           -- print 13 spaces
+                            when 7 =>                           -- print 13 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 7;                                         -- come back here after last space, but to next step
+                                    cmd_index <= 8;                                         -- come back here after last space, but to next step
                                     loop_index <= 2;                                        -- next step, print first argument (three characters)
                                 end if;
                             
-                            when 7 =>                           -- print first instruction argument
+                            when 8 =>                           -- print first instruction argument
                                 case loop_index is                  -- switch on loop index to select character to print
                                     when 2 =>                           -- print 'R' or space
                                         if (rc_only) then
@@ -479,11 +488,11 @@ begin
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index to next character
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 8;                                         -- come back here after last character, but to next step
+                                    cmd_index <= 9;                                         -- come back here after last character, but to next step
                                     loop_index <= 15;                                       -- next step, convert constant to hex string if needed
                                 end if;
 
-                            when 8 =>                       -- convert CONST to 4 hexadecimal digit string if needed
+                            when 9 =>                       -- convert CONST to 4 hexadecimal digit string if needed
                                 if (s_inst(10) = '0' OR rc_only) then           -- this step not needed, go to next step
                                     cmd_index <= 9;                                         -- go to next step, print spaces or second argument (register)
                                     loop_index <= 4;                                        -- print 5 characters
@@ -492,12 +501,12 @@ begin
                                         <= to_hex_ascii(s_const(loop_index downto loop_index - 3));
                                     loop_index <= loop_index - 4;                           -- decrement loop index to next digit
                                     if (loop_index = 3) then                                -- come back here to this step unless we're finished
-                                        cmd_index <= 9;                                     -- come back here after converting last digit, but to next step
+                                        cmd_index <= 10;                                    -- come back here after converting last digit, but to next step
                                         loop_index <= 4;                                    -- next step, print second argument (5 characters)
                                     end if;
                                 end if;
 
-                            when 9 =>                       -- print second instruction argument
+                            when 10 =>                      -- print second instruction argument
                                 if no_rb then
                                     data_wr <= x"20";                                       -- print only spaces if no_rb is true
                                 elsif s_inst(10) = '0' then                     -- print either space or Rb if no constant
@@ -519,11 +528,11 @@ begin
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index to next character
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 10;                                        -- come back here after last character, but to next step
+                                    cmd_index <= 11;                                        -- come back here after last character, but to next step
                                     loop_index <= 1;                                        -- next step, print third argument (two characters)
                                 end if;
 
-                            when 10 =>                      -- print third instruction argument
+                            when 11 =>                      -- print third instruction argument
                                 if rc_only then                                 -- print space if rc only
                                     data_wr <= x"20";                                       -- ascii for space
                                 else                                            -- print "Rx" for third argument
@@ -540,20 +549,20 @@ begin
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index to next character
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 11;                                        -- come back here after last character, but to next step
+                                    cmd_index <= 12;                                        -- come back here after last character, but to next step
                                     loop_index <= 8;                                        -- next step, print 9 spaces
                                 end if;
 
-                            when 11 =>                      -- print 9 spaces
+                            when 12 =>                      -- print 9 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 12;                                        -- come back here after last space, but to next step
+                                    cmd_index <= 13;                                        -- come back here after last space, but to next step
                                     loop_index <= 47;                                       -- next step, convert SEGMENT and ADDRESS to ascii string
                                 end if;
 
-                            when 12 =>                      -- convert SEGMENT and ADDRESS to 6 hexidecimal digit string
+                            when 13 =>                      -- convert SEGMENT and ADDRESS to 6 hexidecimal digit string
                                 if loop_index > 31 then
                                     string_reg(loop_index downto loop_index - 7)            -- get next digit of SEGMENT into string as ascii character
                                         <= to_hex_ascii(s_seg((loop_index - 31)/2 - 1 downto (loop_index - 31)/2 - 4));
@@ -563,11 +572,11 @@ begin
                                 end if;
                                 loop_index <= loop_index - 8;                               -- decrement loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 13;                                        -- come back here after converting last digit, but to next step
+                                    cmd_index <= 14;                                        -- come back here after converting last digit, but to next step
                                     loop_index <= 6;                                        -- next step, print SEG:ADDR (7 characters)
                                 end if;
 
-                            when 13 =>                      -- print SEG:ADDR
+                            when 14 =>                      -- print SEG:ADDR
                                 if loop_index > 4 then
                                     data_wr <= string_reg(loop_index * 8 - 1 downto loop_index * 8 - 8);    -- get next byte of SEGMENT to print
                                 elsif loop_index = 4 then
@@ -578,48 +587,49 @@ begin
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index to next byte
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 14;                                        -- come back here after last character, but to next step (print arrow for write or read)
+                                    cmd_index <= 15;                                        -- come back here after last character, but to next step (print arrow for write or read)
                                 end if;
 
-                            when 14 =>                      -- print arrow corresponding to read or write
+                            when 15 =>                      -- print arrow corresponding to read or write
                                 if s_wr = '0' then
                                     data_wr <= x"7E";                                       -- read: right arrow from address to data
                                 else
                                     data_wr <= x"7F";                                       -- write: left arrow from data to address
                                 end if;
                                 state <= SENDBYTE;                                          -- next state -> send the byte
-                                cmd_index <= 15;                                            -- come back here, but to next step
+                                cmd_index <= 16;                                            -- come back here, but to next step
                                 loop_index <= 15;                                           -- next step, convert MDATA to ascii string
 
-                            when 15 =>                      -- convert MDATA to a hex string
+                            when 16 =>                      -- convert MDATA to a hex string
                                 string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
                                     <= to_hex_ascii(s_mdata(loop_index downto loop_index - 3));
                                 loop_index <= loop_index - 4;                               -- decrement loop index to next digit
                                 if (loop_index = 3) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 16;                                        -- come back here after converting last digit, but to next step
+                                    cmd_index <= 17;                                        -- come back here after converting last digit, but to next step
                                     loop_index <= 31;                                       -- next step, print four characters of the hex string
                                 end if;
 
-                            when 16 =>                      -- print MDATA
+                            when 17 =>                      -- print MDATA
                                 data_wr <= string_reg(loop_index downto loop_index - 7);    -- get next byte to print
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 8;                               -- decrement loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 17;                                        -- come back here after last character, but to next step
+                                    cmd_index <= 18;                                        -- come back here after last character, but to next step
                                     loop_index <= 2;                                        -- next up, print 2 spaces
                                 end if;
 
-                            when 17 =>                      -- print 3 spaces
+                            when 18 =>                      -- print 3 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
                                     state <= READY;                                         -- all done with update! go back to ready
                                 end if;
-								    when others =>
-									     state <= READY;
-										  loop_index <= 0;
-										  cmd_index <= 0;
+
+                            when others =>
+                                state <= READY;
+                                loop_index <= 0;
+                                cmd_index <= 0;
                         end case;
                     
                     when SENDBYTE =>                -- send byte to I2C based on data_wr and data_cmd
