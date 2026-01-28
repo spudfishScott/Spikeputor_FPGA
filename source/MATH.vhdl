@@ -251,8 +251,8 @@ ENTITY FPATAN IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR (31 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR (31 DOWNTO 0)
     );
 END FPATAN;
 
@@ -264,8 +264,8 @@ BEGIN
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
         pipeline                        => 34,
-        width_exp                       => 11,
-        width_man                       => 52
+        width_exp                       => 8,
+        width_man                       => 23
     )
     PORT MAP (
         clock      => CLOCK,
