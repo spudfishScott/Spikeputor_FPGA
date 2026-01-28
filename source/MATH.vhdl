@@ -251,33 +251,27 @@ ENTITY FPATAN IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (31 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (31 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
     );
 END FPATAN;
 
 ARCHITECTURE SYN OF FPATAN IS
 
-    -- signal short_result : STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
-    -- signal pad          : STD_LOGIC_VECTOR(2 DOWNTO 0) := "000";
-
 BEGIN
-    -- -- put single precision number into double precision footprint
-    -- pad <= "000" when short_result(30) = '1' else "111";
-    -- RES <= short_result(31) & short_result(30) & pad & short_result(29 downto 23) & short_result(22 downto 0) & x"0000" when short_result(30);
 
     fpln_component : altfp_atan
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
         pipeline                        => 34,
-        width_exp                       => 8,
-        width_man                       => 23
+        width_exp                       => 11,
+        width_man                       => 52
     )
     PORT MAP (
         clock      => CLOCK,
         clk_en     => EN,
         data       => A,
-        result     => RES --short_result
+        result     => RES
     );
 
 END SYN;
