@@ -5,7 +5,7 @@ USE ieee.std_logic_1164.all;
 LIBRARY altera_mf;
 USE altera_mf.altera_mf_components.all;
 
-ENTITY FPMULT IS
+ENTITY FPDIV IS
     GENERIC ( OPTIMIZE : String := "AREA" );
     PORT (
         CLOCK : IN STD_LOGIC := '1';
@@ -14,16 +14,16 @@ ENTITY FPMULT IS
         B     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
         RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
     );
-END FPMULT;
+END FPDIV;
 
-ARCHITECTURE SYN OF FPMULT IS
+ARCHITECTURE SYN OF FPDIV IS
 
 BEGIN
 
-    fpmul_component : altfp_mult
+    fpdiv_component : altfp_div
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
-        pipeline                        => 5,
+        pipeline                        => 10,
         width_exp                       => 11,
         width_man                       => 52,
         optimize                        => OPTIMIZE
