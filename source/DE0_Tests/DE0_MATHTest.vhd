@@ -49,11 +49,12 @@ begin
 
     with (SW(9 downto 6)) select                -- switches 9 through 6 select the math function
         enabled <=
-            "0000000000000001" when 0,          -- ADD
-            "0000000000000010" when 1,          -- SUB
+            "0000000000000001" when "0000",          -- ADD
+            "0000000000000010" when "0001",          -- SUB
+            "0000000000000100" when "0010",          -- MULT
             "0000000000000000" when others;
 
-    -- ALU instance
+    -- FP ADD_SUB instance - answer available in 7 cycles
     ADDSUB : work.FPADD_SUB port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(0) OR enabled(1),
@@ -62,5 +63,14 @@ begin
         ADD     => enabled(0),
         RES     => result
     );
+
+    -- FP MULT instance -- answer available in 5 cycles
+    MULT: work.FPMULT port map (
+        CLOCK   => CLOCK_50,
+        EN      => enabled(2),
+        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        B       => SW(2 downto 0) & "1111111110000000000000000000000000000000000000000000000000000", -- switch in "001" = +1, "101" = -1
+        RES     => result
+    )
 
 end Structural;
