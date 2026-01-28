@@ -9,15 +9,15 @@
 --  Px_DATA_O - data output from each provider
 --
 -- In addition to standard RAM (P0), SDRAM (P10), and ROM (P1), the following providers are accessed through specific addresses, which override the above:
---  GPO (P2)        read/write location 0x7FFC
---  GPI (P3)        read only location 0x7FFE - writing goes nowhere
---  SOUND (P4)      read/write location 0x7FAC
---  VIDEO (P5)      read/write to video coprocessor - locations TBD
+--  GPO (P2)        read/write location 0xFFF1
+--  GPI (P3)        read only location 0xFFF2 - writing goes nowhere
+--  SOUND (P4)      read/write location 
+--  VIDEO (P5)      read/write to video coprocessor - 0xFF00 - 0xFFDF
 --  SERIAL (P6)     serial in/serial out - locations TBD
 --  STORAGE (P7)    read/write to SD card filesystem - locations TBD (might be coupled to DMA)
---  KEYBOARD (P8)   read keyboard input buffer (maybe mouse one day as well)
+--  KEYBOARD (P8)   read keyboard input buffer 0xFFF0 (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which might be used to expand the total amount of RAM available - locations TBD
---  MATH (P11)      floating point unit - locations TBD
+--  MATH (P11)      floating point unit - 
 
 -- Outputs are:
 --  Individual provider select signals, which go to provider STB_I inputs
@@ -70,7 +70,8 @@ architecture RTL of WSH_ADDR is
 
     signal p_sel   : integer range 0 to 11 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- FPGA RAM selected
-    signal spec    : std_logic := '0';                                  -- special location (p2-p9)
+    signal spec    : std_logic := '0';                                  -- special location (p2-p9, p11)
+    signal math    : std_logic := '0';
     signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
@@ -80,12 +81,18 @@ begin
     seg    <= ADDR_I(22 downto 16);   -- extract segment identifier from full address
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
 
-    spec    <= '1' when seg = "0000000" AND p_addr(15 downto 8) = x"FF"                     -- special I/O address
-                   else '0';
     ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111")                -- standard RAM:0x0000-0xDFFF, Segment 0
                    else '0';
     sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0 and not a ROM address
                    else '0';
+
+    spec    <= '1' when seg = "0000000" AND p_addr(15 downto 8) = x"FF"                     -- special I/O address
+                   else '0';
+
+    with ADDR_I(7 downto 0) select                                                          -- math address flag
+        math <=
+            '1' when x"E0" to x"E6",
+            '0' when others; 
 
     -- assign p_sel based on addressing logic described above
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, pre-empts all other
@@ -97,6 +104,7 @@ begin
         else    8 when spec = '1' AND p_addr = KEYBOARD_ADDR                              -- read only KEYBOARD
         else    5 when spec = '1' AND p_addr(15 downto 8) = VIDEO_ADDR(15 downto 8) 
                                   AND p_addr(7 downto 4) < x"E"                           -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
+        else   11 when spec = '1' AND math = '1'                                          -- MATH coprocessor if address matches math range (0xFFE0 - 0xFFE6)
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    1;                                                                        -- default to read ROM
 

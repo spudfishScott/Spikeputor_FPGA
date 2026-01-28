@@ -410,7 +410,7 @@ begin
             WBS_WE_I    => arb_we,
 
             -- GPO register output
-            GPO         => GPO_REG             -- 16 bits to go to GPO port
+            GPO         => open --GPO_REG             -- 16 bits to go to GPO port
         );
 
     -- GPI Instance as Wishbone Provider (P3)
@@ -620,13 +620,13 @@ begin
         );
 
     -- FPADD Test
---    FPADD0 : entity work.FPADD
---        port map (
---            CLOCK   => SYS_CLK,
---            A       => x"41200000",   -- 10.0
---            B       => x"41200000",   -- 10.0
---            SUM     => GPIO1_D(31 downto 0)
---        );
+   FPADD0 : entity work.FPADD
+       port map (
+           CLOCK   => SYS_CLK,
+           A       => x"41200000" & SPK_GPI,
+           B       => x"41400000" & SPK_GPI,   -- 10.0
+           SUM     => GPO_REG
+       );
 
     -- LEDs
     LEDG(8 downto 0) <= (others => '0');

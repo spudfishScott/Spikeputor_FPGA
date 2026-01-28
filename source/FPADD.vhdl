@@ -22,7 +22,9 @@ BEGIN
     fpadd_component : altfp_add_sub
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
-        pipeline                        => 7
+        pipeline                        => 7,
+        width_exp                       => 11,
+        width_man                       => 52
     )
     PORT MAP (
         clock      => CLOCK,
