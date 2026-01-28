@@ -149,7 +149,7 @@ BEGIN
     fpsqrt_component : altfp_sqrt
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
-        pipeline                        => 57,
+        pipeline                        => 30,
         width_exp                       => 11,
         width_man                       => 52
     )
