@@ -31,6 +31,7 @@ architecture Structural of DE0_MATHTest is
     signal addsub_result : std_logic_vector(63 downto 0) := (others => '0');
     signal mult_result   : std_logic_vector(63 downto 0) := (others => '0');
     signal div_result    : std_logic_vector(63 downto 0) := (others => '0');
+    signal sin_result    : std_logic_vector(63 downto 0) := (others => '0');
 
     signal output_result  : std_logic_vector(63 downto 0) := (others => '0');
     signal enabled : std_logic_vector(15 downto 0) := (others => '0');  -- one hot enable of each math function
@@ -57,6 +58,7 @@ begin
             "0000000000000010" when "0001",          -- SUB
             "0000000000000100" when "0010",          -- MULT
             "0000000000001000" when "0011",          -- DIV
+            "0000000100000000" when "1000",          -- SIN
             "0000000000000000" when others;
 
     with (SW(9 downto 6)) select                -- same selects the output
@@ -64,6 +66,7 @@ begin
             addsub_result   when "0000"|"0001",
             mult_result     when "0010",
             div_result      when "0011",
+            sin_result      when "1000",
             (others => '0') when others;
 
     -- FP ADD_SUB instance - answer available in 7 cycles
@@ -71,7 +74,7 @@ begin
         CLOCK   => CLOCK_50,
         EN      => enabled(0) OR enabled(1),
         A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +3, "101" = -3
+        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
         ADD     => enabled(0),
         RES     => addsub_result
     );
@@ -81,16 +84,25 @@ begin
         CLOCK   => CLOCK_50,
         EN      => enabled(2),
         A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +3, "101" = -3
+        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
         RES     => mult_result
     );
 
     -- FP DIV instance -- answer available in 10 cycles
-    MULT: work.FPDIV port map (
+    DIV: work.FPDIV port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(3),
         A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +3, "101" = -3
+        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
         RES     => div_result
+    );
+
+    -- FP SIN instance -- answer available in 36 cycles
+    DIV: work.FPSIN port map (
+        CLOCK   => CLOCK_50,
+        EN      => enabled(3),
+        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
+        RES     => sin_result
     );
 end Structural;
