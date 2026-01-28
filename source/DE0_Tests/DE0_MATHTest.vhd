@@ -31,7 +31,8 @@ architecture Structural of DE0_MATHTest is
     signal addsub_result : std_logic_vector(63 downto 0) := (others => '0');
     signal mult_result   : std_logic_vector(63 downto 0) := (others => '0');
     signal div_result    : std_logic_vector(63 downto 0) := (others => '0');
-    signal atan_result    : std_logic_vector(31 downto 0) := (others => '0');
+    signal sqrt_result   : std_logic_vector(63 downto 0) := (others => '0');
+    signal exp_result    : std_logic_vector(63 downto 0) := (others => '0');
 
     signal output_result  : std_logic_vector(63 downto 0) := (others => '0');
     signal enabled : std_logic_vector(15 downto 0) := (others => '0');  -- one hot enable of each math function
@@ -58,7 +59,8 @@ begin
             "0000000000000010" when "0001",          -- SUB
             "0000000000000100" when "0010",          -- MULT
             "0000000000001000" when "0011",          -- DIV
-            "0000000010000000" when "0111",          -- ATAN
+            "0000000000010000" when "0100",          -- SQRT
+            "0000000000100000" when "0101"           -- EXP
             "0000000000000000" when others;
 
     with (SW(9 downto 6)) select                -- same selects the output
@@ -66,7 +68,8 @@ begin
             addsub_result   when "0000"|"0001",
             mult_result     when "0010",
             div_result      when "0011",
-            atan_result & "00000000000000000000000000000000"      when "0111", -- temporary
+            sqrt_result     when "0100",
+            exp_result      when "0101",
             (others => '0') when others;
 
     -- FP ADD_SUB instance - answer available in 7 cycles
@@ -97,11 +100,19 @@ begin
         RES     => div_result
     );
 
-    -- FP SATANIN instance -- answer available in 36 cycles
-    ATAN: work.FPATAN port map (
+    -- FP SQRT instance -- answer available in 30 cycles
+    SQRT: work.FPSQRT port map (
         CLOCK   => CLOCK_50,
-        EN      => enabled(7),
-        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        RES     => atan_result
+        EN      => enabled(4),
+        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        RES     => sqrt_result
+    );
+
+    -- FP EXP instance -- answer available in 25 cycles
+    EXP: work.FPEXP port map (
+        CLOCK   => CLOCK_50,
+        EN      => enabled(5),
+        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        RES     => exp_result
     );
 end Structural;
