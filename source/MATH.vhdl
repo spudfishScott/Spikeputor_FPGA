@@ -11,10 +11,10 @@ ENTITY FPADD_SUB IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        B     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        B     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
         ADD   : IN STD_LOGIC := '1';
-        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+        RES   : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
 END FPADD_SUB;
 
@@ -55,9 +55,9 @@ ENTITY FPMULT IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        B     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        B     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
 END FPMULT;
 
@@ -96,9 +96,9 @@ ENTITY FPDIV IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        B     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        B     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
 END FPDIV;
 
@@ -137,8 +137,8 @@ ENTITY FPSQRT IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
 END FPSQRT;
 
@@ -175,8 +175,8 @@ ENTITY FPEXP IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
 END FPEXP;
 
@@ -213,8 +213,8 @@ ENTITY FPLN IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (63 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (63 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
 END FPLN;
 
@@ -251,8 +251,8 @@ ENTITY FPATAN IS
     PORT (
         CLOCK : IN STD_LOGIC := '1';
         EN    : IN STD_LOGIC := '0';
-        A     : IN STD_LOGIC_VECTOR (31 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR (31 DOWNTO 0)
+        A     : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
     );
 END FPATAN;
 
@@ -260,7 +260,7 @@ ARCHITECTURE SYN OF FPATAN IS
 
 BEGIN
 
-    fpln_component : altfp_atan
+    fpatan_component : altfp_atan
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
         pipeline                        => 34,
@@ -277,3 +277,295 @@ BEGIN
 END SYN;
 
 -------------------------------------------------------------------------------------------------------------------
+
+-- FP SIN function
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
+
+ENTITY FPSIN IS
+    PORT (
+        CLOCK : IN STD_LOGIC := '1';
+        EN    : IN STD_LOGIC := '0';
+        A     : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+    );
+END FPSIN;
+
+ARCHITECTURE SYN OF FPSIN IS
+
+BEGIN
+
+    fpsin_component : altfp_sincos
+    GENERIC MAP (
+        intended_device_family          => "Cyclone III",
+        pipeline                        => 36,
+        operation                       => "SIN",
+        width_exp                       => 8,
+        width_man                       => 23
+    )
+    PORT MAP (
+        clock      => CLOCK,
+        clk_en     => EN,
+        data       => A,
+        result     => RES
+    );
+
+END SYN;
+
+-------------------------------------------------------------------------------------------------------------------
+
+-- FP COS function
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
+
+ENTITY FPCOS IS
+    PORT (
+        CLOCK : IN STD_LOGIC := '1';
+        EN    : IN STD_LOGIC := '0';
+        A     : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+    );
+END FPCOS;
+
+ARCHITECTURE SYN OF FPCOS IS
+
+BEGIN
+
+    fpcos_component : altfp_sincos
+    GENERIC MAP (
+        intended_device_family          => "Cyclone III",
+        pipeline                        => 35,
+        operation                       => "COS",
+        width_exp                       => 8,
+        width_man                       => 23
+    )
+    PORT MAP (
+        clock      => CLOCK,
+        clk_en     => EN,
+        data       => A,
+        result     => RES
+    );
+
+END SYN;
+
+-------------------------------------------------------------------------------------------------------------------
+
+-- FP Compare function
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
+
+ENTITY FPCOMPARE IS
+    PORT (
+        CLOCK : IN STD_LOGIC := '1';
+        EN    : IN STD_LOGIC := '0';
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        B     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(6 downto 0)        -- aeb, aneb, agb, ageb, alb, aleb, unrodered
+    );
+END FPCOMPARE;
+
+ARCHITECTURE SYN OF FPCOMPARE IS
+
+BEGIN
+
+    fpcompare_component : altfp_comapre
+    GENERIC MAP (
+        intended_device_family          => "Cyclone III",
+        pipeline                        => 1,
+        width_exp                       => 11,
+        width_man                       => 52
+    )
+    PORT MAP (
+        clock      => CLOCK,
+        clk_en     => EN,
+        dataa      => A,
+        datab      => B,
+        aeb        => RES(6),
+        agb        => RES(5),
+        ageb       => RES(4),
+        alb        => RES(3),
+        aleb       => RES(2),
+        aneb       => RES(1),
+        unordered  => RES(0)
+    );
+
+END SYN;
+
+-------------------------------------------------------------------------------------------------------------------
+
+-- FP Convert Int to Float function
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
+
+ENTITY FPCONVERT_IF IS
+    PORT (
+        CLOCK : IN STD_LOGIC := '1';
+        EN    : IN STD_LOGIC := '0';
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(63 downto 0)
+    );
+END FPCONVERT_IF;
+
+ARCHITECTURE SYN OF FPCONVERT_IF IS
+
+BEGIN
+
+    fpcompare_convert_if : altfp_convert
+    GENERIC MAP (
+        intended_device_family          => "Cyclone III",
+        pipeline                        => 6,
+        width_int                       => 64,
+        width_data                      => 64,
+        width_exp_output                => 11,
+        width_man_output                => 52,
+        width_result                    => 64,
+        operation                       => "INT2FLOAT"
+    )
+    PORT MAP (
+        clock      => CLOCK,
+        clk_en     => EN,
+        dataa      => A,
+        result     => RES
+    );
+
+END SYN;
+
+-------------------------------------------------------------------------------------------------------------------
+
+-- FP Convert Float to Int function
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
+
+ENTITY FPCONVERT_FI IS
+    PORT (
+        CLOCK : IN STD_LOGIC := '1';
+        EN    : IN STD_LOGIC := '0';
+        A     : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES   : OUT STD_LOGIC_VECTOR(63 downto 0)
+    );
+END FPCONVERT_FI;
+
+ARCHITECTURE SYN OF FPCONVERT_FI IS
+
+BEGIN
+
+    fpcompare_convert_FI : altfp_convert
+    GENERIC MAP (
+        intended_device_family          => "Cyclone III",
+        pipeline                        => 6,
+        width_int                       => 64,
+        width_data                      => 64,
+        width_exp_input                 => 11,
+        width_man_input                 => 52,
+        width_result                    => 64,
+        operation                       => "FLOAT2INT"
+    )
+    PORT MAP (
+        clock      => CLOCK,
+        clk_en     => EN,
+        dataa      => A,
+        result     => RES
+    );
+
+END SYN;
+
+-------------------------------------------------------------------------------------------------------------------
+
+-- Integer Divide function (64 bit by 32 bit -> 64 bit quotient and 32 bit remainder)
+
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+LIBRARY lpm;
+USE lpm.lpm_components.all;
+
+ENTITY INTDIV is
+    PORT (
+        CLOCK   : IN STD_LOGIC := '1';
+        EN      : IN STD_LOGIC := '0';
+        A       : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        B       : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        QUOT    : OUT STD_LOGIC_VECTOR(63 downto 0);
+        REMND   : OUT STD_LOGIC_VECTOR(31 downto 0)
+    );
+END INTDIV;
+
+ARCHITECTURE SYN of INTDIV is
+
+BEGIN
+    intdiv: lpm_divide
+    GENERIC MAP (
+        intended_device_family          => "Cyclone III",
+        lpm_widthn                      => 64,
+        lpm_widthd                      => 32,
+        lpm_nrepresentation             => "SIGNED",
+        lpm_drepresentation             => "SIGNED",
+        pipeline                        => 0
+    )
+    PORT MAP (
+        clock       => CLOCK,
+        clken       => EN,
+        numer       => A,
+        denom       => B,
+        quotient    => QUOT,
+        remain      => REMND
+    );
+
+END SYN;
+
+-------------------------------------------------------------------------------------------------------------------
+
+-- Integer Multiply function
+
+LIBRARY ieee;
+USE ieee.std_logic_1164.all;
+
+LIBRARY lpm;
+USE lpm.lpm_components.all;
+
+ENTITY INTMULT is
+    PORT (
+        CLOCK   : IN STD_LOGIC := '1';
+        EN      : IN STD_LOGIC := '0';
+        A       : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        B       : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        RES     : OUT STD_LOGIC_VECTOR(63 downto 0)
+    );
+END INTMULT;
+
+ARCHITECTURE SYN of INTMULT is
+
+BEGIN
+    intmult: lpm_mult
+    GENERIC MAP (
+        intended_device_family          => "Cyclone III",
+        lpm_widtha                      => 64,
+        lpm_widthb                      => 64,
+        lpm_widthp                      => 64,    
+        lpm_representation              => "SIGNED",
+        pipeline                        => 0
+    )
+    PORT MAP (
+        clock       => CLOCK,
+        clken       => EN,
+        dataa       => A,
+        datab       => B,
+        result      => RES
+    );
+
+END SYN;

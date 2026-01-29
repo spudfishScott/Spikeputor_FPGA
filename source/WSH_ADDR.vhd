@@ -63,7 +63,7 @@ architecture RTL of WSH_ADDR is
     constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FFF1"; -- GPO address - read/write
     constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FFF2"; -- GPI address - read only
 
--- math fpu - two 32-bit input addresses, one 32-bit output addresses, one control/status address - 7 total (0xFFE0-0xFFE6)
+-- math fpu - two 64-bit input addresses, one 64-bit output addresses, one 32-bit output address (int remainder), one control/status address - 15 total (0xFFE0-0xFFEE)
 -- sound - use VGA output for sound? three voices, 4-bits each. So one address for volume and waveform control of all three voices, one address for frequency control for each voice - 4 total
 -- serial - one address I/O
 -- storage - one address I/O
@@ -91,7 +91,7 @@ begin
 
     with ADDR_I(7 downto 0) select                                                          -- math address flag
         math <=
-            '1' when x"E0" to x"E6",
+            '1' when x"E0" to x"EE",
             '0' when others; 
 
     -- assign p_sel based on addressing logic described above
