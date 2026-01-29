@@ -29,27 +29,27 @@ end DE0_MATHTest;
 
 architecture Structural of DE0_MATHTest is
 
-    constant Z32 : std_logic_vector(31 downto 0) := x"00000000";                -- 32 bits
-    constant Z57 : std_logic_vector(24 downto 0) := x"00000000000000" & "0";    -- 57 bits 
+    constant z25         : std_logic_vector(24 downto 0) := (others => '0');    -- 25 zero bits
+    constant z16         : std_logic_vector(15 downto 0) := (others => '0'):    -- 16 zero bits
 
-    signal addsub_result : std_logic_vector(63 downto 0) := (others => '0');
-    signal mult_result   : std_logic_vector(63 downto 0) := (others => '0');
-    signal div_result    : std_logic_vector(63 downto 0) := (others => '0');
-    signal sqrt_result   : std_logic_vector(63 downto 0) := (others => '0');
-    signal exp_result    : std_logic_vector(63 downto 0) := (others => '0');
-    signal ln_result     : std_logic_vector(63 downto 0) := (others => '0');
+    signal addsub_result : std_logic_vector(31 downto 0) := (others => '0');
+    signal mult_result   : std_logic_vector(31 downto 0) := (others => '0');
+    signal div_result    : std_logic_vector(31 downto 0) := (others => '0');
+    signal sqrt_result   : std_logic_vector(31 downto 0) := (others => '0');
+    signal exp_result    : std_logic_vector(31 downto 0) := (others => '0');
+    signal ln_result     : std_logic_vector(31 downto 0) := (others => '0');
     signal atan_result   : std_logic_vector(31 downto 0) := (others => '0');
     signal sin_result    : std_logic_vector(31 downto 0) := (others => '0');
     signal cos_result    : std_logic_vector(31 downto 0) := (others => '0');
     signal cmp_result    : std_logic_vector(6 downto 0)  := (others => '0');
-    signal i2f_result    : std_logic_vector(63 downto 0) := (others => '0');
-    signal f2i_result    : std_logic_vector(63 downto 0) := (others => '0');
-    signal idiv_quot     : std_logic_vector(63 downto 0) := (others => '0');
-    signal idiv_rem      : std_logic_vector(31 downto 0) := (others => '0');
-    signal imult_res     : std_logic_vector(63 downto 0) := (others => '0');
+    signal i2f_result    : std_logic_vector(31 downto 0) := (others => '0');
+    signal f2i_result    : std_logic_vector(31 downto 0) := (others => '0');
+    signal idiv_quot     : std_logic_vector(15 downto 0) := (others => '0');
+    signal idiv_rem      : std_logic_vector(15 downto 0) := (others => '0');
+    signal imult_result  : std_logic_vector(31 downto 0) := (others => '0');
 
     signal fn_select     : std_logic_vector(3 downto 0)  := (others => '0');
-    signal output_result : std_logic_vector(63 downto 0) := (others => '0');
+    signal output_result : std_logic_vector(31 downto 0) := (others => '0');
     signal enabled       : std_logic_vector(15 downto 0) := (others => '0');  -- one hot enable of each math function
 begin
     -- assign output states for unused 7 segment display decimal point and unused LEDs
@@ -63,13 +63,13 @@ begin
 
     -- LEDs show 10 more bits of mantissa unless IDIV, then 10 bits of of remainder, or CMP, then zero padded 7 bits of result
     LEDG(9 downto 0) <= 
-        idiv_rem(31 downto 22)      when fn_select = "1101" else    -- IDIV
+        idiv_rem(15 downto 6)      when fn_select = "1101" else    -- IDIV
         output_result(9 downto 0)   when fn_select = "1010" else    -- CMP
-        output_result(47 downto 38);
+        output_result(15 downto 6);
 
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS port map (
-        WORD  => output_result(63 downto 48),  -- upper bits of result = sign + 11 bits of exponent + 20 bits of mantissa
+        WORD  => output_result(31 downto 16),  -- upper bits of result = sign + 8 bits of exponent + 7 bits of mantissa
         SEGS0 => HEX0_D,
         SEGS1 => HEX1_D,
         SEGS2 => HEX2_D,
@@ -103,22 +103,22 @@ begin
             sqrt_result             when "0100",
             exp_result              when "0101",
             ln_result               when "0110",
-            z32 & atan_result       when "0111",        -- ATAN only uses single precision
-            z32 & sin_result        when "1000",        -- SIN only uses single precision
-            z32 & cos_result        when "1001",        -- COS only uses single precision
-            z57 & cmp_result        when "1010",        -- CMP result is only 7 bits
+            atan_result             when "0111",
+            sin_result              when "1000",
+            cos_result              when "1001",
+            z25 & cmp_result        when "1010",        -- CMP result is only 7 bits
             i2f_result              when "1011",
             f2i_result              when "1100",
-            idiv_quot               when "1101",        -- remainder output is something else
-            imult_result            when "1110"
+            z16 & idiv_quot         when "1101",        -- 16 bits output, remainder output is separate
+            imult_result            when "1110",        -- imult is 16x16 bit inputs, 32 bit output
             (others => '0')         when others;
 
     -- FP ADD_SUB instance - answer available in 7 cycles
     ADDSUB : work.FPADD_SUB port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(0) OR enabled(1),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
         ADD     => enabled(0),
         RES     => addsub_result
     );
@@ -127,8 +127,8 @@ begin
     MULT: work.FPMULT port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(2),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
         RES     => mult_result
     );
 
@@ -136,8 +136,8 @@ begin
     DIV: work.FPDIV port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(3),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "1111111111000000000000000000000000000000000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
         RES     => div_result
     );
 
@@ -145,7 +145,7 @@ begin
     SQRT: work.FPSQRT port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(4),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
         RES     => sqrt_result
     );
 
@@ -153,7 +153,7 @@ begin
     EXP: work.FPEXP port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(5),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
         RES     => exp_result
     );
 
@@ -161,7 +161,7 @@ begin
     LN: work.FPLN port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(6),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
         RES     => ln_result
     );
 
@@ -193,8 +193,8 @@ begin
     CMP: work.FPCOMPARE port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(10),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "101" = -2
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        B       => SW(2 downto 0) & "00000000000000000000000000000", -- switch in "010" = +2, "101" = -2
         RES     => cmp_result
     );
 
@@ -202,7 +202,7 @@ begin
     I2F: work.FPCONVERT_IF port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(11),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000010", -- switch in "000" = +2, "111" = -(2^61 - 2)
+        A       => SW(5 downto 3) & "00000000000000000000000000010", -- switch in "000" = +2, "111" = -(2^29 - 2)
         RES     => i2f_result
     );
 
@@ -210,27 +210,23 @@ begin
     F2I: work.FPCONVERT_FI port map (
         CLOCK   => CLOCK_50,
         EN      => enabled(12),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
         RES     => f2i_result
     );
 
-    -- Integer division - 64 bit numerator and 32 bit denominator - answer immediately as 64 bit quotient and 32 bit remainder
+    -- Integer division - 16 bit numerator and 16 bit denominator - answer immediately as 16 bit quotient and 16 bit remainder
     IDIV: work.INTDIV port map (
-        CLOCK   => CLOCK_50,
-        EN      => enabled(13),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2^62, "110" = -2^62
-        B       => SW(2 downto 0) & "00000000000000000000000000001",                                 -- switch in "010" = +2^30+1, "110" = -(2^30 - 1)
+        A       => SW(5 downto 3) & "0000000000000", -- switch in "010" = +2^14, "110" = -2^14
+        B       => SW(2 downto 0) & "0000000000001", -- switch in "010" = +2^14+1, "110" = -(2^14 - 1)
         QUOT    => idiv_quot,
         REMND   => idiv_rem
     );
 
-    -- Integer division - 64 bit numerator and 32 bit denominator - answer immediately as 64 bit quotient and 32 bit remainder
+    -- Integer multiplication - answer immediately
     IMULT: work.INTMULT port map (
-        CLOCK   => CLOCK_50,
-        EN      => enabled(14),
-        A       => SW(5 downto 3) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2^62, "110" = -2^62
-        B       => SW(2 downto 0) & "0000000000000000000000000000000000000000000000000000000000000", -- switch in "010" = +2^62, "110" = -2^62
-        REMND   => imult_res
+        A       => SW(5 downto 3) & "0000000000000", -- switch in "010" = +2^14, "110" = -2^14
+        B       => SW(2 downto 0) & "0000000000000", -- switch in "010" = +2^14, "110" = -2^14
+        RES   => imult_result
     );
 
 end Structural;
