@@ -30,7 +30,7 @@ end DE0_MATHTest;
 architecture Structural of DE0_MATHTest is
 
     constant z25         : std_logic_vector(24 downto 0) := (others => '0');    -- 25 zero bits
-    constant z16         : std_logic_vector(15 downto 0) := (others => '0'):    -- 16 zero bits
+    constant z16         : std_logic_vector(15 downto 0) := (others => '0');    -- 16 zero bits
 
     signal addsub_result : std_logic_vector(31 downto 0) := (others => '0');
     signal mult_result   : std_logic_vector(31 downto 0) := (others => '0');

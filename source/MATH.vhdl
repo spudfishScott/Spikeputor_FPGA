@@ -494,10 +494,10 @@ USE lpm.lpm_components.all;
 
 ENTITY INTDIV is
     PORT (
-        A       : IN STD_LOGIC_VECTOR(16 DOWNTO 0);
-        B       : IN STD_LOGIC_VECTOR(16 DOWNTO 0);
-        QUOT    : OUT STD_LOGIC_VECTOR(16 downto 0);
-        REMND   : OUT STD_LOGIC_VECTOR(16 downto 0)
+        A       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        B       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        QUOT    : OUT STD_LOGIC_VECTOR(15 downto 0);
+        REMND   : OUT STD_LOGIC_VECTOR(15 downto 0)
     );
 END INTDIV;
 
@@ -532,9 +532,9 @@ USE lpm.lpm_components.all;
 
 ENTITY INTMULT is
     PORT (
-        A       : IN STD_LOGIC_VECTOR(16 DOWNTO 0);
-        B       : IN STD_LOGIC_VECTOR(16 DOWNTO 0);
-        RES     : OUT STD_LOGIC_VECTOR(16 downto 0)
+        A       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        B       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        RES     : OUT STD_LOGIC_VECTOR(31 downto 0)
     );
 END INTMULT;
 
