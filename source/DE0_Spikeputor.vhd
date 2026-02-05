@@ -122,7 +122,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- Memory output signals
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
-    signal ack         : std_logic_vector(10 downto 0) := (others => '0');  -- all of the ack signals from the providers
+    signal ack         : std_logic_vector(11 downto 0) := (others => '0');  -- all of the ack signals from the providers
     signal all_acks    : std_logic := '0';                                  -- OR all of the ack signals together for input into masters
 
     -- CPU clock control related signals
@@ -270,7 +270,7 @@ begin
         );
 
         -- Wishbone ACK signal logic
-        all_acks <= ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
+        all_acks <= ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
         cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
         dma_ack  <= dma_gnt_sig AND all_acks;
 
@@ -537,6 +537,24 @@ begin
             DRAM_DQ      => DRAM_DQ,
             DRAM_UDQM    => DRAM_UDQM,
             DRAM_LDQM    => DRAM_LDQM
+        );
+
+    -- MATH Instance as Wishbone provider (P11)
+    MATH : entity work.MATH_WSH_P
+        port map (
+            CLK         => SYS_CLK,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(11),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(11),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data11,
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we,
         );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

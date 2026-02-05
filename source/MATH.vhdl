@@ -1,3 +1,5 @@
+-- Component definitions for Altera MATH IP
+
 -- FP Addition/Subtraction
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
@@ -149,7 +151,7 @@ BEGIN
     fpsqrt_component : altfp_sqrt
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
-        pipeline                        => 16,
+        pipeline                        => 28,--16, logic elements barely changes but is MORE with 16?
         width_exp                       => 8,
         width_man                       => 23
     )
@@ -425,11 +427,11 @@ BEGIN
     fp_convert_if : altfp_convert
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
-        width_int                       => 31,
-        width_data                      => 31,
+        width_int                       => 32,
+        width_data                      => 32,
         width_exp_output                => 8,
         width_man_output                => 23,
-        width_result                    => 31,
+        width_result                    => 32,
         operation                       => "INT2FLOAT"
     )
     PORT MAP (

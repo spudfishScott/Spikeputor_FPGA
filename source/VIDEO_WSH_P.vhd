@@ -2,6 +2,7 @@
 -- For now, this is a simple wishbone provider that maps a fixed address range to read/write the video coprocessor registers and data
 -- In the future, may change this to be a higher level graphics engine that handles drawing operations, etc.
 -- Simple read or write 0xFFxx addresses to access the video coprocessor registers and data. Registers that shouldn't be exposed will return 0x0000 and will ignore writes.
+-- See ../ProjectNotes/Video Interface Notes for more explanation and ../ProjectNotes/RA8876.pdf
 -- Note that the lsb of the address is NOT ignored here.
 -- The STATUS register is read via location 0xFF00. Writes to 0xFF00 are ignored. Actual video register 0 is not exposed.
 -- Certain registers accept/produce an entire word (16 bits) at once, others are byte-wide only. See "word_flg" signal assignment for details.

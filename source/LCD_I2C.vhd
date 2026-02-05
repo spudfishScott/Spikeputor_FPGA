@@ -54,7 +54,7 @@ architecture RTL of LCD_I2C is
     signal s_mdata      : std_logic_vector(15 downto 0) := (others => '0');      -- local copy of memory data
     signal s_seg        : std_logic_vector(7 downto 0) := (others => '0');       -- local copy of SEGMENT
     signal s_wr         : std_logic := '0';                                      -- local copy of write flag
-	 signal s_jt         : std_logic := '0';                                      -- local copy of JT flag
+    signal s_jt         : std_logic := '0';                                      -- local copy of JT flag
 
     -- strings to print and translation logic
     signal string_reg   : std_logic_vector(47 downto 0) := (others => '0');      -- up to six byte string to print

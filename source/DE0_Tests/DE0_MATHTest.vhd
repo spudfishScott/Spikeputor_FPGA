@@ -85,9 +85,9 @@ begin
             "0000000000010000" when "0100",          -- SQRT
             "0000000000100000" when "0101",          -- EXP
             "0000000001000000" when "0110",          -- LN
-            "0000000010000000" when "0111",          -- ATAN
+ --           "0000000010000000" when "0111",          -- ATAN - removed due to resource requirements
             "0000000100000000" when "1000",          -- SIN
-            "0000001000000000" when "1001",          -- COS
+ --           "0000001000000000" when "1001",          -- COS - removed due to resource requirements
             "0000010000000000" when "1010",          -- CMP
             "0000100000000000" when "1011",          -- INT to FLOAT
             "0001000000000000" when "1100",          -- FLOAT to INT
@@ -103,9 +103,9 @@ begin
             sqrt_result             when "0100",
             exp_result              when "0101",
             ln_result               when "0110",
-            atan_result             when "0111",
+--            atan_result             when "0111",      -- removed due to resource requirements
             sin_result              when "1000",
-            cos_result              when "1001",
+--            cos_result              when "1001",      -- removed due to resource requirements
             z25 & cmp_result        when "1010",        -- CMP result is only 7 bits
             i2f_result              when "1011",
             f2i_result              when "1100",
@@ -118,7 +118,7 @@ begin
         CLOCK   => CLOCK_50,
         EN      => enabled(0) OR enabled(1),
         A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
+        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1, "101" = -1
         ADD     => enabled(0),
         RES     => addsub_result
     );
@@ -128,7 +128,7 @@ begin
         CLOCK   => CLOCK_50,
         EN      => enabled(2),
         A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
+        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1, "101" = -1
         RES     => mult_result
     );
 
@@ -137,7 +137,7 @@ begin
         CLOCK   => CLOCK_50,
         EN      => enabled(3),
         A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        B       => SW(2 downto 0) & "11111100000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
+        B       => SW(2 downto 0) & "11111110000000000000000000000", -- switch in "001" = +1.5, "101" = -1.5
         RES     => div_result
     );
 
@@ -165,13 +165,14 @@ begin
         RES     => ln_result
     );
 
-    -- FP ATAN instance -- answer available in 34 cycles - 32 bit float
-    ATAN: work.FPATAN port map (
-        CLOCK   => CLOCK_50,
-        EN      => enabled(7),
-        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        RES     => atan_result
-    );
+    -- Removed due to resource requirements
+    -- -- FP ATAN instance -- answer available in 34 cycles - 32 bit float
+    -- ATAN: work.FPATAN port map (
+    --     CLOCK   => CLOCK_50,
+    --     EN      => enabled(7),
+    --     A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+    --     RES     => atan_result
+    -- );
 
     -- FP SIN instance -- answer available in 36 cycles - 32 bit float
     SIN: work.FPSIN port map (
@@ -181,13 +182,14 @@ begin
         RES     => sin_result
     );
 
-    -- FP COS instance -- answer available in 35 cycles - 32 bit float
-    COS: work.FPCOS port map (
-        CLOCK   => CLOCK_50,
-        EN      => enabled(9),
-        A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
-        RES     => cos_result
-    );
+    -- Removed due to resource requirements
+    -- -- FP COS instance -- answer available in 35 cycles - 32 bit float
+    -- COS: work.FPCOS port map (
+    --     CLOCK   => CLOCK_50,
+    --     EN      => enabled(9),
+    --     A       => SW(5 downto 3) & "00000000000000000000000000000", -- switch in "010" = +2, "110" = -2
+    --     RES     => cos_result
+    -- );
 
     -- FP Compare instance -- answer available in 1 cycles - 7 bits of output (aeb/aneb/agb/ageb/alb/aleb/unrodered)
     CMP: work.FPCOMPARE port map (
