@@ -496,6 +496,8 @@ USE lpm.lpm_components.all;
 
 ENTITY INTDIV is
     PORT (
+	 	  CLOCK   : IN std_logic;
+		  EN      : IN std_logic;
         A       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
         B       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
         QUOT    : OUT STD_LOGIC_VECTOR(15 downto 0);
@@ -506,14 +508,18 @@ END INTDIV;
 ARCHITECTURE SYN of INTDIV is
 
 BEGIN
+	
     intdiv: lpm_divide
     GENERIC MAP (
+	     lpm_pipeline                    => 3, -- needs to be pipelined or timing failures exist
         lpm_widthn                      => 16,
         lpm_widthd                      => 16,
         lpm_nrepresentation             => "UNSIGNED",
         lpm_drepresentation             => "UNSIGNED"
     )
     PORT MAP (
+	     clock       => CLOCK,
+		  clken       => EN,
         numer       => A,
         denom       => B,
         quotient    => QUOT,
@@ -541,8 +547,9 @@ ENTITY INTMULT is
 END INTMULT;
 
 ARCHITECTURE SYN of INTMULT is
-
+	
 BEGIN
+
     intmult: lpm_mult
     GENERIC MAP (
         lpm_widtha                      => 16,

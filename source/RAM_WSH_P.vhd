@@ -1,5 +1,6 @@
 -- RAM Wishbone Interface Provider
--- 32/16/8 K of RAM (in three separate blocks due to Cyclone III constraints of 56 blocks total), thus 0xE000-0xFFFF is not accessable and always returns 0
+-- 32/16/4 K of RAM (in three separate blocks due to Cyclone III constraints of 56 blocks total less 2 blocks for math)
+-- thus 0xD000-0xFFFF is not accessable and always returns 0
 -- 16 bit wide data bus, 16 bit wide address bus
 -- RAM address is always even (bit 0 is ignored), and a full word is returned on an even address boundary
 
@@ -33,11 +34,11 @@ architecture rtl of RAM_WSH_P is
     constant zero16     : std_logic_vector(15 downto 0) := (others => '0');
     signal wbs_data32K  : std_logic_vector(15 downto 0) := (others => '0');
     signal wbs_data16K  : std_logic_vector(15 downto 0) := (others => '0');
-    signal wbs_data8K   : std_logic_vector(15 downto 0) := (others => '0');
+    signal wbs_data4K   : std_logic_vector(15 downto 0) := (others => '0');
 
     signal we_32K       : std_logic := '0';
     signal we_16K       : std_logic := '0';
-    signal we_8K        : std_logic := '0';
+    signal we_4K        : std_logic := '0';
 
 begin
     RAM32K_inst : entity work.RAM   
@@ -69,30 +70,30 @@ begin
             q         => wbs_data16K
         );
     
-    RAM8K_inst : entity work.RAM
+    RAM4K_inst : entity work.RAM
         generic map (
-            NUM_WORDS  => 4096,     -- 8K bytes = 4K words of 16 bits each
-            ADDR_WIDTH => 12        -- 12 bits to address 4K words
+            NUM_WORDS  => 2048,     -- 4K bytes = 2K words of 16 bits each
+            ADDR_WIDTH => 11        -- 11 bits to address 2K words
         )
-        port map (                  -- 8K bytes from 0xC000 to 0xDFFF - ADDR[15:13]="110", ADDR[0] = don't care
+        port map (                  -- 4K bytes from 0xC000 to 0xCFFF - ADDR[15:12]="1100", ADDR[0] = don't care
             clock     => CLK,
-            address => WBS_ADDR_I(12 downto 1),
+            address => WBS_ADDR_I(11 downto 1),
             data      => WBS_DATA_I,
-            wren      => we_8K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_8K and CYC and STB are asserted
+            wren      => we_4K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_4K and CYC and STB are asserted
 
-            q         => wbs_data8K
+            q         => wbs_data4K
         );
 
     -- output to wishbone interface
     WBS_DATA_O  <= wbs_data32K when WBS_ADDR_I(15) = '0' else               -- 32K block for addresses 0x0000-0x7FFF
                    wbs_data16K when WBS_ADDR_I(15 downto 14) = "10" else    -- 16K block for addresses 0x8000-0xBFFF
-                   wbs_data8K  when WBS_ADDR_I(15 downto 13) = "110" else   -- 8K block  for addresses 0xC000-0xDFFF
-                   zero16;                                                  -- return zero for addresses 0xE000-0xFFFF (will not get here - comparitor routes to ROM for 0xE000-0xFFFF)
+                   wbs_data4K  when WBS_ADDR_I(15 downto 12) = "1100" else   -- 4K block  for addresses 0xC000-0xCFFF
+                   zero16;                                                  -- return zero for addresses 0xD000-0xFFFF (will not get here - comparitor routes to ROM for 0xE000-0xFFFF)
 
     -- internal address select and write enable logic
     we_32K <= WBS_WE_I when WBS_ADDR_I(15) = '0' else '0';                  -- only write to 32K block when address is in range 0x0000-0x7FFF
     we_16K <= WBS_WE_I when WBS_ADDR_I(15 downto 14) = "10" else '0';       -- only write to 16K block when address is in range 0x8000-0xBFFF
-    we_8K  <= WBS_WE_I when WBS_ADDR_I(15 downto 13) = "110" else '0';      -- only write to 8K block when address is in range 0xC000-0xDFFF
+    we_4K  <= WBS_WE_I when WBS_ADDR_I(15 downto 12) = "1100" else '0';      -- only write to 4K block when address is in range 0xC000-0xCFFF
 
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
 

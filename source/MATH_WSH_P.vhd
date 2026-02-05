@@ -7,9 +7,9 @@
             -- 0x0002           A*B
             -- 0x0003           A/B
             -- 0x0004           SQRT(A)
-            -- 0x0005           e^(A)
-            -- 0x0006           LN(A)
-            -- 0x0008           SIN(A) - A in radians
+            -- 0x0005           e^(A) !!REMOVED!!
+            -- 0x0006           LN(A) !!REMOVED!!
+            -- 0x0008           SIN(A) - A in radians !!REMOVED!!
             -- 0x000A           COMPARE(A,B) (result is seven bits:[6:0] = aeb/aneb/agb/ageb/alb/aleb/unrodered)
             -- 0x000B           CONVERT A INT TO FLOAT
             -- 0x000C           CONVERT FLOAT A to INT
@@ -60,9 +60,6 @@ architecture rtl of MATH_WSH_P is
     signal mult_result   : std_logic_vector(31 downto 0) := (others => '0');
     signal div_result    : std_logic_vector(31 downto 0) := (others => '0');
     signal sqrt_result   : std_logic_vector(31 downto 0) := (others => '0');
-    signal exp_result    : std_logic_vector(31 downto 0) := (others => '0');
-    signal ln_result     : std_logic_vector(31 downto 0) := (others => '0');
-    signal sin_result    : std_logic_vector(31 downto 0) := (others => '0');
     signal cmp_result    : std_logic_vector(6 downto 0)  := (others => '0');
     signal i2f_result    : std_logic_vector(31 downto 0) := (others => '0');
     signal f2i_result    : std_logic_vector(31 downto 0) := (others => '0');
@@ -73,8 +70,8 @@ architecture rtl of MATH_WSH_P is
     signal fn_select     : std_logic_vector(3 downto 0)  := (others => '0');
     signal enabled       : std_logic_vector(15 downto 0) := (others => '0');    -- one hot enable of each math function
 
-    signal ack           : std_vector := '0';                                   -- wishbone ack signal
-    signal busy          : integer range 0 to 40 := '0';                        -- non-zero if calculating, reset for each new command (future - add multiple results for pipelining)
+    signal ack           : std_logic := '0';                                    -- wishbone ack signal
+    signal busy          : integer range 0 to 31 := 0;                          -- non-zero if calculating, reset for each new command (future - add multiple results for pipelining)
     signal busy_out      : std_logic_vector(15 downto 0) := (others => '0');
 
     signal input_a       : std_logic_vector(31 downto 0) := (others => '0');    -- input A register
@@ -82,24 +79,20 @@ architecture rtl of MATH_WSH_P is
     signal result        : std_logic_vector(31 downto 0) := (others => '0');    -- result register
 
 begin
-
-    -- output to wishbone interface
+ -- output to wishbone interface
     with (fn_select) select                     -- select output
         result <=
             addsub_result           when "0000"|"0001",
             mult_result             when "0010",
             div_result              when "0011",
             sqrt_result             when "0100",
-            exp_result              when "0101",
-            ln_result               when "0110",
-            sin_result              when "1000",
             z25 & cmp_result        when "1010",        -- CMP result is only 7 bits
             i2f_result              when "1011",
             f2i_result              when "1100",
             z16 & idiv_quot         when "1101",        -- 16 bits output, remainder output is separate
             imult_result            when "1110",        -- imult is 16x16 bit inputs, 32 bit output
             (others => '0')         when others;
-
+				
     with (fn_select) select                     -- select math function
         enabled <=
             "0000000000000001" when "0000",          -- ADD
@@ -107,9 +100,6 @@ begin
             "0000000000000100" when "0010",          -- MULT
             "0000000000001000" when "0011",          -- DIV
             "0000000000010000" when "0100",          -- SQRT
-            "0000000000100000" when "0101",          -- EXP
-            "0000000001000000" when "0110",          -- LN
-            "0000000100000000" when "1000",          -- SIN
             "0000010000000000" when "1010",          -- CMP
             "0000100000000000" when "1011",          -- INT to FLOAT
             "0001000000000000" when "1100",          -- FLOAT to INT
@@ -117,9 +107,11 @@ begin
             "0100000000000000" when "1110",          -- Integer Multiply (16 bit * 16 bit = 32 bit product)
             "0000000000000000" when others;
 
-    busy_out <= x"0000" when busy = 0 else x"8000"   -- if busy timer is non-zero, calculation is ongoing
+    busy_out <= x"0000" when busy = 0 else x"8000";  -- if busy timer is non-zero, calculation is ongoing
 
-    with (WBS_ADDR_I(3 downto 0)) select         -- select output based on selected register to read
+WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack if CYC and STB are asserted, else 0
+
+ with (WBS_ADDR_I(3 downto 0)) select         -- select output based on selected register to read
         WBS_DATA_O <=
             busy_out                when "0000",     -- 0xFFE0 read is current calculation status
             input_a(31 downto 16)   when "0001",     -- 0xFFE1 read is Input A High Word
@@ -131,16 +123,19 @@ begin
             idiv_rem                when "0111",     -- 0xFFE7 read is Integer Division Remainder
             z16                     when others;     -- otherwise 0
 
-
-WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack if CYC and STB are asserted, else 0
+				
 
     process(CLK) is     -- wishbone transaction process
     begin
         if rising_edge(CLK) then
+				
+            if busy /= 0 then                 -- busy counter countdown
+                busy <= busy - 1;
+            end if;
+		  
             if (WBS_CYC_I = '1' AND WBS_STB_I = '1' and ack = '0') then         -- wait for wishbone transaction to start
-                ack <= '1';                                                     -- acknowledge on next tick (read is available and write takes one cycle to latch everything in)
-
-                if (WBS_WE_I = '1') then                                        -- take action based on which register being written (reads happen asynchronously so no action required)
+                ack <= '1';                                                     -- acknowledge on next tick
+                if (WBS_WE_I = '1') then                                        -- write: take action based on which register being written
                     case WBS_ADDR_I(3 downto 0) is                              -- get bottom nybble of address
                         when "0000" =>      -- 0xFFE0 = function control
                             fn_select <= WBS_DATA_I(3 downto 0);                -- latch in function select to pipeline new calculation - resets the busy counter
@@ -153,20 +148,18 @@ WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack i
                                     busy <= 10;
                                 when "0100" =>              -- SQRT = 30 cycles
                                     busy <= 30;
-                                when "0101" =>              -- EXP = 25 cycles
-                                    busy <= 25;
-                                when "0110" =>              -- LN = 34 cycles
-                                    busy <= 34;
-                                when "1000" =>              -- SIN = 36 cycles
-                                    busy <= 36;
                                 when "1010" =>              -- COMPARE = 1 cycle
                                     busy <= 1;
                                 when "1011" =>              -- INT to FLOAT = 6 cycles
                                     busy <= 6;
                                 when "1100" =>              -- FLOAT to INT = 6 cycles
                                     busy <= 6;
+										  when "1101" =>					-- INT DIV = 3 cycle
+											   busy <= 3;
+										  when "1110" =>					-- INT MULT = available immediately
+											   busy <= 0;
                                 when others =>
-                                    busy <= 0;              -- integer math and undefined functions available immediately
+                                    busy <= 0;              -- undefined functions produce 0 immediately
                             end case;
                         -- Only allow writes to inputs if not busy or result will not make sense (until/if data pipeline is implemented)
                         when "0001" =>      -- 0xFFE1 = Input A High
@@ -190,17 +183,8 @@ WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack i
                     end case;
                 end if;
 
-            elsif (WBC_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
+            elsif (WBS_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
                 ack <= '0';                 -- reset internal ack signal when that happens
-            end if;
-        end if;
-    end process;
-
-    process(CLK) is     -- busy timer
-    begin
-        if rising_edge(clk) then
-            if busy /= 0 then
-                busy <= busy - 1;
             end if;
         end if;
     end process;
@@ -241,30 +225,6 @@ WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack i
         RES     => sqrt_result
     );
 
-    -- FP EXP instance -- answer available in 25 cycles
-    EXP: work.FPEXP port map (
-        CLOCK   => CLK,
-        EN      => enabled(5),
-        A       => input_a,
-        RES     => exp_result
-    );
-
-    -- FP LN instance -- answer available in 34 cycles
-    LN: work.FPLN port map (
-        CLOCK   => CLK,
-        EN      => enabled(6),
-        A       => input_a,
-        RES     => ln_result
-    );
-
-    -- FP SIN instance -- answer available in 36 cycles - 32 bit float
-    SIN: work.FPSIN port map (
-        CLOCK   => CLK,
-        EN      => enabled(8),
-        A       => input_a,
-        RES     => sin_result
-    );
-
     -- FP Compare instance -- answer available in 1 cycle - 7 bits of output (aeb/aneb/agb/ageb/alb/aleb/unrodered)
     CMP: work.FPCOMPARE port map (
         CLOCK   => CLK,
@@ -290,8 +250,10 @@ WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack i
         RES     => f2i_result
     );
 
-    -- Integer division - 16 bit numerator and 16 bit denominator - answer immediately as 16 bit quotient and 16 bit remainder
+    -- Integer division - 16 bit numerator and 16 bit denominator - answer in 3 cycles as 16 bit quotient and 16 bit remainder
     IDIV: work.INTDIV port map (
+	   CLOCK     => CLK,
+		  EN      => enabled(13),
         A       => input_a(15 downto 0),
         B       => input_b(15 downto 0),
         QUOT    => idiv_quot,
@@ -302,7 +264,7 @@ WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack i
     IMULT: work.INTMULT port map (
         A       => input_a(15 downto 0),
         B       => input_b(15 downto 0),
-        RES   => imult_result
+        RES     => imult_result
     );
 
 end rtl;

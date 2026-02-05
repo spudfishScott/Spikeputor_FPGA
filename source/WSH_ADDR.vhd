@@ -76,6 +76,7 @@ architecture RTL of WSH_ADDR is
     signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
+	 signal addr_l  : std_logic_vector(7 downto 0) := (others => '0');   -- low byte of full address
     signal p_oh    : std_logic_vector(11 downto 0) := (others => '0');  -- provider one-hot vector
 
 begin
@@ -83,7 +84,7 @@ begin
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
     addr_l <= ADDR_I(7 downto 0);     -- extract last byte of address
 
-    ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 13) /= "111")                -- standard RAM:0x0000-0xDFFF, Segment 0
+    ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 12) < "1101")                -- standard RAM:0x0000-0xCFFF, Segment 0
                    else '0';
     sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0 and not a ROM address
                    else '0';

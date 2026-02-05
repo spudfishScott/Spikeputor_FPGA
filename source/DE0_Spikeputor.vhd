@@ -77,7 +77,6 @@ architecture Structural of DE0_Spikeputor is
     -- Signal Declarations
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
     signal GPO_REG     : std_logic_vector(15 downto 0) := (others => '0');
-    signal MATH_RES    : std_logic_vector(63 downto 0) := (others => '0');
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
@@ -540,22 +539,22 @@ begin
         );
 
     -- MATH Instance as Wishbone provider (P11)
-    MATH : entity work.MATH_WSH_P
-        port map (
-            CLK         => SYS_CLK,
-
-            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
-            -- handshaking signals
-            WBS_CYC_I   => arb_cyc,
-            WBS_STB_I   => stb_sel_sig(11),     -- strobe signal from Address Comparitor (use other bits for other providers)
-            WBS_ACK_O   => ack(11),             -- ack bit for the full set of provider acks (use other bits for other providers)
-
-            -- memory read/write signals
-            WBS_ADDR_I  => arb_addr,
-            WBS_DATA_O  => data11,
-            WBS_DATA_I  => arb_data_o,
-            WBS_WE_I    => arb_we,
-        );
+--    MATH : entity work.MATH_WSH_P
+--        port map (
+--            CLK         => SYS_CLK,
+--
+--            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+--            -- handshaking signals
+--            WBS_CYC_I   => arb_cyc,
+--            WBS_STB_I   => stb_sel_sig(11),     -- strobe signal from Address Comparitor (use other bits for other providers)
+--            WBS_ACK_O   => ack(11),             -- ack bit for the full set of provider acks (use other bits for other providers)
+--
+--            -- memory read/write signals
+--            WBS_ADDR_I  => arb_addr,
+--            WBS_DATA_O  => data11,
+--            WBS_DATA_I  => arb_data_o,
+--            WBS_WE_I    => arb_we
+--        );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     process(SYS_CLK) is
@@ -567,7 +566,8 @@ begin
 
     led_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
     lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
-    SPK_GPO <= MATH_RES(31 downto 16);--GPO_REG;         -- send internal GPO register to external GPO
+    
+	 SPK_GPO <= GPO_REG;         -- send internal GPO register to external GPO
 
     DOTSTAR : entity work.dotstar_driver 
         generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
@@ -637,15 +637,6 @@ begin
             SEGS2 => HEX2_D,
             SEGS3 => HEX3_D
         );
-
-    -- FPADD Test
-   FPADD0 : entity work.FPADD
-       port map (
-           CLOCK   => SYS_CLK,
-           A       => x"412000001234" & SPK_GPI,
-           B       => x"414000005678" & SPK_GPI,   -- 10.0
-           SUM     => MATH_RES
-       );
 
     -- LEDs
     LEDG(8 downto 0) <= (others => '0');
