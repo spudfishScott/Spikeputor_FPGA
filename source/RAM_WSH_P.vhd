@@ -32,6 +32,7 @@ architecture rtl of RAM_WSH_P is
 
     -- internal signals
     constant zero16     : std_logic_vector(15 downto 0) := (others => '0');
+
     signal wbs_data32K  : std_logic_vector(15 downto 0) := (others => '0');
     signal wbs_data16K  : std_logic_vector(15 downto 0) := (others => '0');
     signal wbs_data4K   : std_logic_vector(15 downto 0) := (others => '0');
@@ -49,7 +50,7 @@ begin
         port map (                  -- 32K bytes from 0x0000 to 0x7FFF - ADDR[15] = "0", ADDR[0] = don't care
             clock     => CLK,
 
-            address => WBS_ADDR_I(14 downto 1),
+            address   => WBS_ADDR_I(14 downto 1),
             data      => WBS_DATA_I,
             wren      => we_32K AND WBS_CYC_I AND WBS_STB_I,    -- only write when we_32K and CYC and STB are asserted
 
@@ -63,7 +64,7 @@ begin
         )
         port map (                  -- 16K bytes from 0x8000 to 0xBFFF - ADDR[15:14]="10", ADDR[0] = don't care
             clock     => CLK,
-            address => WBS_ADDR_I(13 downto 1),
+            address   => WBS_ADDR_I(13 downto 1),
             data      => WBS_DATA_I,
             wren      => we_16K AND WBS_CYC_I AND WBS_STB_I,    -- only write when we_16K and CYC and STB are asserted
 
@@ -77,7 +78,7 @@ begin
         )
         port map (                  -- 4K bytes from 0xC000 to 0xCFFF - ADDR[15:12]="1100", ADDR[0] = don't care
             clock     => CLK,
-            address => WBS_ADDR_I(11 downto 1),
+            address   => WBS_ADDR_I(11 downto 1),
             data      => WBS_DATA_I,
             wren      => we_4K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_4K and CYC and STB are asserted
 
@@ -87,13 +88,13 @@ begin
     -- output to wishbone interface
     WBS_DATA_O  <= wbs_data32K when WBS_ADDR_I(15) = '0' else               -- 32K block for addresses 0x0000-0x7FFF
                    wbs_data16K when WBS_ADDR_I(15 downto 14) = "10" else    -- 16K block for addresses 0x8000-0xBFFF
-                   wbs_data4K  when WBS_ADDR_I(15 downto 12) = "1100" else   -- 4K block  for addresses 0xC000-0xCFFF
-                   zero16;                                                  -- return zero for addresses 0xD000-0xFFFF (will not get here - comparitor routes to ROM for 0xE000-0xFFFF)
+                   wbs_data4K  when WBS_ADDR_I(15 downto 12) = "1100" else  -- 4K block  for addresses 0xC000-0xCFFF
+                   zero16;                                                  -- return zero for addresses 0xD000-0xFFFF (will not get here - comparitor routes to ROM for 0xD000-0xFFFF)
 
     -- internal address select and write enable logic
     we_32K <= WBS_WE_I when WBS_ADDR_I(15) = '0' else '0';                  -- only write to 32K block when address is in range 0x0000-0x7FFF
     we_16K <= WBS_WE_I when WBS_ADDR_I(15 downto 14) = "10" else '0';       -- only write to 16K block when address is in range 0x8000-0xBFFF
-    we_4K  <= WBS_WE_I when WBS_ADDR_I(15 downto 12) = "1100" else '0';      -- only write to 4K block when address is in range 0xC000-0xCFFF
+    we_4K  <= WBS_WE_I when WBS_ADDR_I(15 downto 12) = "1100" else '0';     -- only write to 4K block when address is in range 0xC000-0xCFFF
 
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
 

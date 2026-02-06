@@ -5,18 +5,18 @@
 --  WE_I   - from the master arbiter
 --  STB_I  - from the master arbiter
 --  TGD_I  - route the data bus to update the SEGMENT register
---  RAM?ROM is determined by msb (bit 23) of ADDR_I (1 = ROM, 0 = RAM) and also a portion of segment 0 is ROM (currently 0xE000-0xFFFF, but that will change when we lose some FPGA RAM to MATH)
+--  RAM?ROM is determined by msb (bit 23) of ADDR_I (1 = ROM, 0 = RAM) and also a portion of segment 0 is ROM (currently 0xD000-0xFFFF)
 --  Px_DATA_O - data output from each provider
---
+
 -- In addition to standard RAM (P0), SDRAM (P10), and ROM (P1), the following providers are accessed through specific addresses, which override the above:
 --  GPO (P2)        read/write location 0xFFF1
 --  GPI (P3)        read only location 0xFFF2 - writing goes nowhere
---  SOUND (P4)      read/write location 
+--  SOUND (P4)      read/write to sound processor - locations TBD
 --  VIDEO (P5)      read/write to video coprocessor - 0xFF00 - 0xFFDF
 --  SERIAL (P6)     serial in/serial out - locations TBD
---  STORAGE (P7)    read/write to SD card filesystem - locations TBD (might be coupled to DMA)
+--  STORAGE (P7)    read/write to SD card filesystem - locations TBD
 --  KEYBOARD (P8)   read keyboard input buffer 0xFFF0 (maybe mouse one day as well)
---  SEGMENT (P9)    read/write to segment register, which might be used to expand the total amount of RAM available - locations TBD
+--  SEGMENT (P9)    read/write to segment register, which is used to expand the total amount of RAM available
 --  MATH (P11)      floating point unit - 0xFFE0 - 0xFFE7
 
 -- Outputs are:
@@ -37,8 +37,8 @@ entity WSH_ADDR is
         TGD_I       : in std_logic;                         -- when TGD_I and WE_I are high, route to P9, SEGMENT write
 
         -- Data out from providers
-        P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0) 0x0000-0xDFFF
-        P1_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from ROM (P1) 0xE000-0xFFFF, 0x810000-0xBFFFFF
+        P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0) 0x0000-0xCFFF
+        P1_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from ROM (P1) 0xD000-0xFFFF, 0x810000-0xBFFFFF
         P2_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPO (P2)
         P3_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPI (P3)
         P4_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SOUND (P4)
@@ -57,12 +57,10 @@ entity WSH_ADDR is
 end WSH_ADDR;
 
 architecture RTL of WSH_ADDR is
-                            -- (map low byte of address to video coprocessor registers, except 0x00 => STATUS, and protect against registers that should not be exposed)
-    constant VIDEO_ADDR     : std_logic_vector(15 downto 0) := x"FF00"; -- VIDEO address start (0xFF00-0xFFDF)
-    constant MATH_ADDR      : std_logic_vector(15 downto 0) := x"FFE0"; -- MATH address start (0xFFE0-0xFFE8)
-    constant KEYBOARD_ADDR  : std_logic_vector(15 downto 0) := x"FFF0"; -- keyboard address - read only
-    constant GPO_ADDR       : std_logic_vector(15 downto 0) := x"FFF1"; -- GPO address - read/write
-    constant GPI_ADDR       : std_logic_vector(15 downto 0) := x"FFF2"; -- GPI address - read only
+    -- Full addresses are 0xFFFX, where X is the constant below:
+    constant KEYBOARD_ADDR  : std_logic_vector(3 downto 0) := x"0"; -- keyboard address - read only
+    constant GPO_ADDR       : std_logic_vector(3 downto 0) := x"1"; -- GPO address - read/write
+    constant GPI_ADDR       : std_logic_vector(3 downto 0) := x"2"; -- GPI address - read only
 
 -- sound - use VGA output for sound? three voices, 4-bits each. So one address for volume and waveform control of all three voices, one address for frequency control for each voice - 4 total
 -- serial - one address I/O
@@ -76,7 +74,7 @@ architecture RTL of WSH_ADDR is
     signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
-	 signal addr_l  : std_logic_vector(7 downto 0) := (others => '0');   -- low byte of full address
+    signal addr_l  : std_logic_vector(7 downto 0) := (others => '0');   -- low byte of full address
     signal p_oh    : std_logic_vector(11 downto 0) := (others => '0');  -- provider one-hot vector
 
 begin
@@ -92,12 +90,12 @@ begin
     spec    <= '1' when seg = "0000000" AND p_addr(15 downto 8) = x"FF"                     -- special I/O segment:address 00:0Fxx
                    else '0';
 
-    with addr_l select                                                                      -- math address flag
+    with addr_l select                                                                      -- math address flag for a range (0xFFE0-0xFFE7)
         math <=
             '1' when x"E0" to x"E7",
             '0' when others; 
 
-    with addr_l select                                                                      -- video address flag
+    with addr_l select                                                                      -- video address flag for a range (0xFF00 to 0xFFDF)
         video <=
             '1' when x"00" to x"DF",
             '0' when others;
@@ -106,12 +104,12 @@ begin
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, preempts all others
         else    0 when ram_e = '1'                                                        -- standard RAM
         else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
-        else    2 when spec = '1' AND addr_l = GPO_ADDR(7 downto 0)                       -- read/write GPO
-        else    3 when spec = '1' AND addr_l = GPI_ADDR(7 downto 0)                       -- read only GPI
-        -- to do the rest 4, 6, 7, 11
-        else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR(7 downto 0)                  -- read only KEYBOARD
+        else    2 when spec = '1' AND addr_l = GPO_ADDR                                   -- read/write GPO
+        else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
+        -- to do the rest 4, 6, 7
+        else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR                              -- read only KEYBOARD
         else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
-        else   11 when spec = '1' AND math = '1'                                          -- MATH coprocessor if address matches math range (0xFFE0 - 0xFFE9)
+        else   11 when spec = '1' AND math = '1'                                          -- MATH coprocessor if address matches math range (0xFFE0 - 0xFFE7)
         else   10 when ram_e = '1'                                                        -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    1;                                                                        -- default to read ROM
 

@@ -25,6 +25,17 @@
     -- 0xFFE6 - Output Low Word (read only)
     -- 0xFFE7 - INTDIV Remainder Output (read only)
 
+    -- Usage:
+        -- Store A high in 0xFFE1
+        -- Store A low in 0xFFE2
+        -- Store B high (if used) in 0xFFE3
+        -- Store B low (if used) in 0xFFE4
+        -- Store Function in 0xFFE0
+        -- Poll 0xFFE0 until 0 (up to 30 cycles and as few as 0, depending on the function)
+        -- Read result high from 0xFFE5
+        -- Read result low from 0xFFE6
+        -- Read INTDIV remainder from 0xFFE7
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -79,8 +90,8 @@ architecture rtl of MATH_WSH_P is
     signal result        : std_logic_vector(31 downto 0) := (others => '0');    -- result register
 
 begin
- -- output to wishbone interface
-    with (fn_select) select                     -- select output
+
+    with (fn_select) select                     -- select output to map to result
         result <=
             addsub_result           when "0000"|"0001",
             mult_result             when "0010",
@@ -90,10 +101,10 @@ begin
             i2f_result              when "1011",
             f2i_result              when "1100",
             z16 & idiv_quot         when "1101",        -- 16 bits output, remainder output is separate
-            imult_result            when "1110",        -- imult is 16x16 bit inputs, 32 bit output
+            imult_result            when "1110",        -- imult is 16x16 bit inputs = 32 bit output
             (others => '0')         when others;
-				
-    with (fn_select) select                     -- select math function
+
+    with (fn_select) select                     -- select math function to enable
         enabled <=
             "0000000000000001" when "0000",          -- ADD
             "0000000000000010" when "0001",          -- SUB
@@ -107,11 +118,7 @@ begin
             "0100000000000000" when "1110",          -- Integer Multiply (16 bit * 16 bit = 32 bit product)
             "0000000000000000" when others;
 
-    busy_out <= x"0000" when busy = 0 else x"8000";  -- if busy timer is non-zero, calculation is ongoing
-
-WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack if CYC and STB are asserted, else 0
-
- with (WBS_ADDR_I(3 downto 0)) select         -- select output based on selected register to read
+ with (WBS_ADDR_I(3 downto 0)) select           -- select output based on address of register to read
         WBS_DATA_O <=
             busy_out                when "0000",     -- 0xFFE0 read is current calculation status
             input_a(31 downto 16)   when "0001",     -- 0xFFE1 read is Input A High Word
@@ -123,18 +130,19 @@ WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack i
             idiv_rem                when "0111",     -- 0xFFE7 read is Integer Division Remainder
             z16                     when others;     -- otherwise 0
 
-				
+    busy_out    <= x"0000" when busy = 0 else x"8000";      -- if busy timer is non-zero, calculation is ongoing
+
+    WBS_ACK_O   <= ack AND WBS_CYC_I AND WBS_STB_I;         -- ack out is internal ack if CYC and STB are asserted, else 0
 
     process(CLK) is     -- wishbone transaction process
     begin
         if rising_edge(CLK) then
-				
             if busy /= 0 then                 -- busy counter countdown
                 busy <= busy - 1;
             end if;
-		  
-            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' and ack = '0') then         -- wait for wishbone transaction to start
-                ack <= '1';                                                     -- acknowledge on next tick
+
+            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then         -- wait for wishbone transaction to start
+                ack <= '1';                                                     -- acknowledge on next cycle
                 if (WBS_WE_I = '1') then                                        -- write: take action based on which register being written
                     case WBS_ADDR_I(3 downto 0) is                              -- get bottom nybble of address
                         when "0000" =>      -- 0xFFE0 = function control
@@ -154,14 +162,14 @@ WBS_ACK_O      <= ack AND WBS_CYC_I AND WBS_STB_I;  -- ack out is internal ack i
                                     busy <= 6;
                                 when "1100" =>              -- FLOAT to INT = 6 cycles
                                     busy <= 6;
-										  when "1101" =>					-- INT DIV = 3 cycle
-											   busy <= 3;
-										  when "1110" =>					-- INT MULT = available immediately
-											   busy <= 0;
+                                when "1101" =>              -- INT DIV = 3 cycles
+                                    busy <= 3;
+                                when "1110" =>              -- INT MULT = available immediately
+                                    busy <= 0;
                                 when others =>
                                     busy <= 0;              -- undefined functions produce 0 immediately
                             end case;
-                        -- Only allow writes to inputs if not busy or result will not make sense (until/if data pipeline is implemented)
+                        -- Only allow writes to inputs if not busy or result will not make sense (until/if data pipelining is implemented)
                         when "0001" =>      -- 0xFFE1 = Input A High
                             if busy = 0 then
                                 input_a(31 downto 16) <= WBS_DATA_I;            -- latch Input A High word

@@ -48,24 +48,24 @@ entity DE0_Spikeputor is
         --PS/2 KEYBOARD
         PS2_KBCLK    : inout std_logic;
         PS2_KBDAT    : inout std_logic;
-        -- GPIO - use GPIO1_D pins, but relabel
-        SPK_GPI      : in std_logic_vector(15 downto 0);   -- 16 bits of GPI (GPIO_1[31 to 16])
-        SPK_GPO      : out std_logic_vector(15 downto 0);   -- 16 bits of GPO (GPIO_1[15 to 0])
-        -- Video Interface
-        VIDEO_BL     : out std_logic;
-        VIDEO_RST_N  : out std_logic;
-        VIDEO_CS_N   : out std_logic;
-        VIDEO_WR_N   : out std_logic;
-        VIDEO_RD_N   : out std_logic;
-        VIDEO_RS     : out std_logic;
-        VIDEO_WAIT_N : in std_logic;
-        VIDEO_DATA   : inout std_logic_vector(15 downto 0);
+        -- GPIO - DE0 GPIO1 pins, but relabel
+        SPK_GPI      : in std_logic_vector(15 downto 0);        -- 16 bits of GPI (GPIO1[31 to 16])
+        SPK_GPO      : out std_logic_vector(15 downto 0);       -- 16 bits of GPO (GPIO1[15 to 0])
+        -- Video Interface - DE0 GPIO0 pins
+        VIDEO_BL     : out std_logic;                           -- GPIO0, Pin 10
+        VIDEO_RST_N  : out std_logic;                           -- GPIO0, Pin 9
+        VIDEO_CS_N   : out std_logic;                           -- GPIO0, Pin 8
+        VIDEO_WR_N   : out std_logic;                           -- GPIO0, Pin 7
+        VIDEO_RD_N   : out std_logic;                           -- GPIO0, Pin 6
+        VIDEO_RS     : out std_logic;                           -- GPIO0, Pin 5
+        VIDEO_WAIT_N : in std_logic;                            -- GPIO0, Pin 13
+        VIDEO_DATA   : inout std_logic_vector(15 downto 0);     -- GPIO0[24 to 9] (pins 33, 32, 31, 28, 27, 26, 25, 24, 23, 22, 20, 18, 17, 16, 15, 14)
         -- DotStar LED Strip Interface
-        DOTSTAR_DATA : out std_logic;
-        DOTSTAR_CLK  : out std_logic;
+        DOTSTAR_DATA : out std_logic;                           -- GPIO0, Pin 4
+        DOTSTAR_CLK  : out std_logic;                           -- GPIO0, Pin 2
         -- LCD I2C Interface -- relabel to SDA and SCL
-        LCD_SCL      : inout std_logic;
-        LCD_SDA      : inout std_logic
+        LCD_SCL      : inout std_logic;                         -- GPIO0, Pin 39
+        LCD_SDA      : inout std_logic                          -- GPIO0, Pin 40
     );
 end DE0_Spikeputor;
 
@@ -413,6 +413,8 @@ begin
             GPO         => GPO_REG             -- 16 bits to go to GPO port
         );
 
+    SPK_GPO <= GPO_REG;                        -- send internal GPO register to Spikeputor GPO pins
+
     -- GPI Instance as Wishbone Provider (P3)
     GPI1 : entity work.GPI_WSH_P
         port map (
@@ -539,22 +541,22 @@ begin
         );
 
     -- MATH Instance as Wishbone provider (P11)
---    MATH : entity work.MATH_WSH_P
---        port map (
---            CLK         => SYS_CLK,
---
---            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
---            -- handshaking signals
---            WBS_CYC_I   => arb_cyc,
---            WBS_STB_I   => stb_sel_sig(11),     -- strobe signal from Address Comparitor (use other bits for other providers)
---            WBS_ACK_O   => ack(11),             -- ack bit for the full set of provider acks (use other bits for other providers)
---
---            -- memory read/write signals
---            WBS_ADDR_I  => arb_addr,
---            WBS_DATA_O  => data11,
---            WBS_DATA_I  => arb_data_o,
---            WBS_WE_I    => arb_we
---        );
+    MATH : entity work.MATH_WSH_P
+        port map (
+            CLK         => SYS_CLK,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(11),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(11),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data11,
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we
+        );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     process(SYS_CLK) is
@@ -566,8 +568,6 @@ begin
 
     led_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
     lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
-    
-	 SPK_GPO <= GPO_REG;         -- send internal GPO register to external GPO
 
     DOTSTAR : entity work.dotstar_driver 
         generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
