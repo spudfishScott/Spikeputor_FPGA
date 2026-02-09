@@ -57,10 +57,11 @@ entity WSH_ADDR is
 end WSH_ADDR;
 
 architecture RTL of WSH_ADDR is
-    -- Full addresses are 0xFFFX, where X is the constant below:
-    constant KEYBOARD_ADDR  : std_logic_vector(3 downto 0) := x"0"; -- keyboard address - read only
-    constant GPO_ADDR       : std_logic_vector(3 downto 0) := x"1"; -- GPO address - read/write
-    constant GPI_ADDR       : std_logic_vector(3 downto 0) := x"2"; -- GPI address - read only
+    -- Full addresses are 0xFFXX, where XX is the constant below:
+    constant KEYBOARD_ADDR  : std_logic_vector(7 downto 0) := x"F0"; -- keyboard address - read only
+    constant GPO_ADDR       : std_logic_vector(7 downto 0) := x"F1"; -- GPO address - read/write
+    constant GPI_ADDR       : std_logic_vector(7 downto 0) := x"F2"; -- GPI address - read only
+    -- Video and Math use ranges which are addressed in the 'math' and 'video' logic below
 
 -- sound - use VGA output for sound? three voices, 4-bits each. So one address for volume and waveform control of all three voices, one address for frequency control for each voice - 4 total
 -- serial - one address I/O
