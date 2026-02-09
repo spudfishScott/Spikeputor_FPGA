@@ -130,7 +130,7 @@ begin
             idiv_rem                when "0111",     -- 0xFFE7 read is Integer Division Remainder
             z16                     when others;     -- otherwise 0
 
-    busy_out    <= x"0000" when busy = 0 else x"8000";      -- if busy timer is non-zero, calculation is ongoing
+    busy_out    <= x"0000" when busy = 0 else std_logic_vector(to_unsigned(busy,16));      -- if busy timer is non-zero, output number of cycles remaining as 16-bit value
 
     WBS_ACK_O   <= ack AND WBS_CYC_I AND WBS_STB_I;         -- ack out is internal ack if CYC and STB are asserted, else 0
 
@@ -154,8 +154,8 @@ begin
                                     busy <= 5;
                                 when "0011" =>              -- DIV = 10 cycles
                                     busy <= 10;
-                                when "0100" =>              -- SQRT = 30 cycles
-                                    busy <= 30;
+                                when "0100" =>              -- SQRT = 16 cycles
+                                    busy <= 16;
                                 when "1010" =>              -- COMPARE = 1 cycle
                                     busy <= 1;
                                 when "1011" =>              -- INT to FLOAT = 6 cycles

@@ -151,7 +151,7 @@ BEGIN
     fpsqrt_component : altfp_sqrt
     GENERIC MAP (
         intended_device_family          => "Cyclone III",
-        pipeline                        => 28,--16, logic elements barely changes but is MORE with 16?
+        pipeline                        => 16,
         width_exp                       => 8,
         width_man                       => 23
     )
