@@ -51,7 +51,7 @@ begin
                 holding_bus <= '0';
                 CPU_CLOCK   <= '0';
                 counter     <= 1;
-            else
+            elsif autoticks /= x"0001"  then -- do nothing if autoticks is 1 - otherwise this slows things down from full speed!
                 previous_man <= MAN_START;  -- store previous state of manual start signal for edge detection
 
                 if holding_bus = '0' then   -- not holding the bus, check for bus request/grant
