@@ -134,7 +134,7 @@ begin
             uart_tx_load <= '0';        -- default uart_tx_load to '0' to strobe it
             START        <= '0';        -- default DMA START to '0' to strobe it
             wr_rdy_sig   <= '0';        -- default wr_rdy_sig to '0' to strobe it
-            reset_start <= '0';         -- default reset_start to '0' to strobe it
+            reset_start  <= '0';        -- default reset_start to '0' to strobe it
 
             if RD_READY = '1' then
                 rd_rdy_sig <= '1';      -- latch RD_READY strobe when it comes in
@@ -143,14 +143,16 @@ begin
             if RST = '1' then
                 p_state   <= WAIT_START;
                 cmd_state <= WAIT_START;
-                rd_rdy_sig <= '0';
-                addr_sig  <= (others => '0');
-                len_sig   <= (others => '0');
             else
+
                 case (p_state) is
 
     --  WAIT_START: Wait for command to be recieved from UART
                     when WAIT_START =>                                      -- wait for RX_ready and rx_byte is a valid command
+                        rd_rdy_sig <= '0';
+                        addr_sig  <= (others => '0');
+                        len_sig   <= (others => '0');
+
                         if uart_rx_rdy = '1' then
                             p_state <= ACK_START;                           -- default - go to acknowledge
                             case (uart_rx_data) is                          -- see if the receieved byte is a cvalid command and route accordingly
@@ -277,14 +279,14 @@ begin
 
     -- NEXT_TRANSFER: update byte counters, and check for end of data
                     when NEXT_TRANSFER =>
-                        -- addr_sig    <= std_logic_vector(unsigned(addr_sig) + 2);    -- increment address by 2 (next word)
                         byte_count  <= byte_count + 2;                              -- increment byte counter by 2 (one word = 2 bytes)
 
-                        if (byte_count + 2 >= unsigned(len_sig)) then               -- check if all data has been written (len_sig = 0 for 65536 byte read, byte_count will roll over to 0 at 65536)
-                            cmd_state <= WAIT_START;
-                            p_state <= ACK_START;                                   -- if so, send ACK and go back to wait_start
+                        -- check if all data has been written (len_sig = 0 for 65536 byte read, byte_count will roll over to 0 at 65536)
+                        if (byte_count < unsigned(length_sig) - 2) OR (length_sig = 0 AND byte_count /= x"FFFE") then
+                            p_state <= cmd_state;                                   -- if so, read or write next word
                         else
-                            p_state <= cmd_state;                                   -- if not, read or write next word
+                            cmd_state <= WAIT_START;
+                            p_state <= ACK_START;                                   -- if not, send ACK and go back to wait_start
                     end if;
 
                     when others =>
@@ -294,3 +296,9 @@ begin
         end if;
     end process;
 end behavioral;
+
+if (byte_count < unsigned(length_sig) - 2) OR (length_sig = 0 AND byte_count /= x"FFFE") then
+                                current_state <= SENDING;   -- set up to send next word
+                            else
+                                current_state <= IDLE;      -- all done!
+                            end if;

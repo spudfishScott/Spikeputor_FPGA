@@ -114,27 +114,18 @@ begin
         if rising_edge(CLK) then
             if RST_I = '1' then
                 current_state <= IDLE;              -- return to IDLE state
-                byte_count    <= (others => '0');   -- reset byte conuter
-                w_latch_sig         <= '0';               -- clear write signal
-
-                stb_sig       <= '0';               -- clear wishbone transactions
-                WBS_STB_O     <= '0';
-
             else
                 rdy_out <= '0';             -- default READY_OUT is '0' for strobing
 
                 if rst_sig = '1' then
-                    WBS_CYC_O   <= '0';               -- clear wishbone transactions
-                    stb_sig     <= '0';
-                    w_latch_sig <= '0';
-                    current_state <= IDLE;          -- go back to IDLE state
+                    current_state <= IDLE;              -- return to IDLE state
 
                 else
                     case (current_state) is
 
                         when IDLE =>                -- wait for a DMA transaction request, request bus and wait for bus to be granted
-                            WBS_CYC_O <= '0';           -- shut down wishbone cycle and wait until a new DMA transaction is requested
-                            stb_sig   <= '0';
+                            WBS_CYC_O   <= '0';         -- shut down wishbone cycle and wait until a new DMA transaction is requested
+                            stb_sig     <= '0';
                             w_latch_sig <= '0';
 
                             if (dma_start = '1') then   -- start DMA transaction
@@ -180,7 +171,7 @@ begin
                             rdy_out <= '1';                             -- strobe READY_OUT to tell External interface data is ready to be sent
                             byte_count <= byte_count + 2;               -- increment byte count
                             current_addr <= std_logic_vector(unsigned(current_addr) + 2);   -- increment current address
-                            if (byte_count < to_integer(unsigned(length_sig)) - 2) then
+                            if (byte_count < unsigned(length_sig) - 2) OR (length_sig = 0 AND byte_count /= x"FFFE") then
                                 current_state <= SENDING;   -- set up to send next word
                             else
                                 current_state <= IDLE;      -- all done!
