@@ -73,7 +73,7 @@ architecture behavioral of dma_uart_ctrl is
     -- include preliminary values for all to help with fitter getting stuck
     type proto_fsm is (
         WAIT_START, ACK_START, DMA_START,
-        S_READ, S_WRITE, RESET,
+        S_READ, S_WRITE, RESET, WAIT_TX,
         HDR_0, HDR_1, HDR_2, HDR_3, HDR_4,
         LOAD_L, SEND_L, SEND_H, SEND_DONE, WRITE_MEM, NEXT_TRANSFER
     );
@@ -179,6 +179,12 @@ begin
                         if uart_tx_busy = '0' then                          -- wait here until OK to send
                             uart_tx_data <= C_ACK;
                             uart_tx_load <= '1';                            -- strobe load signal
+                            p_state <= WAIT_TX;
+                        end if;
+
+    -- WAIT_TX: Wait until transfer is complete before going to next step (including finishing the wishbone transaction)
+                    when WAIT_TX =>
+                        if uart_tx_busy = '0' then
                             if cmd_state = S_READ OR cmd_state = S_WRITE then
                                 p_state <= HDR_0;                           -- read header for READ and WRITE commands
                             else
