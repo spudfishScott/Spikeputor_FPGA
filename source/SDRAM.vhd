@@ -12,7 +12,6 @@
 --  * Clean, future-dev comments (why each step exists, not just how).
 --
 -- NOTE FOR FUTURE DEVELOPERS:
---  * If you move to a different clock, recompute the *_CYC constants from ns.
 --  * If you enable bursts >1 or open-page policy, you'll need tRAS/tRC guards.
 -- ###########################################################################
 
@@ -60,14 +59,13 @@ entity SDRAM is
 end entity;
 
 architecture rtl of SDRAM is
-    -- Timing constants based on a 50 MHz system clock. Change if that changes.
     constant CAS_LATENCY  : integer := 2; -- stays at 2 cycles unless frequency is >100 MHz, then go to 3 (and change the MODE_REG as well)
     constant tRCD_CYC     : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3
     constant tRP_CYC      : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3 
     constant tMRD_CYC     : integer := 2; -- always 2 cycles
     constant tWR_CYC      : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3 
     constant tRFC_CYC     : integer := (70 / (1_000_000_000/CLK_FREQ)) + 1; -- 70 nS
-    constant REF_INTERVAL : integer := 156 * (CLK_FREQ/10_000_000); -- 15.625 uS
+    constant REF_INTERVAL : integer := (15625 / (1_000_000_000/CLK_FREQ)) + 1; -- 15625 nS = 15.625 uS
 
     constant MODE_REG     : std_logic_vector(11 downto 0) := "00000" & "010" & "0" & "000";  -- [11:7] - Burst Read/Write / [6:4] - CAS latency = 2 / [3] - sequential wrap type / [2:0] - Burst Length = 1
 
@@ -268,7 +266,6 @@ architecture rtl of SDRAM is
                             else 
                                 dq_out <= WDATA;                                    -- set DQ to write data
                                 dq_oe  <= '1';                                      -- enable output (data setup phase)
-                                -- st     <= ST_WDATA;                                 -- wait one cycle for data to stabilize, then issue write command
                                  -- WRITE with precharge command                       -- see if this works. If not, revert to ST_WDATA state to issue command next cycle
                                 DRAM_CS_N  <= '0';
                                 DRAM_RAS_N <= '1';
@@ -294,7 +291,6 @@ architecture rtl of SDRAM is
 
                     when ST_WREC =>                                                 -- delay for writing, then back to IDLE
                         dq_oe <= '0';                                               -- disable DQ output after write
-                        -- VALID <= '1';                                               -- set valid flag for one cycle
                         if timer > 0 then 
                             timer <= timer - 1;                                     -- wait for write recovery time
                         else 

@@ -1,4 +1,9 @@
 -- External interface to the Spiekputor DMA - mediated through a serial connection to the outside world
+-- Serial connection can send one of the following commands:
+    -- "*" - send back acknowledgement and wait
+    -- ">" - send back acknowledgement, then recieve 5 byte header (3 bytes for address, 2 bytes for length (0 = 65536 bytes)), then send bytes, then send acknowledgement
+    -- "<" - send back acknowledgement, then receive 5 byte header (3 bytes for address, 2 bytes for length (0 = 65536 bytes)), then receive bytes, then send acknowledgement
+    -- "!" - send back acknowledgement, then reset the Spikeputor, then send another acknowledgement
 -- Sends external signals:
     -- Start (begin the DMA transaction)
     -- Write/nRead (1 = write, 0 = read)
@@ -11,7 +16,7 @@
 
 -- External Interface sends Start signal when Write/Read, Start Address, and Length are valid
 -- If read, DMA gets first word, sets DATA_OUT, strobes READY_OUT, External Interface behaves as below
--- If write, External Interface gets first word, sets WR_DATA strobes WR_READY, DMA behaves as below
+-- If write, External Interface gets first word, sets WR_DATA and strobes WR_READY, DMA behaves as below
 -- Data transfer continues:
     -- For Read: 
         -- External Interface waits for RD_READY, then latches RD_DATA, sends out word through serial port, strobes WR_READY, then loops until LENGTH bytes have been recieved
@@ -26,7 +31,8 @@ use ieee.numeric_std.all;
 
 entity dma_uart_ctrl is
     generic (
-        CLK_FREQ   : Integer := 50_000_000;                     -- clock frequency - default = 50 MHz
+        CLK_FREQ   : Integer := 50_000_000;                      -- clock frequency - default = 50 MHz - read/write = 120 ns so baud rate >= 12 ns/bit = 120 ns/byte 
+        BAUD_RATE  : Integer := 38400                            -- baud rate for UART communication - default = 38400 (where two bytes is transferred in the time it takes to read/write a word in Spikeputor memory)
     );
     port (
         CLK        : in  std_logic;
@@ -36,7 +42,7 @@ entity dma_uart_ctrl is
         RX_SERIAL  : in std_logic;                              -- serial data input
         TX_SERIAL  : out std_logic;                             -- serial data output
 
-        -- control signals (from UART interface)
+        -- control signals (from DMA interface)
         START       : out std_logic;                            -- strobe to begin DMA transaction
         WR_RD       : out std_logic;                            -- Write / nRead (1 = Write to Spikeputor, 0 - Read from Spikeputor)
         ADDRESS     : out std_logic_vector(23 downto 0);        -- Start address (full 24 bit)
@@ -45,7 +51,7 @@ entity dma_uart_ctrl is
         WR_READY    : out std_logic;                            -- Strobed when WR_DATA is valid
         RD_DATA     : in std_logic_vector(15 downto 0);         -- Data to send from the Spikeputor
         RD_READY    : in std_logic;                             -- Strobed when RD_DATA is valid
-        RESET_REQ   : out std_logic;                            -- Request to reset the spikeputor
+        RESET_REQ   : out std_logic                             -- Request to reset the spikeputor
     );
 end entity dma_uart_ctrl;
 
@@ -66,15 +72,20 @@ architecture behavioral of dma_uart_ctrl is
     -- internal signals, including state machine
     -- include preliminary values for all to help with fitter getting stuck
     type proto_fsm is (
-        WAIT_START, ACK_READ, ACK_WRITE, ACK_RESET,
+        WAIT_START, ACK_START, DMA_START,
+        S_READ, S_WRITE, RESET,
         HDR_0, HDR_1, HDR_2, HDR_3, HDR_4,
-        LOAD_L, LOAD_H, SEND_L, SEND_H,
-        ACK_DONE
+        LOAD_L, SEND_L, SEND_H, SEND_DONE, WRITE_MEM, NEXT_TRANSFER
     );
-    signal p_state     : proto_fsm := WAIT_START;                           -- start in WAIT_START state
+    signal p_state     : proto_fsm := WAIT_START;                           -- current state: start in WAIT_START state
+    signal cmd_state   : proto_fsm := WAIT_START;                           -- state to branch to from common code
 
-    signal address     : std_logic_vector(23 downto 0) := (others => '0');  -- full 24 bit address
-    signal write_len   : unsigned(15 downto 0) := (others => '0');          -- number of bytes to transfer
+    signal reset_start : std_logic := '0';                                  -- start a reset pulse
+
+    signal addr_sig    : std_logic_vector(23 downto 0) := (others => '0');  -- full 24 bit address
+    signal len_sig     : std_logic_vector(15 downto 0) := (others => '0');  -- number of bytes to transfer
+    signal wr_rdy_sig  : std_logic := '0';                                  -- WR_READY strobe
+    signal rd_rdy_sig  : std_logic := '0';                                  -- RD_READY latch
 
     signal byte_count  : unsigned(15 downto 0) := (others => '0');          -- number of bytes transferred so far
     signal word_buf    : std_logic_vector(15 downto 0) := (others => '0');  -- buffer for the word to transfer
@@ -83,182 +94,198 @@ begin
 
     uart_controller: entity work.UART
         generic map (
-            CLK_SPEED  => 50_000_000,     -- 50 MHz clock speed
-            BAUD_RATE  => 38400           -- Baud rate for UART communication   -- (where two bytes is transferred in the time it takes to read/write a word in Spikeputor memory)
+            CLK_SPEED  => CLK_FREQ,           -- Clock speed in Hz
+            BAUD_RATE  => BAUD_RATE           -- Baud rate for UART communication   -- (where two bytes is transferred in the time it takes to read/write a word in Spikeputor memory)
         )
         port map (
             CLK        => CLK,
             RST        => RST,
-            RX_SERIAL  => UART_RXD,       -- Serial data input
+            RX_SERIAL  => RX_SERIAL,      -- Serial data input
             RX_DATA    => uart_rx_data,   -- Received byte output
             RX_READY   => uart_rx_rdy,    -- Strobed when a byte has been received
-            TX_SERIAL  => UART_TXD,       -- Serial data output
+            TX_SERIAL  => TX_SERIAL,      -- Serial data output
             TX_DATA    => uart_tx_data,   -- Data to send through UART
             TX_LOAD    => uart_tx_load,   -- Strobe to send a byte
             TX_BUSY    => uart_tx_busy    -- Indicates if the transmitter is busy
         );
 
+    reset_pulse: entity work.PULSE_GEN
+        generic map ( 
+           PULSE_WIDTH => CLK_FREQ * 2 / 1000,   -- 0.002 seconds (ticks = clock freq * 0.002 seconds)
+           RESET_LOW => false
+        )
+        port map (
+            START_PULSE => reset_start,
+            CLK_IN      => CLK,
+            PULSE_OUT   => RESET_REQ
+        );
 
-
-    -- flicker activity when the process is running, show completed when process is over and ready for next session
-    ACTIVITY  <= '0' when (act_flasher < 25_000_000) else '1';
-    COMPLETED <= '1' when (p_state = ACK_DONE OR p_state = WAIT_START) else '0';
-
-    -- wire ADDR_OUT:
-    ---    ADDR[21] is always 0
-    ---    full sector address is 0 & ADDR[20:15] & 00000000000000
-    ---    full address is 0 & sector address & (byte address/2)
-
-    -- ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE)
-    --     else ("0" & SECTOR_ADDR & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
-    ADDR_OUT  <= ("0" & address(20 downto 15) & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE) AND address(20 downto 15) /= "000000"
-            else "0000000111000000000000" when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE) AND address(20 downto 15) = "000000"
-            else ("0" & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
-
-    -- wire DATA_OUT, WR_OUT and ERASE_OUT connections
-    DATA_OUT  <= word_buf;                                                  -- set data to write
-    WR_OUT    <= '1' when p_state = WRITE_FLASH else '0';                   -- strobe WR_OUT during the WRITE_FLASH state
-    ERASE_OUT <= "10" when p_state = ERASE_FLASH else "00";                 -- strobe ERASE_OUT (to sector erase) during the ERASE_FLASH state
+    ADDRESS  <= addr_sig;
+    LENGTH   <= len_sig;
+    WR_RD    <= '1' when cmd_state = S_WRITE else '0';                       -- Set write flag on WRITE command only
+    WR_READY <= wr_rdy_sig;
+    WR_DATA  <= word_buf;
 
     --  State machine to implement transfer protocol
     process(CLK)
     begin
         if rising_edge(CLK) then
-            TX_LOAD <= '0'; -- default TX_LOAD to '0'
+
+            uart_tx_load <= '0';        -- default uart_tx_load to '0' to strobe it
+            START        <= '0';        -- default DMA START to '0' to strobe it
+            wr_rdy_sig   <= '0';        -- default wr_rdy_sig to '0' to strobe it
+            reset_start <= '0';         -- default reset_start to '0' to strobe it
+
+            if RD_READY = '1' then
+                rd_rdy_sig <= '1';      -- latch RD_READY strobe when it comes in
+            end if;
 
             if RST = '1' then
-                p_state <= WAIT_START;
-                address <= (others => '0');
+                p_state   <= WAIT_START;
+                cmd_state <= WAIT_START;
+                rd_rdy_sig <= '0';
+                addr_sig  <= (others => '0');
+                len_sig   <= (others => '0');
             else
                 case (p_state) is
 
-    --  WAIT_START: Wait for '*' or '?' to be recieved from UART
-                    when WAIT_START =>                                      -- wait for RX_ready and rx_byte is '*'
-                        if RX_READY = '1' then
-                            if RX_DATA = C_STAR then
-                                p_state <= ACK_UPLOAD;                      -- received '*', acknowledge by sending '!' and starting upload
-                            elsif RX_DATA = C_QUES then
-                                p_state <= ACK_ERASE;                       -- received '?', acknowledge by sending '!' and starting erase
+    --  WAIT_START: Wait for command to be recieved from UART
+                    when WAIT_START =>                                      -- wait for RX_ready and rx_byte is a valid command
+                        if uart_rx_rdy = '1' then
+                            p_state <= ACK_START;                           -- default - go to acknowledge
+                            case (uart_rx_data) is                          -- see if the receieved byte is a cvalid command and route accordingly
+                                when C_ACK =>                               -- received '*', simply acknowledge and come back here
+                                    cmd_state <= WAIT_START;
+                                when C_READ =>                              -- received '>', acknowledge and start READ
+                                    cmd_state <= S_READ;
+                                when C_WRITE =>                             -- receieved '<', acknowledge and start WRITE
+                                    cmd_state <= S_WRITE;
+                                when C_RESET =>                             -- received '!', acknowledge and start RESET
+                                    cmd_state <= RESET;
+                                when others =>
+                                    p_state <= WAIT_START;                  -- ignore all invalid commands
+                            end case;
+                        end if;
+
+    --  RESET: Hold the RESET_REQ line high for 2 milliseconds
+                    when RESET =>
+                        reset_start <= '1';                                 -- strobe the reset start to generate the long RESET_REQ pulse
+                        p_state <= WAIT_START;
+
+    --  ACK_START: Acknowledge the start and execute the command
+                    when ACK_START =>
+                        if uart_tx_busy = '0' then                          -- wait here until OK to send
+                            uart_tx_data <= C_ACK;
+                            uart_tx_load <= '1';                            -- strobe load signal
+                            if cmd_state = S_READ OR cmd_state = S_WRITE then
+                                p_state <= HDR_0;                           -- read header for READ and WRITE commands
+                            else
+                                p_state <= cmd_state;                       -- RESET or ACK
                             end if;
                         end if;
 
-    --  ACK_UPLOAD: Acknowledge the start of a new upload session with '!'
-                    when ACK_UPLOAD =>
-                        if TX_BUSY = '0' then
-                            TX_DATA <=  C_BANG;
-                            TX_LOAD <= '1';                                 -- strobe load signal (TX_DATA set above)
-                            p_state <= HDR_0;                               -- start header read
-                        end if;
-
-    -- ACK_ERASE: Acknowledge the start of a new erase session with '!'
-                    when ACK_ERASE =>
-                        if TX_BUSY = '0' then
-                            TX_DATA <= C_BANG;
-                            TX_LOAD <= '1';                                 -- strobe load signal (TX_DATA set above)
-                            p_state <= GET_SECTOR;                          -- start erase
-                        end if;
-
-    --  HDR_x: Read the 5 byte header (address, length) - address is byte address (22 bits), but low bit is ignored
+    --  HDR_x: Read the 5 byte header (address, length) - address is byte address (23 bits)
                     when HDR_0 =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get high byte of address
-                            address(20 downto 15) <= RX_DATA(5 downto 0);   -- store top 6 bits of byte address/2 = word address
+                        if uart_rx_rdy = '1' then                           -- wait for RX_ready to get high byte of address
+                            addr_sig(23 downto 16) <= uart_rx_data;         -- store high byte of address
                             p_state <= HDR_1;                               -- move to next header read state
                         end if;
 
                     when HDR_1 =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get next byte of address
-                            address(14 downto 7) <= RX_DATA;                -- store next byte of byte address/2 = word address
+                        if uart_rx_rdy = '1' then                           -- wait for RX_ready to get next byte of address
+                            addr_sig(15 downto 8) <= uart_rx_data;          -- store next byte of address
                             p_state <= HDR_2;                               -- move to next header read state
                         end if;
 
                     when HDR_2 =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get low byte of address
-                            address(6 downto 0) <= RX_DATA(7 downto 1);     -- store low byte of byte address/2 = word address
+                        if uart_rx_rdy = '1' then                           -- wait for RX_ready to get low byte of address
+                            addr_sig(7 downto 0) <= uart_rx_data;           -- store low byte address
                             p_state <= HDR_3;                               -- move to next header read state
                         end if;
 
                     when HDR_3 =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get high byte of length of data
-                            write_len(15 downto 8) <= unsigned(RX_DATA);    -- store high byte of length
+                        if uart_rx_rdy = '1' then                           -- wait for RX_ready to get high byte of length of data
+                            len_sig(15 downto 8) <= uart_rx_data;           -- store high byte of length
                             p_state <= HDR_4;                               -- move to next header read state
                         end if;
 
                     when HDR_4 =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get low byte of length of data
-                            write_len(7 downto 0) <= unsigned(RX_DATA);     -- store low byte of length
-                            p_state <= LOAD_H;                              -- move to next state to load first word
+                        if uart_rx_rdy = '1' then                           -- wait for RX_ready to get low byte of length of data
+                            len_sig(7 downto 0) <= uart_rx_data;            -- store low byte of length
+                            p_state <= DMA_START;                           -- move to next state to start DMA transaction
                         end if;
 
-    --  LOAD_x: read in two bytes of data to make the word to write to flash
-                    when LOAD_H =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get high byte of word
-                            word_buf(15 downto 8) <= RX_DATA;               -- store high byte of word
+    -- DMA_START: strobe the START signal of the DMA module to begin DMA transaction
+                    when DMA_START =>
+                        START <= '1';                                       -- strobe the START signal
+                        byte_count <= (others => '0');                      -- reset byte count
+                        if cmd_state = S_WRITE then
+                            rd_rdy_sig <= '1';                              -- on first word write, set RD_READY latch high already - DMA is ready to receive first word
+                        end if;
+                        p_state <= cmd_state;                               -- go to S_READ or S_WRITE
+
+    -- S_READ: External Interface waits for RD_READY, then latches RD_DATA from DMA
+                    when S_READ =>
+                        if rd_rdy_sig = '1' then                            -- wait for RD_READY
+                            word_buf <= RD_DATA;                            -- latch in the word
+                            rd_rdy_sig <= '0';                              -- clear RD_READY latch
+                            p_state <= SEND_H;                              -- move to next state to send the word
+                        end if;
+
+    -- SEND_x: send out two bytes of data through serial port
+                    when SEND_H =>
+                        if uart_tx_busy = '0' AND uart_tx_load = '0' then   -- wait here until OK to send
+                            uart_tx_data <= word_buf(15 downto 8);          -- send high byte of word
+                            uart_tx_load <= '1';                            -- strobe load signal
+                            p_state <= SEND_L;                              -- send the next byte
+                        end if;
+
+                    when SEND_L =>
+                        if uart_tx_busy = '0' AND uart_tx_load = '0' then   -- wait here until OK to send
+                            uart_tx_data <= word_buf(7 downto 0);           -- send low byte of word
+                            uart_tx_load <= '1';                            -- strobe load signal
+                            p_state <= SEND_DONE;                           -- go to address increment loop
+                        end if;
+
+    -- SEND_DONE:  strobes WR_READY, then loops until LENGTH bytes have been recieved
+                    when SEND_DONE =>
+                        if uart_tx_busy = '0' AND uart_tx_load = '0' then   -- wait here until UART has sent the byte
+                            wr_rdy_sig <= '1';                              -- strobe WR_READY
+                            p_state <= NEXT_TRANSFER;                        -- go to address increment loop
+                        end if;
+
+    -- S_WRITE: External interface gets first word from serial interface, sets WR_DATA and strobes WR_READY to send to DMA, then increments loop
+    --          On subsequent iterations, waits for RD_READY before strobing WR_READY
+                    when S_WRITE =>
+                        if uart_rx_rdy = '1' then                           -- wait for RX_ready to get high byte of word
+                            word_buf(15 downto 8) <= uart_rx_data;          -- store high byte of word
                             p_state  <= LOAD_L;                             -- move to next state to load low byte
                         end if;
 
                     when LOAD_L =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get low byte of word
-                            word_buf(7 downto 0) <= RX_DATA;                -- store full word from byte_buf & low byte
-                            p_state  <= WRITE_FLASH;                        -- move to next state to wait for flash to be ready to write
+                        if uart_rx_rdy = '1' then                           -- wait for RX_ready to get low byte of word
+                            word_buf(7 downto 0) <= uart_rx_data;           -- store full word from byte_buf & low byte
+                            p_state  <= WRITE_MEM;                          -- move to next state to wait for flash to be ready to write
+                        end if;
+                    
+                    when WRITE_MEM =>                                       -- WRITE_DATA now good
+                        if rd_rdy_sig = '1' then                            -- strobe WR_READY if RD_READY has been strobed since last clear (will be high on first word write)
+                            wr_rdy_sig <= '1';                              -- strobe WR_READY - send word to DMA
+                            rd_rdy_sig <= '0';                              -- clear RD_READY for next write cycle
+                            p_state <= NEXT_TRANSFER;                        -- go to address increment loop
                         end if;
 
-    -- WRITE_FLASH: write the word to flash at the current address
-                    when WRITE_FLASH =>
-                        if FLASH_RDY = '1' then
-                            p_state   <= WAIT_FLASH;                        -- move to next state to wait for flash to finish writing
-                        end if;
+    -- NEXT_TRANSFER: update byte counters, and check for end of data
+                    when NEXT_TRANSFER =>
+                        -- addr_sig    <= std_logic_vector(unsigned(addr_sig) + 2);    -- increment address by 2 (next word)
+                        byte_count  <= byte_count + 2;                              -- increment byte counter by 2 (one word = 2 bytes)
 
-    -- WAIT_FLASH: wait for flash to be ready after it has written the word
-                    when WAIT_FLASH =>
-                        if FLASH_RDY = '1' then                             -- wait for flash idle
-                            p_state <= NEXT_ADDRESS;                        -- move to next state to notify that flash has been written
-                        end if;
-
-    -- NEXT_ADDRESS: update address and byte counters, and check for end of data
-                    when NEXT_ADDRESS =>
-                        address     <= std_logic_vector(unsigned(address) + 1);     -- increment address by 1 (next word)
-                        bytes_seen  <= bytes_seen + 2;                              -- increment byte counter by 2 (one word = 2 bytes)
-
-                        if bytes_seen + 2 >= write_len then                 -- check if all data has been written
-                            p_state <= ACK_DONE;                            -- if so, move to next state to acknowledge completion
-                            bytes_seen <= (others => '0');                  -- and clear byte counter
+                        if (byte_count + 2 >= unsigned(len_sig)) then               -- check if all data has been written (len_sig = 0 for 65536 byte read, byte_count will roll over to 0 at 65536)
+                            cmd_state <= WAIT_START;
+                            p_state <= ACK_START;                                   -- if so, send ACK and go back to wait_start
                         else
-                           p_state <= LOAD_H;                               -- otherwise, fetch next word
+                            p_state <= cmd_state;                                   -- if not, read or write next word
                     end if;
-
-    -- GET_SECTOR: get sector to erase
-                    when GET_SECTOR =>
-                        if RX_READY = '1' then                              -- wait for RX_ready to get the 6 bit sector to erase
-                            address(20 downto 15) <= RX_DATA(5 downto 0);   -- store top 6 bits of byte address/2 = word address
-                            p_state <= ERASE_FLASH;                         -- move to next header read state
-                        end if;
-
-    -- ERASE_FLASH: send the command to erase the entire flash card
-                    when ERASE_FLASH =>
-                        if FLASH_RDY = '1' then
-                            p_state <= WAIT_ERASE;                          -- move to the next state and wait for flash to finish erasing
-                        end if;
-
-    -- WAIT_ERASE: wait for flash to be ready after it erases the chip - increment counter so ACTIVITY light flashes at 1 Hz
-                    when WAIT_ERASE =>
-                        act_flasher <= act_flasher + 1;                -- increment activity counter, > 25_000_000 == ACTIVITY on
-
-                        if act_flasher = 50_000_000 then
-                            act_flasher <= 0;                               -- reset activity flasher at 50_000_000
-                        end if;
-
-                        if FLASH_RDY = '1' then                             -- wait for flash idle
-                            act_flasher <= 0;                               -- reset the activity flasher counter
-                            p_state <= ACK_DONE;                            -- move to next state to acknowledge completion
-                        end if;
-
-    --  ACK_DONE: send acknowledgement and reset state to wait for next upload
-                    when ACK_DONE =>
-                        if TX_BUSY = '0' then                               -- wait until UART is not busy to transmit
-                            TX_DATA <=  C_STAR;
-                            TX_LOAD <= '1';                                 -- strobe tx_load to transmit data
-                            p_state <= WAIT_START;                          -- move to next state - ready for next session
-                        end if;
 
                     when others =>
                         null;

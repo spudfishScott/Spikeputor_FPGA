@@ -11,12 +11,11 @@
     -- Out Busy - sending data from the Spikeputor
 
 -- External Interface sends Start signal when Write/Read, Start Address, and Length are valid
--- If read, DMA gets first word, sets DATA_OUT, strobes READY_OUT, External Interface behaves as below
--- If write, External Interface gets first word, sets DATA_IN strobes READY_IN, DMA behaves as below
+
 -- Data transfer continues:
     -- For Read: 
         -- External Interface waits for READY_OUT, then latches DATA_OUT, sends out word, strobes READY_IN, then loops until LENGTH bytes have been recieved
-        -- DMA reads memory, sets DATA_OUT, waits for READY_IN, strobes READY_OUT, then loops until LENGTH bytes have been sent
+        -- DMA reads memory, sets DATA_OUT, waits for READY_IN (doesn't wait on first word), strobes READY_OUT, then loops until LENGTH bytes have been sent
     -- For Write:
         -- External Interface gets next word of data, sets DATA_IN, waits for READY_OUT, strobes READY_IN, then loops until LENGTH bytes have been sent
         -- DMA waits for READY_IN, then latches DATA_IN, writes it to Spikeputor, strobes READY_OUT, loops until LENGTH bytes have been received
@@ -27,6 +26,10 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity DMA_WSH_M is
+    generic ( 
+        CLK_FREQ  : Integer := 50_000_000;                             -- clock frequency - default = 50 MHz
+        BAUD_RATE : Integer := 38400                                  -- baud rate for UART communication - default = 38400
+    );
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
@@ -44,25 +47,15 @@ entity DMA_WSH_M is
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from provider
         WBS_WE_O    : out std_logic;                        -- write enable output - write when high, read when low
 
-        -- control signals (from UART interface)
-        START       : in std_logic;                         -- begin DMA transaction
-        WR_RD       : in std_logic;                         -- Write / nRead (1 = Write to Spikeputor, 0 - Read from Spikeputor)
-        ADDRESS     : in std_logic_vector(23 downto 0);     -- Start address (full 24 bit)
-        LENGTH      : in std_logic_vector(15 downto 0);     -- Length in bytes to read/write
-        DATA_IN     : in std_logic_vector(15 downto 0);     -- Data to send to Spikeputor
-        READY_IN    : in std_logic;                         -- Strobed when DATA_IN is valid
-        DATA_OUT    : out std_logic_vector(15 downto 0);    -- Data to send from the Spikeputor
-        READY_OUT   : out std_logic;                        -- Strobed when DATA_OUT is valid
-        RESET_REQ   : in std_logic;                         -- Request from external interface to reset the spikeputor
-        
+        RX_SERIAL   : in std_logic;                         -- external UART RX
+        TX_SERIAL   : out std_logic;                        -- external UART TX
         RST_O       : out std_logic                         -- DMA signal to reset the Spikeputor
-
     );
 end DMA_WSH_M;
 
 architecture Behavioral of DMA_WSH_M is
     type CTRL_STATE is (
-        IDLE, SEND_START, SEND_OUT, SEND_WAIT, SENDING, RECV_START, RECEIVING
+        IDLE, SEND_OUT, SEND_WAIT, SENDING, RECV_START, RECEIVING
     );
     signal current_state : CTRL_STATE := IDLE;              -- start in WAIT_START state
 
@@ -70,95 +63,105 @@ architecture Behavioral of DMA_WSH_M is
     signal stb_sig        : std_logic := '0';               -- WBS_STB_O signal
 
     signal current_addr   : std_logic_vector(23 downto 0) := (others => '0');   -- current spikeputor address
+    signal start_addr     : std_logic_vector(23 downto 0) := (others => '0');   -- starting address for this DMA transaction
     signal length_sig     : std_logic_vector(15 downto 0) := (others => '0');   -- length in bytes to transfer
     signal w_sig          : std_logic := '0';                                   -- read/write signal
-    signal byte_count     : integer range 0 to 65535 := 0;                      -- current count of bytes sent or received
+    signal w_latch_sig    : std_logic := '0';                                   -- latched read/write signal for wishbone transaction
+    signal byte_count     : unsigned(15 downto 0) := (others => '0');           -- current count of bytes sent or received, rolls to 0 after 65535
+    signal rdy_in         : std_logic;                                          -- strobed when data is ready from external source
     signal rdy_in_sig     : std_logic;                                          -- latched ready in signal
-
     signal data_out_sig   : std_logic_vector(15 downto 0) := (others => '0');   -- latch to hold data out
-    signal data_in_sig    : std_logic_vector(15 downto 0) := (others => '0');   -- latch to hold data in
+    signal data_in_sig    : std_logic_vector(15 downto 0) := (others => '0');   -- data in from external source to be written to Spikeputor memory
+    signal data_in_latch  : std_logic_vector(15 downto 0) := (others => '0');   -- latch to hold data in for wishbone transaction
+    signal rdy_out        : std_logic;                                          -- strobed when data out is valid
+    signal dma_start      : std_logic;                                          -- strobed to start DMA transaction
 
 begin
+
+    UART_CTRL : entity work.DMA_UART_CTRL
+        generic map ( 
+            CLK_FREQ => CLK_FREQ,
+            BAUD_RATE => BAUD_RATE
+        )
+        port map (
+            CLK         => CLK,
+            RST         => RST_I,
+
+            RX_SERIAL   => RX_SERIAL,
+            TX_SERIAL   => TX_SERIAL,
+
+            START       => dma_start,                           -- strobe to begin DMA transaction
+            WR_RD       => w_sig,                               -- Write / nRead (1 = Write to Spikeputor, 0 - Read from Spikeputor)
+            ADDRESS     => start_addr,                          -- Start address (full 24 bit)
+            LENGTH      => length_sig,                          -- Length in bytes to read/write
+            WR_DATA     => data_in_sig,                         -- Data to send to Spikeputor
+            WR_READY    => rdy_in,                              -- Strobed when WR_DATA is valid
+            RD_DATA     => data_out_sig,                        -- Data to send from the Spikeputor
+            RD_READY    => rdy_out,                             -- Strobed when RD_DATA is valid
+            RESET_REQ   => rst_sig                              -- Request to reset the spikeputor
+        );
+
     clock : process(CLK) is
     begin
 
         WBS_ADDR_O   <= current_addr;       -- set up bus address
-        WBS_DATA_O   <= data_in_sig;        -- set up data to write to memory
-        WBS_WE_O     <= w_sig;              -- write flag
+        WBS_DATA_O   <= data_in_latch;      -- latched data to write to memory
+        WBS_WE_O     <= w_latch_sig;              -- write flag
         WBS_STB_O    <= stb_sig;            -- strobe signal
 
-        DATA_OUT     <= data_out_sig;       -- data out
         RST_O        <= rst_sig;            -- reset signal
 
         if rising_edge(CLK) then
             if RST_I = '1' then
-                current_state <= IDLE;            -- return to IDLE state
-                byte_count    <= 0;               -- reset byte conuter
-                rst_sig       <= '0';             -- clear reset signal
-                w_sig         <= '0';             -- clear write signal
+                current_state <= IDLE;              -- return to IDLE state
+                byte_count    <= (others => '0');   -- reset byte conuter
+                w_latch_sig         <= '0';               -- clear write signal
 
-                WBS_CYC_O     <= '0';                -- clear wishbone transactions
+                WBS_CYC_O     <= '0';               -- clear wishbone transactions
                 WBS_STB_O     <= '0';
 
             else
-                READY_OUT <= '0';           -- default READY_OUT is '0'
+                rdy_out <= '0';             -- default READY_OUT is '0' for strobing
 
-                if RESET_REQ = '1' then
-                    rst_sig   <= '1';
-                    WBS_CYC_O <= '0';                -- clear wishbone transactions
-                    stb_sig   <= '0';
-                    w_sig     <= '0';
-                    current_state <= IDLE;           -- go back to IDLE state
+                if rst_sig = '1' then
+                    WBS_CYC_O   <= '0';               -- clear wishbone transactions
+                    stb_sig     <= '0';
+                    w_latch_sig <= '0';
+                    current_state <= IDLE;          -- go back to IDLE state
 
                 else
                     case (current_state) is
+
                         when IDLE =>                -- wait for a DMA transaction request, request bus and wait for bus to be granted
                             WBS_CYC_O <= '0';           -- shut down wishbone cycle and wait until a new DMA transaction is requested
                             stb_sig   <= '0';
+                            w_latch_sig <= '0';
 
-                            if (START = '1') then       -- START DMA transaction
-                                current_addr <= ADDRESS;    -- latch in starting address
-                                length_sig   <= LENGTH;     -- latch in length
-                                w_sig        <= WR_RD;      -- latch in read/write signal
-                                byte_count <= 0;            -- reset byte count
-                                if (WR_RD = '0') then
-                                    current_state <= SEND_START;        -- WR_RD = 0, dispatch to sending first word
+                            if (dma_start = '1') then   -- start DMA transaction
+                                byte_count <= (others => '0');          -- reset byte count
+                                current_addr <= start_addr;             -- set current address to start address
+                                if (w_sig = '0') then                   -- Read Command
+                                    rdy_in_sig <= '1';                      -- set ready in latch for first word to send to Spikeputor (Controller is by definition ready to receive)
+                                    current_state <= SENDING;               -- dispatch to reading and sending memory data
                                 else
-                                    current_state <= RECV_START;        -- WR_RD = 1, dispatch to receiving loop
+                                    w_latch_sig <= '1';                 -- latch the write signal for wishbone transactions
+                                    current_state <= RECV_START;        -- Write Command - dispatch to receiving data from external interface and writing to memory
                                 end if;
                             end if;
 
-                        when SEND_START =>          -- wait for ACK to be 0, then start read transactions and wait for ack
-                            if (WBS_ACK_I = '0') then
-                                WBS_CYC_O <= '1';       -- start wishbone cycle to read Spikeputor addresses
-                                stb_sig   <= '1';       -- set wishbone strobe to read the first address
-                            elsif (WBS_ACK_I = '1' AND stb_sig = '1') then    -- memory has been read
-                                data_out_sig <= WBS_DATA_I;     -- latch in the data that was read
-                                stb_sig <= '0';                 -- end this wishbone transaction
-                                current_state <= SEND_OUT;
+                        when SENDING =>             -- read memory, set DATA_OUT, if READY_IN has come in, go to SEND_OUT, otherwise go to SEND_WAIT
+                            if rdy_in = '1' then
+                                rdy_in_sig <= '1';      -- capture rdy_in strobe to avoid missing it if it comes while waiting for memory read to complete
                             end if;
 
-                        when SEND_OUT =>            -- strobe ready out, see if we're done looping
-                            rdy_in_sig <= '0';              -- clear READY_IN latch, wait for it next step
-                            READY_OUT <= '1';               -- strobe READY_OUT to tell External interface data is ready
-                            byte_count <= byte_count + 2;                                   -- increment byte count
-                            current_addr <= std_logic_vector(unsigned(current_addr) + 2);   -- increment current address
-                            if (byte_count < to_integer(unsigned(length_sig)) - 2) then
-                                current_state <= SENDING;   -- set up to send next word
-                            else
-                                current_state <= IDLE;      -- all done!
-                            end if;
-
-                        when SENDING =>             -- read memory, set DATA_OUT
-                            if READY_IN = '1' then
-                                rdy_in_sig <= '1';      -- capture READY_IN strobe even if we're waiting for wishbone
-                            end if;
                             if (WBS_ACK_I = '0') then   -- wait for ACK to be low, then read next word
+                                WBS_CYC_O <= '1';           -- start (or continue) wishbone cycle
                                 stb_sig <= '1';   -- set wishbone strobe to read the current address
                             elsif (WBS_ACK_I = '1' AND stb_sig = '1') then    -- memory has been read
                                 data_out_sig <= WBS_DATA_I;     -- latch in the data that was read
                                 stb_sig <= '0';                 -- end this wishbone transaction
-                                if (rdy_in_sig = '1' OR READY_IN = '1') then
+
+                                if (rdy_in_sig = '1' OR rdy_in = '1') then  -- if external interface is ready to recieve the word, send it out, otherwise wait for it to be ready
                                     current_state <= SEND_OUT;  -- external interface is ready to recieve the word, send it out
                                 else
                                     current_state <= SEND_WAIT; -- otherwise wait for external interface to be ready
@@ -166,16 +169,27 @@ begin
                             end if;
 
                         when SEND_WAIT =>
-                            if (READY_IN = '1') then
+                            if (rdy_in_sig = '1' OR rdy_in = '1') then
                                 current_state <= SEND_OUT;  -- external interface is ready to recieve the word, send it out
                             else
                                 current_state <= SEND_WAIT; -- otherwise wait for external interface to be ready
                             end if;
 
-                        when RECV_START =>          -- wait for READY_IN to get word to write to Spikeputor, then latches DATA_IN
-                            if (READY_IN = '1') then
+                        when SEND_OUT =>                -- strobe ready out, see if we're done looping
+                            rdy_in_sig <= '0';                          -- clear READY_IN latch, wait for it next step
+                            rdy_out <= '1';                             -- strobe READY_OUT to tell External interface data is ready to be sent
+                            byte_count <= byte_count + 2;               -- increment byte count
+                            current_addr <= std_logic_vector(unsigned(current_addr) + 2);   -- increment current address
+                            if (byte_count < to_integer(unsigned(length_sig)) - 2) then
+                                current_state <= SENDING;   -- set up to send next word
+                            else
+                                current_state <= IDLE;      -- all done!
+                            end if;
+
+                        when RECV_START =>          -- wait for READY_IN to get word to write to Spikeputor, data_in_sig is 
+                            if (rdy_in = '1') then
+                                data_in_latch <= data_in_sig;   -- latch in the data to be written to memory
                                 current_state <= RECEIVING;     -- external interface has sent a word, so receive it
-                                data_in_sig <= DATA_IN;
                             else
                                 current_state <= RECV_START;    -- otherwise wait for external interface to finish sending
                             end if;
@@ -186,12 +200,13 @@ begin
                                 stb_sig <= '1';         -- set wishbone strobe to write the data to the current address
                             elsif (WBS_ACK_I = '1' AND stb_sig = '1') then    -- memory has been written
                                 stb_sig <= '0';         -- end this wishbone transaction
-                                READY_OUT <= '1';       -- strobe READY_OUT to tell External interface data has been written
+                                rdy_out <= '1';         -- strobe READY_OUT to tell External interface data has been written
                                 byte_count <= byte_count + 2;                                   -- increment byte count
                                 current_addr <= std_logic_vector(unsigned(current_addr) + 2);   -- increment current address
-                                if (byte_count < to_integer(unsigned(length_sig)) - 2) then
+                                if (byte_count + 2 < unsigned(length_sig)) then
                                     current_state <= RECV_START;   -- set up to receive next word
                                 else
+                                    w_latch_sig <= '0';     -- latch the write signal for wishbone transactions
                                     current_state <= IDLE;      -- all done!
                                 end if;
                             end if;

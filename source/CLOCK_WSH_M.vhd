@@ -54,7 +54,7 @@ begin
             else
                 previous_man <= MAN_START;  -- store previous state of manual start signal for edge detection
 
-                if holding_bus = '0' AND auto_ticks /= x"00000001" then   -- not holding the bus and not running at full speed, check for bus request/grant
+                if holding_bus = '0' AND (auto_ticks /= x"00000001" OR MAN_SEL = '1') then   -- not holding the bus and not running at full speed, check for bus request/grant
                     if M_ACK_I = '0' then
                         bus_req <= '1';     -- request bus from arbiter if not granted
                     end if;
