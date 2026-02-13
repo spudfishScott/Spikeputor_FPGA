@@ -171,7 +171,7 @@ begin
                             rdy_out <= '1';                             -- strobe READY_OUT to tell External interface data is ready to be sent
                             byte_count <= byte_count + 2;               -- increment byte count
                             current_addr <= std_logic_vector(unsigned(current_addr) + 2);   -- increment current address
-                            if (byte_count < unsigned(length_sig) - 2) OR (length_sig = 0 AND byte_count /= x"FFFE") then
+                            if (byte_count < unsigned(length_sig) - 2) OR (unsigned(length_sig) = 0 AND byte_count /= x"FFFE") then
                                 current_state <= SENDING;   -- set up to send next word
                             else
                                 current_state <= IDLE;      -- all done!
@@ -194,7 +194,7 @@ begin
                                 rdy_out <= '1';         -- strobe READY_OUT to tell External interface data has been written
                                 byte_count <= byte_count + 2;                                   -- increment byte count
                                 current_addr <= std_logic_vector(unsigned(current_addr) + 2);   -- increment current address
-                                if (byte_count + 2 < unsigned(length_sig)) then
+                                if (byte_count < unsigned(length_sig) - 2) OR (unsigned(length_sig) = 0 AND byte_count /= x"FFFE") then
                                     current_state <= RECV_START;   -- set up to receive next word
                                 else
                                     w_latch_sig <= '0';     -- latch the write signal for wishbone transactions

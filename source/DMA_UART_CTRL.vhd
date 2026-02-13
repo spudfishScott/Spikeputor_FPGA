@@ -282,7 +282,7 @@ begin
                         byte_count  <= byte_count + 2;                              -- increment byte counter by 2 (one word = 2 bytes)
 
                         -- check if all data has been written (len_sig = 0 for 65536 byte read, byte_count will roll over to 0 at 65536)
-                        if (byte_count < unsigned(length_sig) - 2) OR (length_sig = 0 AND byte_count /= x"FFFE") then
+                        if (byte_count < unsigned(len_sig) - 2) OR (unsigned(len_sig) = 0 AND byte_count /= x"FFFE") then
                             p_state <= cmd_state;                                   -- if so, read or write next word
                         else
                             cmd_state <= WAIT_START;
@@ -296,9 +296,3 @@ begin
         end if;
     end process;
 end behavioral;
-
-if (byte_count < unsigned(length_sig) - 2) OR (length_sig = 0 AND byte_count /= x"FFFE") then
-                                current_state <= SENDING;   -- set up to send next word
-                            else
-                                current_state <= IDLE;      -- all done!
-                            end if;
