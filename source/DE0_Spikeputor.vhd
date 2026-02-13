@@ -335,7 +335,7 @@ begin
     -- Spikeputor DMA as Wishbone master (M1)
     DMA : entity work.DMA_WSH_M
         generic map (
-            BAUD_RATE => 576000     -- highest standard baud rate attainable between Spikeputor and Mac with usb to serial converter
+            BAUD_RATE => 500000     -- highest standard baud rate attainable between Spikeputor and Mac with usb to serial converter
         )
         port map (
             -- SYSCON inputs

@@ -101,16 +101,15 @@ begin
             RESET_REQ   => rst_sig                              -- Request to reset the spikeputor
         );
 
+    WBS_ADDR_O   <= current_addr;       -- set up bus address
+    WBS_DATA_O   <= data_in_latch;      -- latched data to write to memory
+    WBS_WE_O     <= w_latch_sig;        -- write flag
+    WBS_STB_O    <= stb_sig;            -- strobe signal
+
+    RST_O        <= rst_sig;            -- reset signal
+
     clock : process(CLK) is
     begin
-
-        WBS_ADDR_O   <= current_addr;       -- set up bus address
-        WBS_DATA_O   <= data_in_latch;      -- latched data to write to memory
-        WBS_WE_O     <= w_latch_sig;              -- write flag
-        WBS_STB_O    <= stb_sig;            -- strobe signal
-
-        RST_O        <= rst_sig;            -- reset signal
-
         if rising_edge(CLK) then
             if RST_I = '1' then
                 current_state <= IDLE;              -- return to IDLE state

@@ -253,7 +253,7 @@ begin
                     when SEND_DONE =>
                         if uart_tx_busy = '0' AND uart_tx_load = '0' then   -- wait here until UART has sent the byte
                             wr_rdy_sig <= '1';                              -- strobe WR_READY
-                            p_state <= NEXT_TRANSFER;                        -- go to address increment loop
+                            p_state <= NEXT_TRANSFER;                       -- go to address increment loop
                         end if;
 
     -- S_WRITE: External interface gets first word from serial interface, sets WR_DATA and strobes WR_READY to send to DMA, then increments loop
