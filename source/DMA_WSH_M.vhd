@@ -117,7 +117,7 @@ begin
                 byte_count    <= (others => '0');   -- reset byte conuter
                 w_latch_sig         <= '0';               -- clear write signal
 
-                WBS_CYC_O     <= '0';               -- clear wishbone transactions
+                stb_sig       <= '0';               -- clear wishbone transactions
                 WBS_STB_O     <= '0';
 
             else

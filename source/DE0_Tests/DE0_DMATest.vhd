@@ -42,9 +42,7 @@ architecture Structural of DE0_DMATest is
     signal rst : std_logic;
 
     begin
-    -- display PC or PC_INC on 7-seg based on Button(2)
-    disp_out <= addr;
-
+        
     -- Control Logic Instance
     CTRL : entity work.DMA_WSH_M
         generic map (
@@ -77,7 +75,6 @@ architecture Structural of DE0_DMATest is
     RAM : entity work.RAM_WSH_P port map (
         -- SYSCON inputs
         CLK         => system_clk,
-        RST_I       => NOT Button(0) OR rst,
 
         -- Wishbone signals
         -- handshaking signals
@@ -94,7 +91,7 @@ architecture Structural of DE0_DMATest is
 
       -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS port map (
-        WORD  => disp_out,
+        WORD  => addr(15 downto 0),
         SEGS0 => HEX0_D,
         SEGS1 => HEX1_D,
         SEGS2 => HEX2_D,
