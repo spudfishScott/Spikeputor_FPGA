@@ -48,6 +48,9 @@ entity DE0_Spikeputor is
         --PS/2 KEYBOARD
         PS2_KBCLK    : inout std_logic;
         PS2_KBDAT    : inout std_logic;
+        -- UART
+        UART_RXD     : in std_logic;
+        UART_TXD     : out std_logic;
         -- GPIO - DE0 GPIO1 pins, but relabel
         SPK_GPI      : in std_logic_vector(15 downto 0);        -- 16 bits of GPI (GPIO1[31 to 16])
         SPK_GPO      : out std_logic_vector(15 downto 0);       -- 16 bits of GPO (GPIO1[15 to 0])
@@ -115,9 +118,15 @@ architecture Structural of DE0_Spikeputor is
     signal reg7_out    : std_logic_vector(18 downto 0) := (others => '0');
     signal regin_out   : std_logic_vector(17 downto 0) := (others => '0');
 
-    -- TODO: DMA interface signals
-    signal dma_ack     : std_logic := '0';
+    -- DMA interface signals
     signal dma_gnt_sig : std_logic := '0';
+    signal dma_cyc     : std_logic := '0';
+    signal dma_stb     : std_logic := '0';
+    signal dma_ack     : std_logic := '0';
+    signal dma_we      : std_logic := '0';
+    signal dma_addr    : std_logic_vector(23 downto 0) := (others => '0');
+    signal dma_data_o  : std_logic_vector(15 downto 0) := (others => '0');
+    signal dma_rst     : std_logic := '0';
 
     -- Memory output signals
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
@@ -152,27 +161,27 @@ architecture Structural of DE0_Spikeputor is
     signal stb_sel_sig : std_logic_vector(11 downto 0) := (others => '0');
 
     -- clock logic
-    signal clk_speed   : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
-    signal startup_res : std_logic := '1';                                  -- startup reset signal
-    signal SYS_CLK     : std_logic;                                         -- system clock signal
-    signal RESET       : std_logic;                                         -- system reset signal
-    signal MAN_CLK     : std_logic;                                         -- system manual clock
+    signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
+    signal startup_res  : std_logic := '1';                                  -- startup reset signal
+    signal SYS_CLK      : std_logic;                                         -- system clock signal
+    signal RESET        : std_logic;                                         -- system reset signal
+    signal MAN_CLK      : std_logic;                                         -- system manual clock
 
     -- Input synchronized signals
-    signal sw_sync     : std_logic_vector(9 downto 0) := (others => '0');
-    signal button_sync : std_logic_vector(2 downto 0) := (others => '0');
+    signal sw_sync      : std_logic_vector(9 downto 0) := (others => '0');
+    signal button_sync  : std_logic_vector(2 downto 0) := (others => '0');
 
     -- DotStar and LCD Control
-    signal led_refresh     : std_logic := '0';                                   -- signal to start the DotStar LED refresh process
-    signal lcd_refresh : std_logic := '0';                                   -- signal to start the LCD refresh process
-    signal led_busy    : std_logic := '0';                                   -- the dotstar interface is busy with an update
-    signal lcd_busy    : std_logic := '0';                                   -- the LCD interface is busy with an update
+    signal led_refresh  : std_logic := '0';                                  -- signal to start the DotStar LED refresh process
+    signal lcd_refresh  : std_logic := '0';                                  -- signal to start the LCD refresh process
+    signal led_busy     : std_logic := '0';                                  -- the dotstar interface is busy with an update
+    signal lcd_busy     : std_logic := '0';                                  -- the LCD interface is busy with an update
     signal last_cyc_sig : std_logic := '0';                                  -- to detect edge of wishbone cycle for wishbone update request
 
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL)
-    RESET   <= startup_res OR (NOT button_sync(0));                          -- Reset is startup reset or Button 0 (active low) now, but might not always be
+    RESET   <= startup_res OR dma_rst OR (NOT button_sync(0));               -- Reset is startup reset or DMA reset or Button 0 (active low)
     MAN_CLK <= NOT button_sync(1);                                           -- Button 1 is manual clock (active low) now, but might not always be
 
     -- startup reset pulse generator
@@ -218,12 +227,12 @@ begin
             M0_DATA_O   => cpu_data_o,
             M0_ADDR_O   => cpu_ext & cpu_addr,
 
-            -- Master 1 (DMA) signals - not yet implemented
-            M1_CYC_O    => '0',
-            M1_STB_O    => '0',
-            M1_WE_O     => '0',
-            M1_DATA_O   => X"0000",
-            M1_ADDR_O   => X"000000",
+            -- Master 1 (DMA) signals
+            M1_CYC_O    => dma_cyc,
+            M1_STB_O    => dma_stb,
+            M1_WE_O     => dma_we,
+            M1_DATA_O   => dma_data_o,
+            M1_ADDR_O   => dma_addr,
 
             -- Master 2 (Clock Generator) signals
             M2_CYC_O    => clk_gnt_req,             -- clock grant request
@@ -270,7 +279,7 @@ begin
 
         -- Wishbone ACK signal logic
         all_acks <= ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
-        cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal (apply this to DMA when implemented)
+        cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal
         dma_ack  <= dma_gnt_sig AND all_acks;
 
     -- WISHBONE MASTERS ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -324,7 +333,32 @@ begin
         );
 
     -- Spikeputor DMA as Wishbone master (M1)
-    -- TODO
+    DMA : entity work.DMA_WSH_M
+        generic map (
+            BAUD_RATE => 576000     -- highest standard baud rate attainable between Spikeputor and Mac with usb to serial converter
+        )
+        port map (
+            -- SYSCON inputs
+            CLK         => SYS_CLK,
+            RST_I       => RESET,
+
+            -- Wishbone signals for memory interface
+            -- handshaking signals
+            WBS_CYC_O   => dma_cyc,                             -- Wishbone CYC to providers
+            WBS_STB_O   => dma_stb,                             -- Wishbone STB to providers
+            WBS_ACK_I   => dma_ack,                             -- Wishbone ACK from providers
+
+            -- memory read/write signals
+            WBS_ADDR_O  => dma_addr,                            -- Wishbone Address to providers (24 bit)
+            WBS_DATA_O  => dma_data_o,                          -- Wishbone data to providers
+            WBS_DATA_I  => data_i,                              -- Wishbone data from providers (from address comparitor)
+            WBS_WE_O    => dma_we,                              -- Wishbone WE to providers
+
+            -- external signals
+            RX_SERIAL   => UART_RXD,                            -- Serial communication to DMA
+            TX_SERIAL   => UART_TXD,                            -- Serial communication from DMA
+            RST_O       => dma_rst                              -- DMA reset signal
+        );
 
     -- Spikeputor CPU Clock Throttle Control as Wishbone Master (M2)
     CLK_GEN : entity work.CLOCK_WSH_M

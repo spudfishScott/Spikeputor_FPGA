@@ -46,7 +46,7 @@ architecture Structural of DE0_DMATest is
     -- Control Logic Instance
     CTRL : entity work.DMA_WSH_M
         generic map (
-            BAUD_RATE => 230400
+            BAUD_RATE => 576000
         )
         port map (
             -- SYSCON inputs
