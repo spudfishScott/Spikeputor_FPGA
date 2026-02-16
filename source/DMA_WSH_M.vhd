@@ -164,11 +164,14 @@ begin
                                 halted_sig <= '1';              -- confirm Spikeputor is halted - external interface will send header recieved signal
                                 data_out_sig <= WBS_DATA_I;     -- latch in the data that was read
                                 stb_sig <= '0';                 -- end this wishbone transaction
-
-                                if (rdy_in_sig = '1' OR rdy_in = '1') then  -- if external interface is ready to recieve the word, send it out, otherwise wait for it to be ready
-                                    current_state <= SEND_OUT;  -- external interface is ready to recieve the word, send it out
+                                if (halted_sig = '0') then
+                                    current_state <= SENDING;               -- after Spikeputor halts, re-read the first address
                                 else
-                                    current_state <= SEND_WAIT; -- otherwise wait for external interface to be ready
+                                    if (rdy_in_sig = '1' OR rdy_in = '1') then  -- if external interface is ready to recieve the word, send it out, otherwise wait for it to be ready
+                                        current_state <= SEND_OUT;  -- external interface is ready to recieve the word, send it out
+                                    else
+                                        current_state <= SEND_WAIT; -- otherwise wait for external interface to be ready
+                                    end if;
                                 end if;
                             end if;
 
@@ -222,7 +225,6 @@ begin
                                 if (byte_count < unsigned(length_sig) - 2) OR (unsigned(length_sig) = 0 AND byte_count /= x"FFFE") then
                                     current_state <= RECV_START;   -- set up to receive next word
                                 else
-                                    w_latch_sig <= '0';         -- clear the write signal latch
                                     current_state <= IDLE;      -- all done!
                                 end if;
                             end if;

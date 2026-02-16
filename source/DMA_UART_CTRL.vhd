@@ -258,7 +258,6 @@ begin
                             uart_tx_data <= C_HDACK;                        -- send header ACK
                             uart_tx_load <= '1';                            -- strobe load signal
                             p_state <= cmd_state;                           -- go to S_READ or S_WRITE
-                            rd_rdy_sig <= '1';
                         end if;
 
     -- S_READ: External Interface waits for RD_READY, then latches RD_DATA from DMA
@@ -308,19 +307,20 @@ begin
                         if rd_rdy_sig = '1' then                            -- strobe WR_READY if RD_READY has been strobed since last clear (will be high on first word write)
                             wr_rdy_sig <= '1';                              -- strobe WR_READY - send word to DMA
                             rd_rdy_sig <= '0';                              -- clear RD_READY for next write cycle
-                            p_state <= NEXT_TRANSFER;                        -- go to address increment loop
+                            p_state <= NEXT_TRANSFER;                       -- go to address increment loop
                         end if;
 
     -- NEXT_TRANSFER: update byte counters, and check for end of data
                     when NEXT_TRANSFER =>
-                        byte_count  <= byte_count + 2;                              -- increment byte counter by 2 (one word = 2 bytes)
-
                         -- check if all data has been written (len_sig = 0 for 65536 byte read, byte_count will roll over to 0 at 65536)
                         if (byte_count < unsigned(len_sig) - 2) OR (unsigned(len_sig) = 0 AND byte_count /= x"FFFE") then
-                            p_state <= cmd_state;                                   -- if so, read or write next word
+                            byte_count  <= byte_count + 2;                              -- increment byte counter by 2 (one word = 2 bytes)
+                            p_state <= cmd_state;                                       -- if so, read or write next word
                         else
                             cmd_state <= WAIT_START;
-                            p_state <= ACK_START;                                   -- if not, send ACK and go back to wait_start
+                            if HALTED = '0' then                    -- stay in this state until Spikeputor is no longer halted
+                                p_state <= ACK_START;                                   -- then, send ACK and go back to wait_start
+                            end if;
                     end if;
 
                     when others =>
