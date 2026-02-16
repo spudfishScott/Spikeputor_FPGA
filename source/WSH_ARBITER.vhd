@@ -95,7 +95,7 @@ begin
     ADDR_MUX : entity work.MUX3 
         generic map( WIDTH => 24 )
         port map (
-            IN2    => "000000000000000000000000",  -- no ADDR signal for M2 (CPU Clock)
+            IN2    => "000000000000000000000000",  -- no ADDR signal for M2 (CPU Clock) - maybe just set it to CPU address?
             IN1    => M1_ADDR_O,
             IN0    => M0_ADDR_O,
             SEL    => grant_sel,

@@ -1,8 +1,8 @@
 -- External interface to the Spiekputor DMA - mediated through a serial connection to the outside world
 -- Serial connection can send one of the following commands:
     -- "*" - send back acknowledgement and wait
-    -- ">" - send back acknowledgement, then recieve 5 byte header (3 bytes for address, 2 bytes for length (0 = 65536 bytes)), then send bytes, then send acknowledgement
-    -- "<" - send back acknowledgement, then receive 5 byte header (3 bytes for address, 2 bytes for length (0 = 65536 bytes)), then receive bytes, then send acknowledgement
+    -- ">" - send back acknowledgement, then recieve 5 byte header (3 bytes for address, 2 bytes for length (0 = 65536 bytes)), acknowledge header receipt, then send bytes, then send acknowledgement
+    -- "<" - send back acknowledgement, then receive 5 byte header (3 bytes for address, 2 bytes for length (0 = 65536 bytes)), acknowledge header receipt, then receive bytes, then send acknowledgement
     -- "!" - send back acknowledgement, then reset the Spikeputor, then send another acknowledgement
 -- Sends external signals:
     -- Start (begin the DMA transaction)
@@ -51,7 +51,10 @@ entity dma_uart_ctrl is
         WR_READY    : out std_logic;                            -- Strobed when WR_DATA is valid
         RD_DATA     : in std_logic_vector(15 downto 0);         -- Data to send from the Spikeputor
         RD_READY    : in std_logic;                             -- Strobed when RD_DATA is valid
-        RESET_REQ   : out std_logic                             -- Request to reset the spikeputor
+        HALTED      : in std_logic;                             -- set when spikeputor is halted (WBS_CYC_O signal)
+        RESET_REQ   : out std_logic;                            -- Request to reset the spikeputor
+
+        DEBUG_STATE : out std_logic_vector(4 downto 0)          -- 5 bits to send current state information out
     );
 end entity dma_uart_ctrl;
 
@@ -68,13 +71,14 @@ architecture behavioral of dma_uart_ctrl is
     constant C_WRITE : std_logic_vector(7 downto 0) := x"3C";  -- '<' WRITE
     constant C_RESET : std_logic_vector(7 downto 0) := x"21";  -- '!' RESET
     constant C_ACK   : std_logic_vector(7 downto 0) := x"2A";  -- '*' ACK
+    constant C_HDACK : std_logic_vector(7 downto 0) := x"2B";  -- '+' HEADER_ACK
 
     -- internal signals, including state machine
     -- include preliminary values for all to help with fitter getting stuck
     type proto_fsm is (
         WAIT_START, ACK_START, DMA_START,
-        S_READ, S_WRITE, RESET, WAIT_TX,
-        HDR_0, HDR_1, HDR_2, HDR_3, HDR_4,
+        S_READ, S_WRITE, RESET,
+        HDR_0, HDR_1, HDR_2, HDR_3, HDR_4, ACK_HEADER,
         LOAD_L, SEND_L, SEND_H, SEND_DONE, WRITE_MEM, NEXT_TRANSFER
     );
     signal p_state     : proto_fsm := WAIT_START;                           -- current state: start in WAIT_START state
@@ -126,6 +130,29 @@ begin
     WR_READY <= wr_rdy_sig;
     WR_DATA  <= word_buf;
 
+    with p_state select
+        DEBUG_STATE <=
+            "00000" when WAIT_START,
+            "00001" when ACK_START,
+            "00010" when DMA_START,
+            "00011" when S_READ,
+            "00100" when S_WRITE,
+            "00101" when RESET,
+            "00110" when HDR_0,
+            "00111" when HDR_1,
+            "01000" when HDR_2,
+            "01001" when HDR_3,
+            "01010" when HDR_4,
+            "01011" when ACK_HEADER,
+            "01100" when LOAD_L,
+            "01101" when SEND_L,
+            "01110" when SEND_H,
+            "01111" when SEND_DONE,
+            "10000" when WRITE_MEM,
+            "10001" when NEXT_TRANSFER,
+            "11111" when others;
+
+
     --  State machine to implement transfer protocol
     process(CLK)
     begin
@@ -143,8 +170,10 @@ begin
             if RST = '1' then
                 p_state   <= WAIT_START;
                 cmd_state <= WAIT_START;
+                rd_rdy_sig <= '0';
+                addr_sig  <= (others => '0');
+                len_sig   <= (others => '0');
             else
-
                 case (p_state) is
 
     --  WAIT_START: Wait for command to be recieved from UART
@@ -153,7 +182,7 @@ begin
                         addr_sig  <= (others => '0');
                         len_sig   <= (others => '0');
 
-                        if uart_rx_rdy = '1' then
+                        if uart_rx_rdy = '1' then                           -- wait until a command has been sent
                             p_state <= ACK_START;                           -- default - go to acknowledge
                             case (uart_rx_data) is                          -- see if the receieved byte is a cvalid command and route accordingly
                                 when C_ACK =>                               -- received '*', simply acknowledge and come back here
@@ -179,12 +208,6 @@ begin
                         if uart_tx_busy = '0' then                          -- wait here until OK to send
                             uart_tx_data <= C_ACK;
                             uart_tx_load <= '1';                            -- strobe load signal
-                            p_state <= WAIT_TX;
-                        end if;
-
-    -- WAIT_TX: Wait until transfer is complete before going to next step (including finishing the wishbone transaction)
-                    when WAIT_TX =>
-                        if uart_tx_busy = '0' then
                             if cmd_state = S_READ OR cmd_state = S_WRITE then
                                 p_state <= HDR_0;                           -- read header for READ and WRITE commands
                             else
@@ -227,16 +250,22 @@ begin
                     when DMA_START =>
                         START <= '1';                                       -- strobe the START signal
                         byte_count <= (others => '0');                      -- reset byte count
-                        if cmd_state = S_WRITE then
-                            rd_rdy_sig <= '1';                              -- on first word write, set RD_READY latch high already - DMA is ready to receive first word
+                        p_state <= ACK_HEADER;                              -- go to S_READ or S_WRITE
+
+    -- ACK_HEADER: acknowledge receipt of the header and confirmation that Spikeputor is paused
+                    when ACK_HEADER =>
+                        if (HALTED = '1' AND uart_tx_busy = '0') then       -- wait until ok to send and spikeputor is halted
+                            uart_tx_data <= C_HDACK;                        -- send header ACK
+                            uart_tx_load <= '1';                            -- strobe load signal
+                            p_state <= cmd_state;                           -- go to S_READ or S_WRITE
+                            rd_rdy_sig <= '1';
                         end if;
-                        p_state <= cmd_state;                               -- go to S_READ or S_WRITE
 
     -- S_READ: External Interface waits for RD_READY, then latches RD_DATA from DMA
                     when S_READ =>
                         if rd_rdy_sig = '1' then                            -- wait for RD_READY
                             word_buf <= RD_DATA;                            -- latch in the word
-                            rd_rdy_sig <= '0';                              -- clear RD_READY latch
+                            rd_rdy_sig <= '0';
                             p_state <= SEND_H;                              -- move to next state to send the word
                         end if;
 
@@ -258,12 +287,11 @@ begin
     -- SEND_DONE:  strobes WR_READY, then loops until LENGTH bytes have been recieved
                     when SEND_DONE =>
                         if uart_tx_busy = '0' AND uart_tx_load = '0' then   -- wait here until UART has sent the byte
-                            wr_rdy_sig <= '1';                              -- strobe WR_READY
+                            wr_rdy_sig <= '1';                              -- strobe WR_READY to have DMA read next address
                             p_state <= NEXT_TRANSFER;                       -- go to address increment loop
                         end if;
 
-    -- S_WRITE: External interface gets first word from serial interface, sets WR_DATA and strobes WR_READY to send to DMA, then increments loop
-    --          On subsequent iterations, waits for RD_READY before strobing WR_READY
+    -- S_WRITE: External interface gets word from serial interface, waits for RD_READY, sets WR_DATA and strobes WR_READY to send to DMA, then increments loop
                     when S_WRITE =>
                         if uart_rx_rdy = '1' then                           -- wait for RX_ready to get high byte of word
                             word_buf(15 downto 8) <= uart_rx_data;          -- store high byte of word

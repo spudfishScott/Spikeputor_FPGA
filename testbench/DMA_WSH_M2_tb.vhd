@@ -133,21 +133,18 @@ begin
             -- Check if ACK should be asserted (bit 5 of pipeline is set)
             if read_pipeline(5) = '1' then
                 WBS_ACK_I <= '1';
-                WBS_DATA_I <= read_data_latched;
+                if WBS_WE_O = '1' then
+                    memory(to_integer(unsigned(WBS_ADDR_O(7 downto 0)))) := WBS_DATA_O;
+                else
+                    WBS_DATA_I <= read_data_latched;
+                end if;
             end if;
 
             -- Respond to new wishbone transaction (detect rising edge of STB)
             if WBS_CYC_O = '1' and prev_stb = '0' and WBS_STB_O = '1' then
-                if WBS_WE_O = '1' then
-                    -- Write transaction: store data to memory immediately, ACK immediately
-                    memory(to_integer(unsigned(WBS_ADDR_O(7 downto 0)))) := WBS_DATA_O;
-                    WBS_ACK_I <= '1';
-                else
-                    -- Read transaction: start pipeline, latch data and address
-                    if read_pipeline = "000000" then  -- Only start if no read in progress
-                        read_pipeline <= "000001";  -- Start counting down 6 cycles
-                        read_data_latched <= memory(to_integer(unsigned(WBS_ADDR_O(7 downto 0))));
-                    end if;
+                if read_pipeline = "000000" then  -- Only start if no read in progress
+                    read_pipeline <= "000001";  -- Start counting down 6 cycles
+                    read_data_latched <= memory(to_integer(unsigned(WBS_ADDR_O(7 downto 0))));
                 end if;
             end if;
             
@@ -186,7 +183,7 @@ begin
         report "=== TEST 3: READ Command ('>') ===" severity note;
         -- Send read command
         uart_send_byte(x"3E", rx_serial);  -- send '>'
-        wait for 100 us; -- simulate waiting for ACK and processing
+        wait for 10 us; -- simulate waiting for ACK and processing
 
         -- Send 5-byte header: address 0x123456, length 0x0010 (16 bytes)
         wait for 100 ns;
@@ -204,7 +201,8 @@ begin
         report "=== TEST 4: WRITE Command ('<') ====" severity note;
         -- Send write command
         uart_send_byte(x"3C", rx_serial);  -- send '<'
-        
+        wait for 10 us; -- simulate waiting for ACK and processing
+
         -- Send 5-byte header: address 0xABCDEF, length 0x0008 (8 bytes = 4 words)
         wait for 100 ns;
         uart_send_byte(x"AB", rx_serial);  -- address high byte

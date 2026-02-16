@@ -357,7 +357,10 @@ begin
             -- external signals
             RX_SERIAL   => UART_RXD,                            -- Serial communication to DMA
             TX_SERIAL   => UART_TXD,                            -- Serial communication from DMA
-            RST_O       => dma_rst                              -- DMA reset signal
+            RST_O       => dma_rst,                             -- DMA reset signal
+
+            -- debug signals
+            DEBUG_STATE => LEDG(8 downto 4)                     -- 5 bits to send current state information out for debugging, sending to LEDG(8 downto 4) for now
         );
 
     -- Spikeputor CPU Clock Throttle Control as Wishbone Master (M2)
@@ -372,7 +375,7 @@ begin
             SPD_IN     => sw_sync(6 downto 4),  -- input for clock speed for auto mode
             MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
             MAN_START  => MAN_CLK,
-            CPU_CLOCK  => LEDG(9)
+            CPU_CLOCK  => LEDG(9)               -- send clock to LED(9) for now - eventually to DotStar or another output
         );
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -665,7 +668,7 @@ begin
     -- 7 Segment display decoder instance
     DISPLAY : entity work.WORDTO7SEGS 
         port map (
-            WORD  => pc_out(15 downto 0),    -- display PC on 7-seg
+            WORD  => arb_addr(15 downto 0),    -- display current address bus on 7-seg
             SEGS0 => HEX0_D,
             SEGS1 => HEX1_D,
             SEGS2 => HEX2_D,
@@ -673,7 +676,11 @@ begin
         );
 
     -- LEDs
-    LEDG(8 downto 0) <= (others => '0');
+    LEDG(2) <= cpu_gnt_sig;             -- CPU grant given
+    LEDG(1) <= dma_gnt_sig;             -- DMA grant given
+    LEDG(0) <= clk_gnt_sig;             -- Clock Generator grant given
+
+    LEDG(3) <= '0';
 
     -- 7-SEG Display
     HEX0_DP <= '1';
