@@ -119,15 +119,17 @@ begin
                             st      <= IDLE;                       -- stay in IDLE state
                         end if;
 
-                    when WAIT_VALID =>             -- wait for READ to complete (read data is valid)
-                        c_req <= '0';           -- clear request signal
-                        if (c_valid = '1' AND c_req = '0') then
+                    when WAIT_VALID =>             -- wait for READ to complete (read data is valid and req is set)
+                        -- c_req <= '0';           -- clear request signal
+                        if (c_valid = '1' AND c_req = '1') then
                             dat_r <= c_rdata;   -- latch in read data
                             ack   <= '1';       -- assert ack signal
                             st    <= CLEAR;     -- done, clear ack signal when wishbone transaction ends, then go back to IDLE state
+                            c_req <= '0';       -- clear request signal
                         else
                             if (WBS_CYC_I = '0' OR WBS_STB_I = '0') then -- if master deasserts CYC or STB, abort read
                                 ack <= '0';         -- clear ack signal
+                                c_req <= '0';       -- clear req signal
                                 st  <= IDLE;        -- go back to IDLE state
                             else
                                 st <= WAIT_VALID;  -- stay in wait state until data is valid

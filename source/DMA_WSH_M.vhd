@@ -159,7 +159,7 @@ begin
 
                             if (WBS_ACK_I = '0') then   -- wait for ACK to be low, then read next word
                                 WBS_CYC_O <= '1';           -- start (or continue) wishbone cycle
-                                stb_sig <= '1';   -- set wishbone strobe to read the current address
+                                stb_sig <= '1';             -- set wishbone strobe to read the current address
                             elsif (WBS_ACK_I = '1' AND stb_sig = '1') then    -- memory has been read
                                 halted_sig <= '1';              -- confirm Spikeputor is halted - external interface will send header recieved signal
                                 data_out_sig <= WBS_DATA_I;     -- latch in the data that was read
@@ -176,7 +176,7 @@ begin
                             end if;
 
                         when SEND_WAIT =>
-                            if (rdy_in = '1') then
+                            if (rdy_in = '1' OR rdy_in_sig = '1') then
                                 current_state <= SEND_OUT;  -- external interface is ready to recieve the word, send it out
                             else
                                 current_state <= SEND_WAIT; -- otherwise wait for external interface to be ready
