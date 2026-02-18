@@ -55,27 +55,30 @@ entity DE0_Spikeputor is
         SPK_GPI      : in std_logic_vector(15 downto 0);        -- 16 bits of GPI (GPIO1[31 to 16])
         SPK_GPO      : out std_logic_vector(15 downto 0);       -- 16 bits of GPO (GPIO1[15 to 0])
         -- Video Interface - DE0 GPIO0 pins
-        VIDEO_BL     : out std_logic;                           -- GPIO0, Pin 10
-        VIDEO_RST_N  : out std_logic;                           -- GPIO0, Pin 9
-        VIDEO_CS_N   : out std_logic;                           -- GPIO0, Pin 8
-        VIDEO_WR_N   : out std_logic;                           -- GPIO0, Pin 7
-        VIDEO_RD_N   : out std_logic;                           -- GPIO0, Pin 6
-        VIDEO_RS     : out std_logic;                           -- GPIO0, Pin 5
-        VIDEO_WAIT_N : in std_logic;                            -- GPIO0, Pin 13
+        VIDEO_BL     : out std_logic;                           -- GPIO0[7], Pin 10
+        VIDEO_RST_N  : out std_logic;                           -- GPIO0[6], Pin 9
+        VIDEO_CS_N   : out std_logic;                           -- GPIO0[5], Pin 8
+        VIDEO_WR_N   : out std_logic;                           -- GPIO0[4], Pin 7
+        VIDEO_RD_N   : out std_logic;                           -- GPIO0[3], Pin 6
+        VIDEO_RS     : out std_logic;                           -- GPIO0[2], Pin 5
+        VIDEO_WAIT_N : in std_logic;                            -- GPIO0[8], Pin 13
         VIDEO_DATA   : inout std_logic_vector(15 downto 0);     -- GPIO0[24 to 9] (pins 33, 32, 31, 28, 27, 26, 25, 24, 23, 22, 20, 18, 17, 16, 15, 14)
         -- DotStar LED Strip Interface
-        DOTSTAR_DATA : out std_logic;                           -- GPIO0, Pin 4
-        DOTSTAR_CLK  : out std_logic;                           -- GPIO0, Pin 2
+        DOTSTAR_DATA : out std_logic;                           -- GPIO0[1], Pin 4
+        DOTSTAR_CLK  : out std_logic;                           -- GPIO0[0], Pin 2
+        -- TTL Serial Interface
+        SER_TX       : out std_logic;                           -- GPIO0[28], Pin 37
+        SER_RX       : in std_logic;                            -- GPIO0[29], Pin 38
         -- LCD I2C Interface -- relabel to SDA and SCL
-        LCD_SCL      : inout std_logic;                         -- GPIO0, Pin 39
-        LCD_SDA      : inout std_logic                          -- GPIO0, Pin 40
+        LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
+        LCD_SDA      : inout std_logic                          -- GPIO0[31], Pin 40
     );
 end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Spikeputor Constants
     constant CLK_FREQ     : Integer := 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
-    constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"F000";        -- Address PC is set to on RESET
+    constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"0000";        -- Address PC is set to on RESET
 
     -- Signal Declarations
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
@@ -335,7 +338,7 @@ begin
     -- Spikeputor DMA as Wishbone master (M1)
     DMA : entity work.DMA_WSH_M
         generic map (
-            BAUD_RATE => 800000     -- highest standard baud rate attainable between Spikeputor and Mac based on experimentation
+            BAUD_RATE => 700000     -- highest standard baud rate attainable between Spikeputor and Mac based on experimentation
         )
         port map (
             -- SYSCON inputs
