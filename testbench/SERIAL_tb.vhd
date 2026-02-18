@@ -13,10 +13,10 @@ end SERIAL_tb;
 architecture testbench of SERIAL_tb is
 
     constant CLK_SPEED : integer := 50_000_000;
-    constant BAUD_RATE : integer := 230400;
-    constant BIT_PERIOD_NS : integer := (1_000_000_000 / BAUD_RATE);  -- bit period in nanoseconds
+    constant BAUD_RATE : std_logic_vector(3 downto 0) := "1000"; -- 230400
+    constant BIT_PERIOD_NS : integer := (1_000_000_000 / 230400);  -- bit period in nanoseconds
     constant CLK_PERIOD_NS : integer := 20;  -- 50 MHz clock
-    constant BIT_PERIOD_CYCLES : integer := (CLK_SPEED / BAUD_RATE);  -- ~217 cycles
+    constant BIT_PERIOD_CYCLES : integer := (CLK_SPEED / 230400);  -- ~217 cycles
     
     signal clk : std_logic := '0';
     signal rst : std_logic := '1';

@@ -39,8 +39,8 @@ use work.Types.all;
 
 entity SERIAL_WSH_P is
     generic ( 
-        CLK_SPEED : integer := 50_000_000;                  -- clock speed in Hertz
-        DEFAULT_BAUD : integer := 38400                     -- default baud setting
+        CLK_SPEED : integer := 50_000_000;                                      -- clock speed in Hertz
+        DEFAULT_BAUD : std_logic_vector(3 downto 0) := "0101"                   -- default baud setting: index "0101" = 38400
     );
     port (
         -- SYSCON inputs
@@ -111,7 +111,7 @@ begin
         TX_BUSY     => tx_busy_s
     );
 
-    status      <= x"0" when tx_busy = '1' else
+    status      <= x"0" when tx_busy_s = '1' else
                    x"F" when rx_overflow_s = '1' else
                    baud_rate;
 

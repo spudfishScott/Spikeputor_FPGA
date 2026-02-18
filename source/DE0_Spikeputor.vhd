@@ -78,7 +78,7 @@ end DE0_Spikeputor;
 architecture Structural of DE0_Spikeputor is
     -- Spikeputor Constants
     constant CLK_FREQ     : Integer := 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
-    constant DEFAULT_BAUD : Integer := 115_200;                              -- Default baud rate for UART communication
+    constant DEFAULT_BAUD : std_logic_vector(3 downto 0) := "0111";          -- Default baud rate for UART communication ("0111" is index for 115200)
     constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"0000";        -- Address PC is set to on RESET
 
     -- Signal Declarations

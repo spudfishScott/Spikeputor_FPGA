@@ -12,7 +12,7 @@ use ieee.numeric_std.all;
 entity SERIAL is
     generic (
         CLK_SPEED     : Integer := 50_000_000;                      -- Clock speed in Hz (default: 50 MHz)
-        DEFAULT_BAUD  : Integer := 38400                            -- Default Baud rate = 38400
+        DEFAULT_BAUD  : std_logic_vector(3 downto 0) := "0101"      -- Default Baud rate = 38400 (index "0101")
     );
 
     port (
@@ -55,6 +55,8 @@ architecture Behavioral of SERIAL is
     signal tx_state : TX_FSM := TX_IDLE;
 
     signal bit_period : integer range 0 to 65536 := 0;                      -- number of clock cycles per bit
+    signal baud_period : integer range 0 to 65535 := 0;
+    signal baud_s     : std_logic_vector(3 downto 0) := (others => '0');    -- baud index signal
     signal tx_cnt     : integer range 0 to 65535 := 0;                      -- counter for bit timing
     signal tx_bit     : integer range 0 to 9 := 0;                          -- bit counter for transmitted data (10 bits: 1 start, 8 data, 1 stop)
     signal tx_shift   : std_logic_vector(9 downto 0) := (others => '1');    -- shift register to store data to be transmitted
@@ -74,6 +76,25 @@ begin
                   else X"F";                                                -- current number of bytes on the buffer
     RX_DATA <= ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
+    
+    baud_s <= BAUD when RST = '1' else DEFAULT_BAUD;
+    with (baud_s) select
+        baud_period <=
+            CLK_SPEED / 2400 when "0001",
+            CLK_SPEED / 4800 when "0010",
+            CLK_SPEED / 9600 when "0011",
+            CLK_SPEED / 19200 when "0100",
+            CLK_SPEED / 38400 when "0101",
+            CLK_SPEED / 57600 when "0110",
+            CLK_SPEED / 115200 when "0111",
+            CLK_SPEED / 230400 when "1000",
+            CLK_SPEED / 460800 when "1001",
+            CLK_SPEED / 921600 when "1010",
+            CLK_SPEED / 1382400 when "1011",
+            CLK_SPEED / 1728000 when "1100",
+            CLK_SPEED / 2073600 when "1101",
+            CLK_SPEED / 2500000 when "1110",
+            CLK_SPEED / 1200 when others; -- default case, including "0000" which is the reset value
 
     -- RX Input Synchronizer
     process(CLK)
@@ -92,7 +113,7 @@ begin
             if RST = '1' then
                 rx_state    <= RX_IDLE;                     -- reset state machine
                 rx_shift    <= (others => '1');             -- reset shift register
-                bit_period  <= CLK_SPEED / DEFAULT_BAUD;    -- reset bit_period to default baud rate
+                bit_period  <= baud_period;                 -- reset bit_period to default baud rate
                 buffer_head <= (others => '0');             -- flush input buffer
                 buffer_tail <= (others => '0');
                 buffer_full <= '0';
@@ -100,42 +121,7 @@ begin
 
             else
                 if CMD = '1' then                           -- if CMD is high, latch in new baud rate and flush buffer
-                    case BAUD is
-                        when "0000" =>
-                            bit_period <= CLK_SPEED / 1200;
-                        when "0001" =>
-                            bit_period <= CLK_SPEED / 2400;
-                        when "0010" =>
-                            bit_period <= CLK_SPEED / 4800;
-                        when "0011" =>
-                            bit_period <= CLK_SPEED / 9600;
-                        when "0100" =>
-                            bit_period <= CLK_SPEED / 19200;
-                        when "0101" =>
-                            bit_period <= CLK_SPEED / 38400;
-                        when "0110" =>
-                            bit_period <= CLK_SPEED / 57600;
-                        when "0111" =>
-                            bit_period <= CLK_SPEED / 115200;
-                        when "1000" =>
-                            bit_period <= CLK_SPEED / 230400;
-                        when "1001" =>
-                            bit_period <= CLK_SPEED / 460800;
-                        when "1010" =>
-                            bit_period <= CLK_SPEED / 921600;
-                        when "1011" =>
-                            bit_period <= CLK_SPEED / 1382400;
-                        when "1100" =>
-                            bit_period <= CLK_SPEED / 1728000;
-                        when "1101" =>
-                            bit_period <= CLK_SPEED / 2073600;
-                        when "1110" =>
-                            bit_period <= CLK_SPEED / 2500000;
-                        when "1111" =>
-                            bit_period <= CLK_SPEED / 3000000;
-                        when others =>
-                            null; -- should never happen
-                    end case;
+                    bit_period <= baud_period;  -- set baud period based on current baud value
 
                     if FLUSH = '1' then         -- flush input buffer and clear overflow error
                         buffer_head <= (others => '0');
