@@ -198,7 +198,7 @@ begin
     end process;
 
     -- FP ADD_SUB instance - answer available in 7 cycles
-    ADDSUB : work.FPADD_SUB port map (
+    ADDSUB : entity work.FPADD_SUB port map (
         CLOCK   => CLK,
         EN      => enabled(0) OR enabled(1),
         A       => input_a,
@@ -208,7 +208,7 @@ begin
     );
 
     -- FP MULT instance -- answer available in 5 cycles
-    MULT: work.FPMULT port map (
+    MULT: entity work.FPMULT port map (
         CLOCK   => CLK,
         EN      => enabled(2),
         A       => input_a,
@@ -217,7 +217,7 @@ begin
     );
 
     -- FP DIV instance -- answer available in 10 cycles
-    DIV: work.FPDIV port map (
+    DIV: entity work.FPDIV port map (
         CLOCK   => CLK,
         EN      => enabled(3),
         A       => input_a,
@@ -226,7 +226,7 @@ begin
     );
 
     -- FP SQRT instance -- answer available in 30 cycles
-    SQRT: work.FPSQRT port map (
+    SQRT: entity work.FPSQRT port map (
         CLOCK   => CLK,
         EN      => enabled(4),
         A       => input_a,
@@ -234,7 +234,7 @@ begin
     );
 
     -- FP Compare instance -- answer available in 1 cycle - 7 bits of output (aeb/aneb/agb/ageb/alb/aleb/unrodered)
-    CMP: work.FPCOMPARE port map (
+    CMP: entity work.FPCOMPARE port map (
         CLOCK   => CLK,
         EN      => enabled(10),
         A       => input_a,
@@ -243,7 +243,7 @@ begin
     );
 
     -- Convert INT to FLOAT - answer in 6 cycles
-    I2F: work.FPCONVERT_IF port map (
+    I2F: entity work.FPCONVERT_IF port map (
         CLOCK   => CLK,
         EN      => enabled(11),
         A       => input_a,
@@ -251,7 +251,7 @@ begin
     );
 
      -- Convert FLOAT to INT - answer in 6 cycles
-    F2I: work.FPCONVERT_FI port map (
+    F2I: entity work.FPCONVERT_FI port map (
         CLOCK   => CLK,
         EN      => enabled(12),
         A       => input_a,
@@ -259,7 +259,7 @@ begin
     );
 
     -- Integer division - 16 bit numerator and 16 bit denominator - answer in 3 cycles as 16 bit quotient and 16 bit remainder
-    IDIV: work.INTDIV port map (
+    IDIV: entity work.INTDIV port map (
 	   CLOCK     => CLK,
 		  EN      => enabled(13),
         A       => input_a(15 downto 0),
@@ -269,7 +269,7 @@ begin
     );
 
     -- Integer multiplication - answer immediately
-    IMULT: work.INTMULT port map (
+    IMULT: entity work.INTMULT port map (
         A       => input_a(15 downto 0),
         B       => input_b(15 downto 0),
         RES     => imult_result

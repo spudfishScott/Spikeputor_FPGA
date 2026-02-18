@@ -78,6 +78,7 @@ end DE0_Spikeputor;
 architecture Structural of DE0_Spikeputor is
     -- Spikeputor Constants
     constant CLK_FREQ     : Integer := 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
+    constant DEFAULT_BAUD : Integer := 115_200;                              -- Default baud rate for UART communication
     constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"0000";        -- Address PC is set to on RESET
 
     -- Signal Declarations
@@ -405,11 +406,11 @@ begin
 
     -- ROM Instance as Wishbone provider (P1)
     ROM: entity work.FlashROM_WSH_P
-        generic map ( CLK_FREQ => CLK_FREQ )    -- send system frequency into interface
+        generic map ( CLK_FREQ => CLK_FREQ )
         port map (
             -- SYSCON inputs
             CLK         => SYS_CLK,
-            RST_I       => RESET,  -- Button 0 is system reset (active low)
+            RST_I       => RESET,
 
             -- Wishbone signals
             -- handshaking signals
@@ -479,7 +480,7 @@ begin
         port map (
             -- SYSCON inputs
             CLK         => SYS_CLK,
-            RST_I       => RESET,  -- Button 0 is system reset (active low)
+            RST_I       => RESET,
 
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals
@@ -504,12 +505,40 @@ begin
             SCRN_DATA   => VIDEO_DATA
         );
 
+    -- SERIAL Instance as Wishbone provider (P6)
+    SER : entity work.SERIAL_WSH_P
+        generic map ( 
+            CLK_FREQ => CLK_FREQ,
+            DEFAULT_BAUD => DEFAULT_BAUD
+        )
+        port map (
+            -- SYSCON inputs
+            CLK         => SYS_CLK,
+            RST_I       => RESET,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(6),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(6),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data6,              -- data out from P6 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we,
+
+            -- serial communication signals
+            RX_SERIAL   => SER_RX,
+            TX_SERIAL   => SER_TX
+        );
+
     -- KEYBOARD Instance as Wishbone provider (P8)
     KBD : entity work.KEYBOARD_WSH_P
         generic map ( CLK_FREQ => CLK_FREQ )
         port map (
             CLK         => SYS_CLK,
-            RST_I       => RESET,  -- Button 0 is system reset (active low)
+            RST_I       => RESET,
 
             -- Wishbone signals
             -- handshaking signals
@@ -551,7 +580,7 @@ begin
         port map (
             -- SYSCON inputs
             CLK         => SYS_CLK,
-            RST_I       => RESET,  -- Button 0 is system reset (active low)
+            RST_I       => RESET,
 
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals

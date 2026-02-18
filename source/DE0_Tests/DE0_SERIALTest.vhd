@@ -135,7 +135,7 @@ begin
     HEX2_DP <= '1';
     HEX3_DP <= '1';
 
-    LEDG(3 downto 0) <= std_logic_vector(to_unsigned(step_index), 4);  -- show step number in binary
+    LEDG(3 downto 0) <= std_logic_vector(to_unsigned(step_index, 4));  -- show step number in binary
     LEDG(8 downto 5) <= rx_ready_s;                                 -- show number of bytes available in binary
     LEDG(4) <= '0';
 

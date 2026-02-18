@@ -13,7 +13,7 @@
 --  GPI (P3)        read only location 0xFFF2 - writing goes nowhere
 --  SOUND (P4)      read/write to sound processor - locations TBD
 --  VIDEO (P5)      read/write to video coprocessor - 0xFF00 - 0xFFDF
---  SERIAL (P6)     serial in/serial out - locations TBD
+--  SERIAL (P6)     serial in/serial out - 0xFFF3
 --  STORAGE (P7)    read/write to SD card filesystem - locations TBD
 --  KEYBOARD (P8)   read keyboard input buffer 0xFFF0 (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which is used to expand the total amount of RAM available
@@ -61,6 +61,7 @@ architecture RTL of WSH_ADDR is
     constant KEYBOARD_ADDR  : std_logic_vector(7 downto 0) := x"F0"; -- keyboard address - read only
     constant GPO_ADDR       : std_logic_vector(7 downto 0) := x"F1"; -- GPO address - read/write
     constant GPI_ADDR       : std_logic_vector(7 downto 0) := x"F2"; -- GPI address - read only
+    constant SER_ADDR       : std_logic_vector(7 downto 0) := x"F3"; -- SERIAL address - read/write
     -- Video and Math use ranges which are addressed in the 'math' and 'video' logic below
 
 -- sound - use VGA output for sound? three voices, 4-bits each. So one address for volume and waveform control of all three voices, one address for frequency control for each voice - 4 total
@@ -107,6 +108,7 @@ begin
         else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
         else    2 when spec = '1' AND addr_l = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
+        else    6 when spec = '1' AND addr_l = SER_ADDR                                   -- read/write SERIAL
         -- to do the rest 4, 6, 7
         else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR                              -- read only KEYBOARD
         else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
