@@ -3,7 +3,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity DE0_UART_Test is
+entity DE0_SERIALTest is
     -- DE0 Pins
     port (
         -- CLOCK
@@ -26,9 +26,9 @@ entity DE0_UART_Test is
         -- RS-232
         GPIO0_D     : inout std_logic_vector(29 downto 28) -- GPIO0[28] = SER_TX, GPIO0[29] = SER_RX
     );
-end DE0_UART_Test;
+end DE0_SERIALTest;
 
-architecture rtl of DE0_UART_Test is
+architecture rtl of DE0_SERIALTest is
 
     signal rx_data_s     : std_logic_vector(7 downto 0) := (others => '0');
     signal rx_ready_s    : std_logic_vector(3 downto 0) := (others => '0');
@@ -96,14 +96,22 @@ begin
                             step_index <= 0;    -- stay here until we can send
                         end if;
                     when 1 =>
-                        if (rx_ready_s > 0 and rx_next_s = '0') then    -- wait until we recieve something and next was strobed
+                        if (rx_ready_s > x"0" and rx_next_s = '0') then    -- wait until we recieve something and next was strobed
                             rx_next_s <= '1';       -- request next byte
                             delaying <= '1';        -- delay for 1 second
                             if rx_data_s /= x"2A" then  -- stay here until we read a '*'
-                                step_index <= '1';
+                                step_index <= 1;
                             end if;
                         else 
-                            step_index <= '1';  -- stay here until we receive the byte
+                            step_index <= 1;  -- stay here until we receive the byte
+                        end if;
+                    when 2 =>
+                        if (tx_busy_s = '0') then   -- wait until we can send
+                            tx_data_s <= x"2A";         -- transmit '*'
+                            tx_load_s <= '1';           -- strobe to send
+                            delaying <= '1';            -- delay for 1 second
+                        else
+                            step_index <= 2;    -- stay here until we can send
                         end if;
                     when others =>
                         step_index <= step_index;    -- just stay here forever when done
@@ -127,7 +135,7 @@ begin
     HEX2_DP <= '1';
     HEX3_DP <= '1';
 
-    LEDG(3 downto 0) <= std_logic_vector(unsigned(step_index), 5);  -- show step number in binary
+    LEDG(3 downto 0) <= std_logic_vector(to_unsigned(step_index), 4);  -- show step number in binary
     LEDG(8 downto 5) <= rx_ready_s;                                 -- show number of bytes available in binary
     LEDG(4) <= '0';
 
