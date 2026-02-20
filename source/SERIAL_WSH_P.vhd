@@ -8,7 +8,7 @@
         -- Low Byte: DATA associated with the command in the high byte
             -- WRITE:       Send the byte out through the serial port at the current baud rate
             -- FLUSH:       Ignored - Immediately flush the 16 byte ring input buffer
-            -- SET BAUD:    A four bit number associated with the baud rate to set
+            -- SET BAUD:    A four bit number associated with the baud rate to set (in the lower nybble of the byte)
             --                  0x0     <unused>
             --                  0x1     2400
             --                  0x2     4800
@@ -39,7 +39,7 @@ use work.Types.all;
 
 entity SERIAL_WSH_P is
     generic ( 
-        CLK_SPEED : integer := 50_000_000;                                      -- clock speed in Hertz
+        CLK_FREQ : integer := 50_000_000;                                      -- clock speed in Hertz
         DEFAULT_BAUD : std_logic_vector(3 downto 0) := "0101"                   -- default baud setting: index "0101" = 38400
     );
     port (
@@ -88,7 +88,7 @@ begin
 
     SER: entity work.SERIAL
     generic map (
-        CLK_SPEED    => CLK_SPEED,
+        CLK_SPEED    => CLK_FREQ,
         DEFAULT_BAUD => DEFAULT_BAUD
     )
     port map (
@@ -149,7 +149,7 @@ begin
                             command <= '1';         -- strobe command
 
                         when x"80" =>       -- 0x80 = Set Baud Rate
-                            baud_rate <= WBS_DATA_I(7 downto 0);            -- latch in baud rate to set
+                            baud_rate <= WBS_DATA_I(3 downto 0);            -- latch in baud rate to set
                             command   <= '1';                               -- strobe command to set the rate
 
                         when others =>                                      -- otherwise do nothing

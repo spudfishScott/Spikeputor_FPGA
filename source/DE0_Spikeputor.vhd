@@ -184,7 +184,7 @@ architecture Structural of DE0_Spikeputor is
 
 begin
     -- Clock and Reset Signals
-    SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL)
+    SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL), update CLK_FREQ as well
     RESET   <= startup_res OR dma_rst OR (NOT button_sync(0));               -- Reset is startup reset or DMA reset or Button 0 (active low)
     MAN_CLK <= NOT button_sync(1);                                           -- Button 1 is manual clock (active low) now, but might not always be
 

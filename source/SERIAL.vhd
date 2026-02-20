@@ -73,7 +73,7 @@ begin
     RX_READY <= rx_ready_s;
     rx_ready_s <= x"0" when (rx_state = RX_STOP and rx_cnt = 0) else        -- if buffer is being adjusted, don't mess with it!
                   std_logic_vector(buffer_head - buffer_tail) when buffer_full = '0'
-                  else X"F";                                                -- current number of bytes on the buffer
+                  else X"F";                                                -- current number of bytes on the buffer - 0xF when buffer_full = '1'
     RX_DATA <= ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
     

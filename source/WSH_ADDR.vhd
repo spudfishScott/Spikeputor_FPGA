@@ -109,7 +109,7 @@ begin
         else    2 when spec = '1' AND addr_l = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
         else    6 when spec = '1' AND addr_l = SER_ADDR                                   -- read/write SERIAL
-        -- to do the rest 4, 6, 7
+        -- to do the rest 4, 7
         else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR                              -- read only KEYBOARD
         else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
         else   11 when spec = '1' AND math = '1'                                          -- MATH coprocessor if address matches math range (0xFFE0 - 0xFFE7)
