@@ -68,7 +68,7 @@ end SERIAL_WSH_P;
 
 architecture rtl of SERIAL_WSH_P is
 
-    signal baud_rate     : std_logic_vector(3 downto 0) := (others => '0');      -- baud rate index (see above)
+    signal baud_rate     : std_logic_vector(3 downto 0) := DEFAULT_BAUD;         -- baud rate index (see above)
     signal flush         : std_logic := '0';                                     -- flush buffer signal
     signal command       : std_logic := '0';                                     -- strobe to set baud rate and/or flush buffer
 

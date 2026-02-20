@@ -69,6 +69,9 @@ entity DE0_Spikeputor is
         -- TTL Serial Interface
         SER_TX       : out std_logic;                           -- GPIO0[28], Pin 37
         SER_RX       : in std_logic;                            -- GPIO0[29], Pin 38
+        -- Filesystem Serial Interface
+        FSSER_TX     : out std_logic;                           -- GPIO0[26], Pin 35
+        FSSER_RX     : in std_logic;                            -- GPIO0[27], Pin 36
         -- LCD I2C Interface -- relabel to SDA and SCL
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
         LCD_SDA      : inout std_logic                          -- GPIO0[31], Pin 40
@@ -77,9 +80,10 @@ end DE0_Spikeputor;
 
 architecture Structural of DE0_Spikeputor is
     -- Spikeputor Constants
-    constant CLK_FREQ     : Integer := 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
-    constant DEFAULT_BAUD : std_logic_vector(3 downto 0) := "0111";          -- Default baud rate for UART communication ("0111" is index for 115200)
-    constant RESET_VECTOR : std_logic_vector(15 downto 0) := x"0000";        -- Address PC is set to on RESET
+    constant CLK_FREQ        : Integer := 50_000_000;                           -- System clock frequency in Hz - feeds all other modules
+    constant DEFAULT_BAUD    : std_logic_vector(3 downto 0) := "0111";          -- Default baud rate for UART communication ("0111" is index for 115200)
+    constant DEFAULT_FS_BAUD : std_logic_vector(3 downto 0) := "0011";          -- Default baud rate for filesystem serial is 9600
+    constant RESET_VECTOR    : std_logic_vector(15 downto 0) := x"0000";        -- Address PC is set to on RESET
 
     -- Signal Declarations
     signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
@@ -531,6 +535,34 @@ begin
             -- serial communication signals
             RX_SERIAL   => SER_RX,
             TX_SERIAL   => SER_TX
+        );
+
+    -- STORAGE Instance as Wishbone provider (P7)
+    STOR : entity work.SERIAL_WSH_P
+        generic map ( 
+            CLK_FREQ => CLK_FREQ,
+            DEFAULT_BAUD => DEFAULT_FS_BAUD
+        )
+        port map (
+            -- SYSCON inputs
+            CLK         => SYS_CLK,
+            RST_I       => RESET,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(7),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(7),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data7,              -- data out from P7 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we,
+
+            -- serial communication signals
+            RX_SERIAL   => FSSER_RX,
+            TX_SERIAL   => FSSER_TX
         );
 
     -- KEYBOARD Instance as Wishbone provider (P8)
