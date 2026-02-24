@@ -135,8 +135,8 @@ begin
             tx_load_s   <= '0';
 
             if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
-                ack <= '1';                                                 -- acknowledge on next cycle
                 if (WBS_WE_I = '1') then                                    -- write: take action
+                    ack <= '1';                                                 -- acknowledge on next cycle
                     case WBS_DATA_I(15 downto 8) is                         -- get top byte of data
                         when x"00" =>       -- 0x00 = write data
                             if tx_busy_s = '0' then -- only start writing if transmission is not currently happening, otherwise do nothing
@@ -156,8 +156,10 @@ begin
                             null;
                     end case;
                 else                                                        -- read: if there is data in the buffer, strobe rx_next_s to get next item from buffer
-                    if rx_ready_s /= x"0" then
+                    if rx_ready_s /= x"0" and ack = '0' then
                         rx_next_s <= '1';
+                    else
+                        ack <= '1'; -- set ack on one clock cycle after current one to be sure buffer has been updated
                     end if;
                 end if;
 
