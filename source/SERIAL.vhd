@@ -131,7 +131,7 @@ begin
                         overflow_s  <= '0';
                     end if;
                 else
-                    if RX_NEXT = '1' AND rx_ready_s /= x"0" then    -- if RX_NEXT is high and there's data on the buffer (and buffer isn't currently being changed)
+                    if RX_NEXT = '1' then    -- if RX_NEXT is high
                         buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
                         buffer_full <= '0';                 -- buffer can no longer be full
                         if rx_cnt /= 0 then
