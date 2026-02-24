@@ -77,7 +77,7 @@ begin
     RX_DATA <= ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
     
-    baud_s <= BAUD when RST = '1' else DEFAULT_BAUD;
+    baud_s <= BAUD when RST = '0' else DEFAULT_BAUD;
     with (baud_s) select
         baud_period <=
             CLK_SPEED / 2400 when "0001",
@@ -132,7 +132,7 @@ begin
                     end if;
                 else
                     if RX_NEXT = '1' then    -- if RX_NEXT is high and there's data on the buffer (and buffer isn't currently being changed)
-                        if buffer_tail /= buffer_head OR buffer_full  = '1' then
+                        if buffer_tail /= buffer_head OR buffer_full = '1' then
                             buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
                             buffer_full <= '0';                 -- buffer can no longer be full
                             if rx_cnt /= 0 then

@@ -155,10 +155,8 @@ begin
                         when others =>                                      -- otherwise do nothing
                             null;
                     end case;
-                else                                                        -- read: if there is data in the buffer, strobe rx_next_s to get next item from buffer
-                    if rx_ready_s /= x"0" then
-                        rx_next_s <= '1';
-                    end if;
+                else                                                        -- read: strobe rx_next_s to get next item from buffer, if any
+                    rx_next_s <= '1';
                 end if;
 
             elsif (WBS_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
