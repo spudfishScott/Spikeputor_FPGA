@@ -72,6 +72,7 @@ entity DE0_Spikeputor is
         -- Filesystem Serial Interface
         FSSER_TX     : out std_logic;                           -- GPIO0[26], Pin 35
         FSSER_RX     : in std_logic;                            -- GPIO0[27], Pin 36
+        FSSER_NRST   : out std_logic;                           -- GPIO0[25], pin 34
         -- LCD I2C Interface -- relabel to SDA and SCL
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
         LCD_SDA      : inout std_logic                          -- GPIO0[31], Pin 40
@@ -538,7 +539,7 @@ begin
         );
 
     -- STORAGE Instance as Wishbone provider (P7)
-    STOR : entity work.SERIAL_WSH_P
+    STOR : entity work.FS_WSH_P
         generic map ( 
             CLK_FREQ => CLK_FREQ,
             DEFAULT_BAUD => DEFAULT_FS_BAUD
@@ -562,7 +563,8 @@ begin
 
             -- serial communication signals
             RX_SERIAL   => FSSER_RX,
-            TX_SERIAL   => FSSER_TX
+            TX_SERIAL   => FSSER_TX,
+            RST_SERIAL  => FSSER_NRST
         );
 
     -- KEYBOARD Instance as Wishbone provider (P8)

@@ -1,5 +1,6 @@
--- SERIAL Wishbone Interface Provider
--- single memory register is 0xFFF3
+-- FILESYSTEM SERIAL Wishbone Interface Provider
+-- Identical to the SERIAL except it includes a nRESET pin interface
+-- single memory register is 0xFFF4
     -- WRITE:
         -- High Byte: COMMAND
             -- 0x00:    READ/WRITE      - send and receive the low byte via the serial interface
@@ -37,7 +38,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.Types.all;
 
-entity SERIAL_WSH_P is
+entity FS_WSH_P is
     generic ( 
         CLK_FREQ : integer := 50_000_000;                                      -- clock speed in Hertz
         DEFAULT_BAUD : std_logic_vector(3 downto 0) := "0101"                   -- default baud setting: index "0101" = 38400
@@ -61,12 +62,13 @@ entity SERIAL_WSH_P is
 
         -- serial controller signals
         RX_SERIAL   : in std_logic;                         -- Serial data input
-        TX_SERIAL   : out std_logic                         -- Serial data output
+        TX_SERIAL   : out std_logic;                        -- Serial data output
+        NRST_SERIAL : out std_logic                         -- Serial Interface Reset (active low)
 
     );
-end SERIAL_WSH_P;
+end FS_WSH_P;
 
-architecture rtl of SERIAL_WSH_P is
+architecture rtl of FS_WSH_P is
 
     signal baud_rate     : std_logic_vector(3 downto 0) := DEFAULT_BAUD;         -- baud rate index (see above)
     signal flush         : std_logic := '0';                                     -- flush buffer signal
@@ -85,6 +87,8 @@ architecture rtl of SERIAL_WSH_P is
     signal status        : std_logic_vector(3 downto 0) := (others => '0');      -- Current Baud Rate, 0x0 if still transmitting, or 0xF if ring buffer has overflowed
 
     signal data_out      : std_logic_vector(15 downto 0) := (others => '0');
+
+    signal rst_pulse     : std_logic := '0';                                     -- reset pulse
 
 begin
 
@@ -113,12 +117,36 @@ begin
         TX_BUSY     => tx_busy_s
     );
 
+    PULSE: entity work.PULSE_GEN
+    generic map (
+        PULSE_WIDTH => Integer := (CLK_FREQ / 1000) * 5;      -- 0.005 seconds
+    )
+    port map(
+        START_PULSE => RST_I,
+        CLK_IN      => CLK,
+        PULSE_OUT   => rst_pulse
+    );
+
+     generic (
+        PULSE_WIDTH : Integer := 10; -- Pulse width in clock ticks
+        RESET_LOW   : Boolean := true   -- If true, pulse can be reset by bringing START_PULSE low before pulse is finished
+    );
+
+    port (
+        START_PULSE : in std_logic; -- Signal to start the pulse
+        CLK_IN      : in std_logic;
+        PULSE_OUT   : out std_logic
+    );
+
+
     status      <= x"0" when tx_busy_s = '1' else
                    x"F" when rx_overflow_s = '1' else
                    baud_rate;
 
     WBS_ACK_O   <= ack AND WBS_CYC_I AND WBS_STB_I;         -- ack out is internal ack if CYC and STB are asserted, else 0
     WBS_DATA_O  <= data_out;
+    
+    NRST_SERIAL <= '1' when rst_pulse = '0' else '0';       -- active low reset (minimum 5 ms)
 
     process(CLK) is     -- wishbone transaction process
     begin
