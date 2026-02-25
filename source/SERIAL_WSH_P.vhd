@@ -120,21 +120,20 @@ begin
 
     process(CLK) is     -- wishbone transaction process
     begin
-        if RST_I = '1' then                                 -- reset state on reset
-            baud_rate   <= DEFAULT_BAUD;
-            flush       <= '0';
-            command     <= '0';
-            rx_next_s   <= '0';
-            tx_data_s   <= (others => '0');
-            tx_load_s   <= '0';
+        if rising_edge(CLK) then
+            if RST_I = '1' then                                 -- reset state on reset
+                baud_rate   <= DEFAULT_BAUD;
+                flush       <= '0';
+                command     <= '0';
+                rx_next_s   <= '0';
+                tx_data_s   <= (others => '0');
+                tx_load_s   <= '0';
+                command     <= '0';                             -- set these signal to '0' for strobe
+                flush       <= '0';
+                rx_next_s   <= '0';
+                tx_load_s   <= '0';
 
-        elsif rising_edge(CLK) then
-            command     <= '0';                             -- set these signal to '0' for strobe
-            flush       <= '0';
-            rx_next_s   <= '0';
-            tx_load_s   <= '0';
-
-            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
+            elsif (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
                 ack <= '1';                                                 -- acknowledge on next cycle
                 if (WBS_WE_I = '1') then                                    -- write: take action
                     case WBS_DATA_I(15 downto 8) is                         -- get top byte of data
