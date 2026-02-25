@@ -71,9 +71,6 @@ architecture Behavioral of SERIAL is
 
 begin
     RX_READY <= rx_ready_s;
-    rx_ready_s <= --x"0" when (rx_state = RX_STOP and rx_cnt = 0) else        -- if buffer is being adjusted, don't mess with it!
-                  std_logic_vector(buffer_head - buffer_tail) when buffer_full = '0'
-                  else X"F";                                                -- current number of bytes on the buffer - 0xF when buffer_full = '1'
     RX_DATA <= ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
     
@@ -120,6 +117,12 @@ begin
                 overflow_s  <= '0';
 
             else
+                if buffer_full = '0' then   -- current number of bytes on the buffer
+                    rx_ready_s <= std_logic_vector(buffer_head - buffer_tail);
+                else 
+                    rx_ready_s <= X"F";     -- 0xF when buffer is full even though difference = 0
+                end if;
+
                 if CMD = '1' then                           -- if CMD is high, latch in new baud rate and flush buffer
                     bit_period <= baud_period;  -- set baud period based on current baud value
 
@@ -131,66 +134,79 @@ begin
                         overflow_s  <= '0';
                     end if;
                 else
-                    if RX_NEXT = '1' then    -- if RX_NEXT is high and there's data on the buffer (and buffer isn't currently being changed)
-                        if buffer_tail /= buffer_head OR buffer_full = '1' then
+                    if RX_NEXT = '1' then    -- if RX_NEXT is high and there's data on the buffer, incrememnt buffer_tail to next position
+                        if (buffer_tail /= buffer_head OR buffer_full = '1') then
                             buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
-                            buffer_full <= '0';                 -- buffer can no longer be full
-                            if rx_cnt /= 0 then
-                                rx_cnt <= rx_cnt - 1;           -- count down continues if it's happening
-                            end if;
+                            buffer_full <= '0';                 -- buffer can no longer be full (unless we're also recieving, see below)
                         end if;
-                    else
-                        case rx_state is
-                            when RX_IDLE =>
-                                if rx_ser_s = '0' then              -- start bit detected
-                                    rx_cnt   <= bit_period/2;       -- wait to sample in the middle
-                                    rx_state <= RX_START;           -- set next state
-                                end if;
-
-                            when RX_START =>
-                                if rx_cnt = 0 then                  -- wait for counter to expire
-                                    rx_cnt   <= bit_period;         -- reset counter for data bits
-                                    rx_bit   <= 0;                  -- reset bit counter
-                                    rx_state <= RX_BITS;            -- set next state to read in the bits
-                                else rx_cnt <= rx_cnt - 1;          -- decrement counter
-                                end if;
-
-                            when RX_BITS =>
-                                if rx_cnt = 0 then                  -- wait for counter to expire
-                                    rx_shift(rx_bit) <= rx_ser_s;   -- sample the serial data input line and store in current bit position of rx register
-                                    if rx_bit = 7 then              -- if all bits have been received, go to stop state
-                                        rx_state <= RX_STOP;
-                                        rx_cnt <= bit_period;       -- reset clock counter for stop bit
-                                    else                            -- otherwise increment bit counter
-                                        rx_bit <= rx_bit + 1;
-                                        rx_cnt <= bit_period;       -- reset clock counter for next bit
-                                    end if;
-                                else 
-                                    rx_cnt <= rx_cnt - 1;          -- decrement counter
-                                end if;
-
-                            when RX_STOP =>
-                                if rx_cnt = 0 then                  -- wait for counter to expire
-                                    rx_state <= RX_IDLE;            -- go back to idle state when it does - even if no stop bit detected
-                                    if rx_ser_s = '1' then          -- check for stop bit (should be high)
-                                        ser_buffer(to_integer(buffer_head)) <= rx_shift;
-                                        buffer_head <= buffer_head + 1;
-                                        if buffer_full = '1' then   -- latch overflow signal if adding to a full buffer
-                                            overflow_s <= '1';
-                                        end if;
-                                        if (buffer_head + 1 = buffer_tail) then
-                                            buffer_tail <= buffer_tail +1;
-                                            buffer_full <= '1';
-                                        end if;
-                                    end if;
-                                else 
-                                    rx_cnt <= rx_cnt - 1;           -- decrement counter
-                                end if;
-
-                            when others => 
-                                null;
-                        end case;
                     end if;
+
+                    case rx_state is
+                        when RX_IDLE =>
+                            if rx_ser_s = '0' then              -- start bit detected
+                                rx_cnt   <= bit_period/2;       -- wait to sample in the middle
+                                rx_state <= RX_START;           -- set next state
+                            end if;
+
+                        when RX_START =>
+                            if rx_cnt = 0 then                  -- wait for counter to expire
+                                rx_cnt   <= bit_period;         -- reset counter for data bits
+                                rx_bit   <= 0;                  -- reset bit counter
+                                rx_state <= RX_BITS;            -- set next state to read in the bits
+                            else rx_cnt <= rx_cnt - 1;          -- decrement counter
+                            end if;
+
+                        when RX_BITS =>
+                            if rx_cnt = 0 then                  -- wait for counter to expire
+                                rx_shift(rx_bit) <= rx_ser_s;   -- sample the serial data input line and store in current bit position of rx register
+                                if rx_bit = 7 then              -- if all bits have been received, go to stop state
+                                    rx_state <= RX_STOP;
+                                    rx_cnt <= bit_period;       -- reset clock counter for stop bit
+                                else                            -- otherwise increment bit counter
+                                    rx_bit <= rx_bit + 1;
+                                    rx_cnt <= bit_period;       -- reset clock counter for next bit
+                                end if;
+                            else 
+                                rx_cnt <= rx_cnt - 1;          -- decrement counter
+                            end if;
+
+                        when RX_STOP =>
+                            if rx_cnt = 0 then                  -- wait for counter to expire
+                                rx_state <= RX_IDLE;            -- go back to idle state when it does - even if no stop bit detected
+                                if rx_ser_s = '1' then          -- check for stop bit (should be high)
+                                    ser_buffer(to_integer(buffer_head)) <= rx_shift;    -- latch data into the buffer
+                                    buffer_head <= buffer_head + 1; -- always increment buffer_head when adding to buffer
+
+                                     -- logic is different if RX_NEXT is being strobed or not
+                                    if RX_NEXT = '0' then       -- logic for RX_NEXT = '0'
+                                        if (buffer_head + 1 = buffer_tail) then
+                                            buffer_full <= '1';         -- buffer will be full after this
+                                            if (buffer_full = '1') then
+                                                overflow_s <= '1';              -- latch overflow signal if adding to a full buffer
+                                                buffer_tail <= buffer_tail + 1; -- buffer overflow, new data coming in erases old data
+                                            end if;
+                                        end if;
+                                    else                        -- logic for RX_NEXT = '1'
+                                        if (buffer_tail /= buffer_head) then
+                                            buffer_tail <= buffer_tail + 1;     -- increment both tail and head
+                                        else
+                                            if (buffer_full = '1') then
+                                                buffer_tail <= buffer_tail + 1;     -- increment both tail and head
+                                                buffer_full <= '1';                 -- buffer is still full
+                                            else
+                                                buffer_tail <= buffer_tail;         -- do NOT increment buffer tail (overriding the logic above)
+                                            end if;
+                                        end if;
+                                    end if;
+
+                                end if;
+                            else 
+                                rx_cnt <= rx_cnt - 1;           -- decrement counter
+                            end if;
+
+                        when others => 
+                            null;
+                    end case;
                 end if;
             end if;
         end if;

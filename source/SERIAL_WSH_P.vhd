@@ -116,7 +116,7 @@ begin
                    baud_rate;
 
     WBS_ACK_O   <= ack AND WBS_CYC_I AND WBS_STB_I;         -- ack out is internal ack if CYC and STB are asserted, else 0
-    WBS_DATA_O  <= rx_ready_s & status & rx_data_s;         -- data out is status byte and data byte
+    WBS_DATA_O  <= rx_ready_s & status & rx_data_s;
 
     process(CLK) is     -- wishbone transaction process
     begin

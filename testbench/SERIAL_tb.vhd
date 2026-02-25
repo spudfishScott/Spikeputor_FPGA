@@ -283,15 +283,16 @@ begin
 
         -- Read up to 50 more bytes (or until none available)
         for i in 0 to 100000 loop
-            if to_integer(unsigned(rx_ready)) > 0 then
-                report "Read byte #" & integer'image(bytes_read + 1) & ": 0x" & byte_to_hex(rx_data) severity note;
-                rx_next <= '1';
-                wait for 20 ns;
-                rx_next <= '0';
-                wait for 100 ns;
-                bytes_read := bytes_read + 1;
-            end if;
+            rx_next <= '1';
             wait for 20 ns;
+            rx_next <= '0';
+            wait until to_integer(unsigned(rx_ready)) > 0;
+            report "Read byte #" & integer'image(bytes_read + 1) & ": 0x" & byte_to_hex(rx_data) severity note;
+            bytes_read := bytes_read + 1;
+            rx_next <= '1';
+            wait for 20 ns;
+            rx_next <= '0';
+            wait for 100 ns;
         end loop;
         
         report "===== TEST COMPLETE =====" severity note;
