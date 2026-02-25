@@ -70,10 +70,9 @@ architecture Behavioral of SERIAL is
     SIGNAL rx_ready_s        : std_logic_vector(3 downto 0) := (others => '0');
 
 begin
-  --  RX_READY <= rx_ready_s;
+    RX_READY <= rx_ready_s;
     RX_DATA <= ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
-    RX_READY <= std_logic_vector(buffer_head - buffer_tail) when buffer_full = '0' else x"F";
     
     baud_s <= BAUD when RST = '0' else DEFAULT_BAUD;
     with (baud_s) select
@@ -118,11 +117,11 @@ begin
                 overflow_s  <= '0';
 
             else
-                -- if buffer_full = '0' then   -- current number of bytes on the buffer
-                --     rx_ready_s <= std_logic_vector(buffer_head - buffer_tail);
-                -- else 
-                --     rx_ready_s <= X"F";     -- 0xF when buffer is full even though difference = 0
-                -- end if;
+                if buffer_full = '0' then   -- current number of bytes on the buffer
+                    rx_ready_s <= std_logic_vector(buffer_head - buffer_tail);
+                else 
+                    rx_ready_s <= X"F";     -- 0xF when buffer is full even though difference = 0
+                end if;
 
                 if CMD = '1' then                           -- if CMD is high, latch in new baud rate and flush buffer
                     bit_period <= baud_period;  -- set baud period based on current baud value

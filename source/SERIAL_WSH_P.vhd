@@ -84,6 +84,8 @@ architecture rtl of SERIAL_WSH_P is
     signal ack           : std_logic := '0';                                     -- internal wishbone acknowledgement
     signal status        : std_logic_vector(3 downto 0) := (others => '0');      -- Current Baud Rate, 0x0 if still transmitting, or 0xF if ring buffer has overflowed
 
+    signal data_out      : std_logic_vector(15 downto 0) := (others => '0');
+
 begin
 
     SER: entity work.SERIAL
@@ -116,7 +118,7 @@ begin
                    baud_rate;
 
     WBS_ACK_O   <= ack AND WBS_CYC_I AND WBS_STB_I;         -- ack out is internal ack if CYC and STB are asserted, else 0
-    WBS_DATA_O  <= rx_ready_s & status & rx_data_s;
+    WBS_DATA_O  <= data_out;
 
     process(CLK) is     -- wishbone transaction process
     begin
@@ -134,8 +136,8 @@ begin
                 tx_load_s   <= '0';
 
             elsif (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
-                ack <= '1';                                                 -- acknowledge on next cycle
                 if (WBS_WE_I = '1') then                                    -- write: take action
+                    ack <= '1';                                                 -- acknowledge on next cycle
                     case WBS_DATA_I(15 downto 8) is                         -- get top byte of data
                         when x"00" =>       -- 0x00 = write data
                             if tx_busy_s = '0' then -- only start writing if transmission is not currently happening, otherwise do nothing
@@ -155,7 +157,11 @@ begin
                             null;
                     end case;
                 else                                                        -- read: strobe rx_next_s to get next item from buffer, if any
-                    rx_next_s <= '1';
+                    ack <= '1'; -- this might need to be delayed one cycle
+                    data_out <= rx_ready_s & status & rx_data_s;        -- latch in the output data
+                    if rx_ready_s /= 0 then                             -- if there's data in the buffer, get the next item
+                        rx_next_s <= '1';
+                    end if;
                 end if;
 
             elsif (WBS_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
