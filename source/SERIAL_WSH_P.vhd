@@ -130,12 +130,13 @@ begin
                 rx_next_s   <= '0';
                 tx_data_s   <= (others => '0');
                 tx_load_s   <= '0';
+            end if;
                 command     <= '0';                             -- set these signal to '0' for strobe
                 flush       <= '0';
                 rx_next_s   <= '0';
                 tx_load_s   <= '0';
 
-            elsif (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
+            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
                 if (WBS_WE_I = '1') then                                    -- write: take action
                     ack <= '1';                                                 -- acknowledge on next cycle
                     case WBS_DATA_I(15 downto 8) is                         -- get top byte of data
@@ -159,7 +160,7 @@ begin
                 else                                                        -- read: strobe rx_next_s to get next item from buffer, if any
                     ack <= '1'; -- this might need to be delayed one cycle
                     data_out <= rx_ready_s & status & rx_data_s;        -- latch in the output data
-                    if rx_ready_s /= 0 then                             -- if there's data in the buffer, get the next item
+                    if rx_ready_s /= x"0" then                             -- if there's data in the buffer, get the next item
                         rx_next_s <= '1';
                     end if;
                 end if;
