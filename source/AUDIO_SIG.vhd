@@ -81,11 +81,11 @@ begin
             elsif SET = '1' then        -- latch in new note selection
                 waveform_sel <= WAVEFORM;
                 cycle_cnt    <= 0;
-                cyc_subcnt   <= 0;
                 signal_int   <= (others => '0');
 
                 if note_freq /= "00000000000000000" then
                     note_cycle <= (CLK_FREQ * 10) / to_integer(unsigned(note_freq));   -- calculate number of cycles in one waveform period
+                    cyc_subcnt <= (CLK_FREQ * 20) / to_integer(unsigned(note_freq)) / CYCLE_MIN;  -- calculate subcounter for changes within the cycle (for waveforms that change more than once per cycle)
                 else
                     note_cycle <= 0;
                 end if;
@@ -101,7 +101,10 @@ begin
                                 signal_int <= (others => '0');
                             end if;
                         when "01" =>  -- sawtooth wave
-                            signal_int <= std_logic_vector(to_unsigned((cycle_cnt * 16383) / note_cycle, 14));   -- scale cycle count to range of signal
+                            if cyc_subcnt /= 0 and cycle_cnt mod cyc_subcnt = 0 then   -- only update signal on subcounter ticks to create steps in the wave
+                                signal_int <= std_logic_vector(unsigned(signal_int) + 1);
+                            end if;
+                            -- signal_int <= std_logic_vector(to_unsigned((cycle_cnt * 16383) / note_cycle, 14));   -- scale cycle count to range of signal
                         when "10" =>  -- triangle wave
                             if cycle_cnt < (note_cycle / 2) then
                                 -- scale to full 14-bit range (0..16383) for first half of cycle
