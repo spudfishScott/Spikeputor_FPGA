@@ -46,7 +46,7 @@ architecture Behavioral of AUDIO_SIG is
 
 begin
 
-    SIG_OUT <= signal_int;   -- add offset to signal and convert to std_logic_vector for output
+    SIG_OUT <= std_logic_vector(unsigned(signal_int) + unsigned(to_stdlogicvector(SIG_OFFSET, 14)));   -- add offset to signal and convert to std_logic_vector for output
     oct_shift <= 8 - to_integer(unsigned(OCTAVE)) when to_integer(unsigned(OCTAVE)) <= 8 else 0;   -- number of right bits to shift from octave 8, clamp octave to 8
     
     with (NOTE_IDX) select  -- note frequency is real frquency * 100 to avoid using real numbers
@@ -121,6 +121,7 @@ begin
                     end case;
                 else
                     cycle_cnt <= 0;   -- reset cycle count at end of cycle
+                    signal_int <= (others => '0');
                 end if;
             end if;
         end if;
