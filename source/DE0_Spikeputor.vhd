@@ -564,7 +564,7 @@ begin
             -- serial communication signals
             RX_SERIAL   => FSSER_RX,
             TX_SERIAL   => FSSER_TX,
-            RST_SERIAL  => FSSER_NRST
+            NRST_SERIAL => FSSER_NRST
         );
 
     -- KEYBOARD Instance as Wishbone provider (P8)

@@ -119,25 +119,13 @@ begin
 
     PULSE: entity work.PULSE_GEN
     generic map (
-        PULSE_WIDTH => Integer := (CLK_FREQ / 1000) * 5;      -- 0.005 seconds
+        PULSE_WIDTH => (CLK_FREQ / 1000) * 5        -- 0.005 seconds
     )
     port map(
         START_PULSE => RST_I,
         CLK_IN      => CLK,
         PULSE_OUT   => rst_pulse
     );
-
-     generic (
-        PULSE_WIDTH : Integer := 10; -- Pulse width in clock ticks
-        RESET_LOW   : Boolean := true   -- If true, pulse can be reset by bringing START_PULSE low before pulse is finished
-    );
-
-    port (
-        START_PULSE : in std_logic; -- Signal to start the pulse
-        CLK_IN      : in std_logic;
-        PULSE_OUT   : out std_logic
-    );
-
 
     status      <= x"0" when tx_busy_s = '1' else
                    x"F" when rx_overflow_s = '1' else
