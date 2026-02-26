@@ -46,7 +46,7 @@ architecture Behavioral of AUDIO_SIG is
 
 begin
 
-    SIG_OUT <= std_logic_vector(unsigned(signal_int) + unsigned(to_stdlogicvector(SIG_OFFSET, 14)));   -- add offset to signal and convert to std_logic_vector for output
+    SIG_OUT <= signal_int;   -- add offset to signal and convert to std_logic_vector for output
     oct_shift <= 8 - to_integer(unsigned(OCTAVE)) when to_integer(unsigned(OCTAVE)) <= 8 else 0;   -- number of right bits to shift from octave 8, clamp octave to 8
     
     with (NOTE_IDX) select  -- note frequency is real frquency * 100 to avoid using real numbers
@@ -85,7 +85,6 @@ begin
 
                 if note_freq /= "00000000000000000" then
                     note_cycle <= (CLK_FREQ * 10) / to_integer(unsigned(note_freq));   -- calculate number of cycles in one waveform period
-                    cyc_subcnt <= (CLK_FREQ * 20) / to_integer(unsigned(note_freq)) / CYCLE_MIN;  -- calculate subcounter for changes within the cycle (for waveforms that change more than once per cycle)
                 else
                     note_cycle <= 0;
                 end if;
@@ -101,17 +100,14 @@ begin
                                 signal_int <= (others => '0');
                             end if;
                         when "01" =>  -- sawtooth wave
-                            if cyc_subcnt /= 0 and cycle_cnt mod cyc_subcnt = 0 then   -- only update signal on subcounter ticks to create steps in the wave
-                                signal_int <= std_logic_vector(unsigned(signal_int) + 1);
-                            end if;
-                            -- signal_int <= std_logic_vector(to_unsigned((cycle_cnt * 16383) / note_cycle, 14));   -- scale cycle count to range of signal
+                            signal_int <= std_logic_vector(to_unsigned((cycle_cnt * 16384) / note_cycle, 14));   -- scale cycle count to range of signal
                         when "10" =>  -- triangle wave
                             if cycle_cnt < (note_cycle / 2) then
                                 -- scale to full 14-bit range (0..16383) for first half of cycle
-                                signal_int <= std_logic_vector(to_unsigned((cycle_cnt * 16382) / note_cycle * 2, 14));
+                                signal_int <= std_logic_vector(to_unsigned((cycle_cnt * 16384) / note_cycle * 2, 14));
                             else
                                 -- reverse and scale for second half of cycle
-                                signal_int <= std_logic_vector(to_unsigned(((note_cycle - cycle_cnt) * 16382) / note_cycle * 2, 14));
+                                signal_int <= std_logic_vector(to_unsigned(((note_cycle - cycle_cnt) * 16384) / note_cycle * 2, 14));
                             end if;
                         when "11" =>  -- sine wave
                             -- todo: implement sine wave using a lookup table or approximation method
@@ -121,7 +117,6 @@ begin
                     end case;
                 else
                     cycle_cnt <= 0;   -- reset cycle count at end of cycle
-                    signal_int <= (others => '0');
                 end if;
             end if;
         end if;
