@@ -11,7 +11,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.Types.all;
+
+LIBRARY altera_mf;
+USE altera_mf.altera_mf_components.all;
 
 entity AUDIO_SIG is
     generic ( 
@@ -40,11 +42,35 @@ architecture Behavioral of AUDIO_SIG is
     signal note_base    : std_logic_vector(24 downto 0) := (others => '0');     -- base frequency of the note in octave 8 * 10
     signal note_freq    : std_logic_vector(16 downto 0) := (others => '0');     -- note frequency in hertz * 10
     signal cycle_cnt    : integer := 0;                                         -- cycle counter
-    signal cyc_subcnt   : integer := 0;                                         -- subcounter for changes within the cycle
+    signal cal_timer    : integer range 0 to 4 := 0;                            -- timer for calculating note frequency using integer division
+    signal set_latch    : std_logic := '0';                                     -- latched version of set signal to synchronize with cal_timer
+
+    signal div_en      : std_logic := '0';                                      -- enable signal for integer division module
+    signal numerator   : std_logic_vector(31 downto 0) := (others => '0');      -- numerator for integer division (clock frequency * 10)
+    signal denominator : std_logic_vector(31 downto 0) := (others => '0');      -- denominator for integer division (note frequency)
+    signal quotient    : std_logic_vector(31 downto 0) := (others => '0');      -- quotient output
+
     signal waveform_sel : std_logic_vector(1 downto 0) := "00";                 -- latched in waveform selection
     signal signal_int   : std_logic_vector(13 downto 0) := (others => '0');     -- internal signal value before output and offset adjustment
 
 begin
+
+    intdiv: lpm_divide
+    GENERIC MAP (
+        lpm_pipeline                    => 3, -- needs to be pipelined or timing failures exist
+        lpm_widthn                      => 32,
+        lpm_widthd                      => 32,
+        lpm_nrepresentation             => "UNSIGNED",
+        lpm_drepresentation             => "UNSIGNED"
+    )
+    PORT MAP (
+        clock       => CLK,
+        clken       => div_en,
+        numer       => numerator,
+        denom       => denominator,
+        quotient    => quotient,
+        remain      => open
+    );
 
     SIG_OUT <= signal_int;   -- add offset to signal and convert to std_logic_vector for output
     oct_shift <= 8 - to_integer(unsigned(OCTAVE)) when to_integer(unsigned(OCTAVE)) <= 8 else 0;   -- number of right bits to shift from octave 8, clamp octave to 8
@@ -68,6 +94,7 @@ begin
 
     note_freq <= note_base(16+oct_shift downto oct_shift);   -- shift base frequency down by octave and convert to integer
 
+    -- TODO: create a pipelined integer division module to replace the division operations below. Multiplications are all simple bit shifts.
     process(CLK) is
     begin
         if rising_edge(CLK) then
@@ -76,18 +103,38 @@ begin
                 waveform_sel <= "00";
                 cycle_cnt    <= 0;
                 cyc_subcnt   <= 0;
+                cal_timer    <= 0;
+                div_en      <= '0';
+                set_latch    <= '0';
+                numerator   <= (others => '0');
+                denominator <= (others => '0');
                 signal_int   <= (others => '0');
 
-            elsif SET = '1' then        -- latch in new note selection
-                waveform_sel <= WAVEFORM;
-                cycle_cnt    <= 0;
-                signal_int   <= (others => '0');
-
-                if note_freq /= "00000000000000000" then
-                    note_cycle <= (CLK_FREQ * 10) / to_integer(unsigned(note_freq));   -- calculate number of cycles in one waveform period
-                else
-                    note_cycle <= 0;
-                end if;
+            elsif SET = '1' OR set_latch = '1' then        -- latch in new note selection
+                case cal_timer is
+                    when 0 =>
+                        set_latch <= '1';
+                        waveform_sel <= WAVEFORM;
+                        cycle_cnt    <= 0;
+                        if note_freq /= "00000000000000000" then   -- only calculate if note frequency is not 0 (rest)
+                            numerator <= std_logic_vector(to_unsigned(CLK_FREQ * 10, 32));   -- set numerator for integer division to clock frequency * 10
+                            denominator <= std_logic_vector(resize(note_freq, 32));          -- set denominator to note frequency
+                            div_en <= '1';      -- start division
+                            cal_timer <= 1;
+                        else 
+                            set_latch <= '0';
+                            cal_timer <= 0;
+                            note_cycle <= 0;    -- set note cycle to 0 for rest
+                        end if;
+                    when 3 =>
+                        signal_int <= (others => '0');
+                        div_en <= '0';          -- stop division
+                        set_latch <= '0';
+                        cal_timer <= 0;
+                        note_cycle <= to_integer(unsigned(quotient(16 downto 0)));          -- set note cycle to quotient of division
+                    when others =>
+                        cal_timer <= cal_timer + 1;    -- wait for division to end (3 cycles with pipeline of 3)
+                end case;
 
             elsif note_cycle /= 0 then   -- if a note is playing, update signal based on waveform and cycle count
                 if cycle_cnt < note_cycle then
