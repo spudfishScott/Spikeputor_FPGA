@@ -14,9 +14,10 @@ GHDL_FLAGS  = --ieee=synopsys --warn-no-vital-generic
 
 SIMDIR = simulation
 STOP_TIME = 500ns
+STOP_DELTA = 5000
 
 # Simulation break condition
-GHDL_SIM_OPT = --stop-time=$(STOP_TIME)
+GHDL_SIM_OPT = --stop-time=$(STOP_TIME) --stop-delta=$(STOP_DELTA)
 VCDFILE = ${SIMDIR}/${TESTBENCHFILE}.vcdgz
 
 WAVEFORM_VIEWER = gtkwave
