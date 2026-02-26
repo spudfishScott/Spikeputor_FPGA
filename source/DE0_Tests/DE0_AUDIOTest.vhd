@@ -8,7 +8,8 @@ entity DE0_AUDIOTest is -- the interface to the DE0 board
         CLOCK_50 : in std_logic;
         -- DPDT Switch
         SW       : in std_logic_vector(9 downto 0);
-        
+        -- Button
+        BUTTON   : in std_logic_vector(2 downto 0);
         --OUTPUTS
         -- 7-SEG Display
         HEX0_D   : out std_logic_vector(6 downto 0);
@@ -50,7 +51,7 @@ begin
         );
 
     DISPLAY : entity work.WORDTO7SEGS port map (
-        WORD  => "000" & sig_out_o,
+        WORD  => "00" & sig_out_o,
         SEGS0 => HEX0_D,
         SEGS1 => HEX1_D,
         SEGS2 => HEX2_D,

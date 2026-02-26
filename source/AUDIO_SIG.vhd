@@ -36,8 +36,9 @@ architecture Behavioral of AUDIO_SIG is
 
     -- signals for audio signal generation
     signal note_cycle   : integer := 0;                                         -- number of cycles in one full waveform
-    signal clamped_oct  : integer := 0;                                         -- octave value clamped to 8
-    signal note_freq    : integer := 0;                                         -- note frequency in hertz * 100 (to avoid using real numbers)
+    signal oct_shift    : integer range 0 to 8 := 0;                            -- octave value clamped to 8
+    signal note_base    : std_logic_vector(24 downto 0) := (others => '0');     -- base frequency of the note in octave 8 * 10
+    signal note_freq    : std_logic_vector(16 downto 0) := (others => '0');     -- note frequency in hertz * 10
     signal cycle_cnt    : integer := 0;                                         -- cycle counter
     signal cyc_subcnt   : integer := 0;                                         -- subcounter for changes within the cycle
     signal waveform_sel : std_logic_vector(1 downto 0) := "00";                 -- latched in waveform selection
@@ -46,24 +47,26 @@ architecture Behavioral of AUDIO_SIG is
 begin
 
     SIG_OUT <= signal_int;   -- add offset to signal and convert to std_logic_vector for output
-    clamped_oct <= to_integer(unsigned(OCTAVE)) when to_integer(unsigned(OCTAVE)) <= 8 else 8;   -- clamp octave to 8
+    oct_shift <= 8 - to_integer(unsigned(OCTAVE)) when to_integer(unsigned(OCTAVE)) <= 8 else 0;   -- number of right bits to shift from octave 8, clamp octave to 8
     
     with (NOTE_IDX) select  -- note frequency is real frquency * 100 to avoid using real numbers
-        note_freq <=
-            0 when "0000",        -- rest
-            1635 * (2 ** clamped_oct) when "0001",     -- C0 * octave multiplier
-            1732 * (2 ** clamped_oct) when "0010",     -- C#0 * octave multiplier
-            1835 * (2 ** clamped_oct) when "0011",     -- D0 * octave multiplier
-            1945 * (2 ** clamped_oct) when "0100",     -- D#0 * octave multiplier
-            2062 * (2 ** clamped_oct) when "0101",     -- E0 * octave multiplier
-            2183 * (2 ** clamped_oct) when "0110",     -- F0 * octave multiplier
-            2312 * (2 ** clamped_oct) when "0111",     -- F#0 * octave multiplier
-            2450 * (2 ** clamped_oct) when "1000",     -- G0 * octave multiplier
-            2596 * (2 ** clamped_oct) when "1001",     -- G#0 * octave multiplier
-            2750 * (2 ** clamped_oct) when "1010",     -- A0 * octave multiplier
-            2914 * (2 ** clamped_oct) when "1011",     -- A#0 * octave multiplier
-            3087 * (2 ** clamped_oct) when "1100",     -- B0 * octave multiplier
-            0 when others;
+        note_base <=
+            (others => '0') when "0000",        -- rest
+            std_logic_vector(to_unsigned(41860, 25)) when "0001",     -- C8
+            std_logic_vector(to_unsigned(44350, 25)) when "0010",     -- C#8/Db8
+            std_logic_vector(to_unsigned(46986, 25)) when "0011",     -- D8
+            std_logic_vector(to_unsigned(49960, 25)) when "0100",     -- D#8/Eb8
+            std_logic_vector(to_unsigned(52470, 25)) when "0101",     -- E8
+            std_logic_vector(to_unsigned(55860, 25)) when "0110",     -- F8
+            std_logic_vector(to_unsigned(59200, 25)) when "0111",     -- F#8/Gb8
+            std_logic_vector(to_unsigned(62720, 25)) when "1000",     -- G8
+            std_logic_vector(to_unsigned(66448, 25)) when "1001",     -- G#8/Ab8
+            std_logic_vector(to_unsigned(70400, 25)) when "1010",     -- A8
+            std_logic_vector(to_unsigned(74586, 25)) when "1011",     -- A#8/Bb8
+            std_logic_vector(to_unsigned(79022, 25)) when "1100",     -- B8
+            (others => '0') when others;
+
+    note_freq <= note_base(16+oct_shift downto oct_shift);   -- shift base frequency down by octave and convert to integer
 
     process(CLK) is
     begin
@@ -81,8 +84,8 @@ begin
                 cyc_subcnt   <= 0;
                 signal_int   <= (others => '0');
 
-                if note_freq /= 0 then
-                    note_cycle <= (CLK_FREQ * 100) / note_freq;   -- calculate number of cycles in one waveform period
+                if note_freq /= "00000000000000000" then
+                    note_cycle <= (CLK_FREQ * 10) / to_integer(unsigned(note_freq));   -- calculate number of cycles in one waveform period
                 else
                     note_cycle <= 0;
                 end if;

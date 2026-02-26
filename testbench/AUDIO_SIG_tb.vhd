@@ -63,7 +63,7 @@ begin
             wait for CLK_PERIOD;
             set_sig <= '0';
             -- let output run for some cycles
-            wait for 80000 * CLK_PERIOD;
+            wait for 150000 * CLK_PERIOD;
         end procedure;
     begin
         -- reset the device
@@ -72,10 +72,10 @@ begin
         reset <= '0';
 
         -- test square wave on middle C octave 4
-        apply_note("0001", "0100", "00");
+        apply_note("0001", "0101", "00");
 
         -- test sawtooth on A4
-        apply_note("1010", "0100", "01");
+        apply_note("1010", "0101", "01");
 
         -- test triangle on B5
         apply_note("1100", "0101", "10");
