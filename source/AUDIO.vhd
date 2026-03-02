@@ -16,6 +16,14 @@ ENTITY INTDIV_SIM is
 END INTDIV_SIM;
 
 ARCHITECTURE SIM of INTDIV_SIM is
+    signal result_pipe11 : unsigned(31 downto 0) := (others => '0');
+    signal result_pipe10 : unsigned(31 downto 0) := (others => '0');
+    signal result_pipe9 : unsigned(31 downto 0) := (others => '0');
+    signal result_pipe8 : unsigned(31 downto 0) := (others => '0');
+    signal result_pipe7 : unsigned(31 downto 0) := (others => '0');
+    signal result_pipe6 : unsigned(31 downto 0) := (others => '0');
+    signal result_pipe5 : unsigned(31 downto 0) := (others => '0');
+    signal result_pipe4 : unsigned(31 downto 0) := (others => '0');
     signal result_pipe3 : unsigned(31 downto 0) := (others => '0');
     signal result_pipe2 : unsigned(31 downto 0) := (others => '0');
     signal result_pipe1 : unsigned(31 downto 0) := (others => '0');
@@ -24,18 +32,34 @@ ARCHITECTURE SIM of INTDIV_SIM is
 begin
 
     -- output the result from the last pipeline stage
-    QUOT <= std_logic_vector(result_pipe3);
+    QUOT <= std_logic_vector(result_pipe11);
 
     process(CLOCK)
     begin
         if rising_edge(CLOCK) then
             if RESET = '1' then
+                result_pipe11  <= (others => '0');
+                result_pipe10  <= (others => '0');
+                result_pipe9   <= (others => '0');
+                result_pipe8   <= (others => '0');
+                result_pipe7   <= (others => '0');
+                result_pipe6   <= (others => '0');
+                result_pipe5   <= (others => '0');
+                result_pipe4   <= (others => '0');
                 result_pipe3  <= (others => '0');
                 result_pipe2  <= (others => '0');
                 result_pipe1  <= (others => '0');
                 result_pipe0  <= (others => '0');
             else
                 -- shift pipeline stages
+                result_pipe11 <= result_pipe10;
+                result_pipe10 <= result_pipe9;
+                result_pipe9  <= result_pipe8;
+                result_pipe8  <= result_pipe7;
+                result_pipe7  <= result_pipe6;
+                result_pipe6  <= result_pipe5;
+                result_pipe5  <= result_pipe4;
+                result_pipe4  <= result_pipe3;
                 result_pipe3 <= result_pipe2;
                 result_pipe2 <= result_pipe1;
                 result_pipe1 <= result_pipe0;
@@ -131,7 +155,7 @@ architecture Structural of AUDIO is
     signal arb_quot  : std_logic_vector(31 downto 0) := (others => '0');
     signal arb_rem   : std_logic_vector(31 downto 0) := (others => '0');
 
-    signal voice_cnt : integer range 0 to 3 := 0;   -- round robin counter for sharing division resource with 4 voices
+    signal voice_cnt : integer range 0 to 12 := 0;   -- round robin counter for sharing division resource with 4 voices
 
 begin
 
@@ -139,7 +163,7 @@ begin
     AUDIO_SIG0 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => CLK_FREQ,
-            LATENCY  => 4,
+            LATENCY  => 12,
             LATENCY_OFFSET => 0
         )
         port map (
@@ -161,7 +185,7 @@ begin
     AUDIO_SIG1 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => 50_000_000,
-            LATENCY  => 4,
+            LATENCY  => 12,
             LATENCY_OFFSET => 1
         )
         port map (
@@ -183,7 +207,7 @@ begin
     AUDIO_SIG2 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => 50_000_000,
-            LATENCY  => 4,
+            LATENCY  => 12,
             LATENCY_OFFSET => 2
         )
         port map (
@@ -205,7 +229,7 @@ begin
     AUDIO_SIG3 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => 50_000_000,
-            LATENCY  => 4,
+            LATENCY  => 12,
             LATENCY_OFFSET => 3
         )
         port map (
@@ -238,7 +262,7 @@ begin
     INTDIV: entity work.INTDIV
     GENERIC MAP (
         WIDTH => 32,
-        LATENCY => 4
+        LATENCY => 12
     )
     PORT MAP (
         CLOCK       => CLK,
@@ -254,11 +278,8 @@ begin
     AUDIO_L <= out_l;
 
     -- current signal to add to accumulators if active on a channel
-    cur_sig_r <= sig_out(voice_cnt) when active_r(voice_cnt) = '1' else (others => '0');
-    cur_sig_l <= sig_out(voice_cnt) when active_l(voice_cnt) = '1' else (others => '0');
-
-    -- -- put the quotient in the right input as soon as it's available
-    quot((voice_cnt - 1) mod 4) <= arb_quot;
+    cur_sig_r <= sig_out(voice_cnt) when voice_cnt < 4 AND active_r(voice_cnt) = '1' else (others => '0');
+    cur_sig_l <= sig_out(voice_cnt) when voice_cnt < 4 AND active_l(voice_cnt) = '1' else (others => '0');
 
     process(CLK) is
     begin
@@ -277,7 +298,7 @@ begin
                 num_voices_r <= 0;
             else
                 -- increment voice counter for round robin processing
-                if voice_cnt = 3 then
+                if voice_cnt = 11 then
                     voice_cnt <= 0;
                 else
                     voice_cnt <= voice_cnt + 1;
@@ -347,9 +368,13 @@ begin
                     end case;
                 end if;
 
-                -- route numerator, denominator, and quotient from correct voice generator to division module
-                arb_num  <= num(voice_cnt);
-                arb_den  <= den(voice_cnt);
+                if voice_cnt < 4 then
+                    -- route numerator, denominator, and quotient from correct voice generator to division module
+                    arb_num  <= num(voice_cnt);
+                    arb_den  <= den(voice_cnt);
+                    -- put the quotient in the right input as soon as it's available
+                    quot((voice_cnt - 1) mod 4) <= arb_quot;
+                end if;
 
                 -- if we're starting a new cycle of voices, set the accumulators directly, otherwise, add to it
                 if voice_cnt = 0 then 

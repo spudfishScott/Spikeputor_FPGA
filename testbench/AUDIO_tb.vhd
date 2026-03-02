@@ -110,29 +110,29 @@ begin
         -- single-voice tests
         ------------------------------------------------------------------
 
-        -- program_voice(2, "1100", "0011", "01", "01");
-        -- program_voice(3, "1100", "0100", "01", "10"); 
-        -- wait for 100000 * CLK_PERIOD;
+        program_voice(2, "1100", "0011", "01", "01");
+        program_voice(3, "1100", "0100", "01", "10"); 
+        wait for 100000 * CLK_PERIOD;
 
-        -- program_voice(2, "1100", "0101", "00", "01");
-        -- program_voice(3, "1100", "0110", "00", "10");
-        -- wait for 100000 * CLK_PERIOD;
+        program_voice(2, "1100", "0101", "00", "01");
+        program_voice(3, "1100", "0110", "00", "10");
+        wait for 100000 * CLK_PERIOD;
 
-        -- program_voice(2, "1100", "0111", "10", "01");
-        -- program_voice(3, "1100", "1000", "10", "10");
-        -- wait for 100000 * CLK_PERIOD;
+        program_voice(2, "1100", "0111", "10", "01");
+        program_voice(3, "1100", "1000", "10", "10");
+        wait for 100000 * CLK_PERIOD;
 
-        -- program_voice(2, "1100", "1000", "11", "01");
-        -- program_voice(3, "0101", "1000", "11", "10");
-        -- wait for 100000 * CLK_PERIOD;
+        program_voice(2, "1100", "1000", "11", "01");
+        program_voice(3, "0101", "1000", "11", "10");
+        wait for 100000 * CLK_PERIOD;
 
-        --         -- -- turn off all voices by sending note index 0
-        -- report "Clearing all voices" severity note;
-        -- program_voice(0, "0000", "0000", "00", "00");
-        -- program_voice(1, "0000", "0000", "00", "00");
-        -- program_voice(2, "0000", "0000", "00", "00");
-        -- program_voice(3, "0000", "0000", "00", "00");
-        -- wait for 200 * CLK_PERIOD;
+                -- -- turn off all voices by sending note index 0
+        report "Clearing all voices" severity note;
+        program_voice(0, "0000", "0000", "00", "00");
+        program_voice(1, "0000", "0000", "00", "00");
+        program_voice(2, "0000", "0000", "00", "00");
+        program_voice(3, "0000", "0000", "00", "00");
+        wait for 200 * CLK_PERIOD;
 
 
         -- -- ------------------------------------------------------------------
@@ -154,12 +154,12 @@ begin
         program_voice(3, "0111", "1000", "11", "11");
 
         -- -- -- turn off all voices by sending note index 0
-        -- report "Clearing all voices" severity note;
-        -- program_voice(0, "0000", "0000", "00", "00");
-        -- program_voice(1, "0000", "0000", "00", "00");
-        -- program_voice(2, "0000", "0000", "00", "00");
-        -- program_voice(3, "0000", "0000", "00", "00");
-        -- wait for 200 * CLK_PERIOD;
+        report "Clearing all voices" severity note;
+        program_voice(0, "0000", "0000", "00", "00");
+        program_voice(1, "0000", "0000", "00", "00");
+        program_voice(2, "0000", "0000", "00", "00");
+        program_voice(3, "0000", "0000", "00", "00");
+        wait for 200 * CLK_PERIOD;
 
         report "End of simulation" severity note;
         wait;

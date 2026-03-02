@@ -62,7 +62,7 @@ begin
 
     AUDIO_CTRL : entity work.AUDIO
     generic map (
-        CLK_FREQ => 50000000, -- 50 MHz
+        CLK_FREQ => 50000000  -- 50 MHz
     )
     port map (
         CLK     => CLOCK_50,
@@ -93,19 +93,13 @@ begin
     process(CLOCK_50)
     begin
         if rising_edge(CLOCK_50) then
-            if RESET = '1' then
+            if BUTTON(0) = '0' then
                 voice_sel <= (others => '0');
                 prev_button_1 <= '0';
                 prev_button_2 <= '0';
-
-                set_strobe <= '1';  -- clear all voices on reset
-                voice0_sig <= (others => '0');
-                voice1_sig <= (others => '0');
-                voice2_sig <= (others => '0');
-                voice3_sig <= (others => '0');
             end if;
 
-            set_strobe <= 0; -- default to 0, set to 1 for one cycle when setting a voice signal
+            set_strobe <= '0'; -- default to 0, set to 1 for one cycle when setting a voice signal
             -- voice selection logic
             if BUTTON(1) = '1' and prev_button_1 = '0' then
                 voice_sel <= voice_sel + 1;
@@ -114,7 +108,7 @@ begin
 
             -- set signal logic
             if BUTTON(2) = '1' and prev_button_2 = '0' then
-                set_strobe <= 1;
+                set_strobe <= '1';
                 case voice_sel is
                     when "00" =>
                         voice0_sig <= SW(9 downto 0);
@@ -137,7 +131,7 @@ begin
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
-    LEDG(9 downto 8) <= voice_sel;  -- currently selected voice
+    LEDG(9 downto 8) <= std_logic_vector(voice_sel);  -- currently selected voice
     LEDG(7 downto 0) <= (others => '0');
 
 

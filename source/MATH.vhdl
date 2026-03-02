@@ -496,7 +496,7 @@ USE lpm.lpm_components.all;
 
 ENTITY INTDIV is
     GENERIC ( 
-        WIDTH   : Integer := 16,
+        WIDTH   : Integer := 16;
         LATENCY : Integer := 3
     );
     PORT (

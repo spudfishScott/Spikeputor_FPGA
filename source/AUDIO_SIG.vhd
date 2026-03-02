@@ -49,7 +49,7 @@ architecture Behavioral of AUDIO_SIG is
     signal sin_result   : std_logic_vector(14 downto 0) := (others => '0');     -- result from sine lookup table
 
     signal set_latch    : std_logic := '0';                                     -- latched version of set signal to synchronize with cal_timer
-    signal new_note     : std_logic := '0';                                     -- flag for new note latching
+    signal new_note     : integer range 0 to 3 := 0;                            -- counter for new note latching
     signal latency_cnt  : integer range 0 to LATENCY := 0;                      -- counter to track latency of division
     signal delay_start  : std_logic;
 
@@ -132,7 +132,7 @@ begin
                 sin_index    <= 0;
                 sin2_cnt     <= 0;
                 set_latch    <= '0';
-                new_note     <= '0';
+                new_note     <= 0;
                 delay_start  <= '0';
                 num_out      <= (others => '0');
                 den_out      <= (others => '0');
@@ -156,24 +156,23 @@ begin
                     end if;
                 end if;
 
-                if latency_cnt = (LATENCY_OFFSET + 1) MOD LATENCY then    -- when latency counter matches offset + 1, division is valid so we can start a new division and continue signal calculation
-                    if (set_latch = '1' AND new_note = '0') then          -- if we just latched in a new note, calculate the note cycle based on the note frequency
+                if latency_cnt = (LATENCY_OFFSET) MOD LATENCY then    -- when latency counter matches offset + 1, division is valid so we can start a new division and continue signal calculation
+                    if (set_latch = '1' AND new_note /= 2) then          -- if we just latched in a new note, calculate the note cycle based on the note frequency
                         if delay_start = '1' then
                             delay_start <= '0';                           -- delay one more cycle because SET came in at the start of our pipeline and we need to wait a cycle before the calculation can start
                         else 
-                            new_note <= '1';                              -- set new note flag to wait until next cycle for division result
-                            num_out      <= (others => '0');              -- first signal is zero (except for sine - handle that later), start the division pipeline
+                            new_note <=  new_note + 1;                    -- set new note flag to wait until next cycle for division result
+                            num_out  <= (others => '0');                  -- first signal is zero (except for sine - handle that later), start the division pipeline
                         end if;
-                    elsif (new_note = '1') then             -- division is done now, so latch in the note_cycle number
+                    elsif (new_note = 2) then             -- division is done now, so latch in the note_cycle number
                         set_latch <= '0';                                 -- clear set_latch to proceed to signal generation
-                        new_note     <= '0';
+                        new_note     <= 0;
                         note_cycle   <= to_integer(unsigned(QUOTIENT));   -- set note cycle to quotient of division - number of cycles in this note's waveform
 
                         cycle_cnt    <= 0;                                -- reset all counters
                         sin2_cnt     <= 0;
                         sin_index    <= 0;
 
-                        cycle_cnt    <= 1;                                -- first calculation is zero, so we can start with the next one
                         den_out      <= QUOTIENT;                         -- denominator stays the same for all waveform calculations
                     
                     elsif note_cycle /= 0 and SET = '0' then   -- if a note is playing (and we're not setting a new note), update signal based on waveform and cycle count
