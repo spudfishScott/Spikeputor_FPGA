@@ -25,7 +25,7 @@ entity DE0_AUDIOTest is -- the interface to the DE0 board
 
         -- audio out
         VGA_R    : out std_logic_vector(3 downto 0);
-        VGA_G    : out std_logic_vector(3 downto 0);
+        VGA_G    : out std_logic_vector(3 downto 0)
 );
 end DE0_AUDIOTest;
 
@@ -54,6 +54,12 @@ begin
     VGA_R <= sig_out_r;
     VGA_G <= sig_out_l;
 
+    set0_sig <= set_strobe when voice_sel = "00" else '0';
+    set1_sig <= set_strobe when voice_sel = "01" else '0';
+    set2_sig <= set_strobe when voice_sel = "10" else '0';
+    set3_sig <= set_strobe when voice_sel = "11" else '0';
+
+
     AUDIO_CTRL : entity work.AUDIO
     generic map (
         CLK_FREQ => 50000000, -- 50 MHz
@@ -62,10 +68,10 @@ begin
         CLK     => CLOCK_50,
         RESET   => NOT BUTTON(0),
 
-        VOICE0  => "000000" & voice0_sig,
-        VOICE1  => "000000" & voice1_sig,
-        VOICE2  => "000000" & voice2_sig,
-        VOICE3  => "000000" & voice3_sig,
+        VOICE0  => "000011" & voice0_sig,   -- 11 is channel
+        VOICE1  => "000011" & voice1_sig,
+        VOICE2  => "000011" & voice2_sig,
+        VOICE3  => "000011" & voice3_sig,
 
         SET0    => set0_sig,
         SET1    => set1_sig,
@@ -98,7 +104,7 @@ begin
                 voice2_sig <= (others => '0');
                 voice3_sig <= (others => '0');
             end if;
-            
+
             set_strobe <= 0; -- default to 0, set to 1 for one cycle when setting a voice signal
             -- voice selection logic
             if BUTTON(1) = '1' and prev_button_1 = '0' then

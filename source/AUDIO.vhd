@@ -237,7 +237,8 @@ begin
 
     INTDIV: entity work.INTDIV
     GENERIC MAP (
-        WIDTH => 32
+        WIDTH => 32,
+        LATENCY => 4
     )
     PORT MAP (
         CLOCK       => CLK,
@@ -245,7 +246,7 @@ begin
             A       => arb_num,
             B       => arb_den,
          QUOT       => arb_quot,
-        REMND       => arb_rem
+        REMND       => open
     );
 
     -- audio outputs
@@ -256,8 +257,8 @@ begin
     cur_sig_r <= sig_out(voice_cnt) when active_r(voice_cnt) = '1' else (others => '0');
     cur_sig_l <= sig_out(voice_cnt) when active_l(voice_cnt) = '1' else (others => '0');
 
-    -- put the quotient in the right input as soon as it's available
-    quot((voice_cnt - 1) mod 4) <= arb_quot when unsigned(arb_rem) < unsigned(arb_den)/2 else std_logic_vector(unsigned(arb_quot) + 1);
+    -- -- put the quotient in the right input as soon as it's available
+    quot((voice_cnt - 1) mod 4) <= arb_quot;
 
     process(CLK) is
     begin

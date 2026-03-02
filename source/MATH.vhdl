@@ -495,7 +495,10 @@ LIBRARY lpm;
 USE lpm.lpm_components.all;
 
 ENTITY INTDIV is
-    GENERIC ( WISTH : Integer := 16 );
+    GENERIC ( 
+        WIDTH   : Integer := 16,
+        LATENCY : Integer := 3
+    );
     PORT (
         CLOCK   : IN std_logic;
         EN      : IN std_logic;
@@ -512,7 +515,7 @@ BEGIN
 
 intdiv: lpm_divide
     GENERIC MAP (
-        lpm_pipeline                    => 3, -- needs to be pipelined or timing failures exist
+        lpm_pipeline                    => LATENCY, -- needs to be pipelined or timing failures exist
         lpm_widthn                      => WIDTH,
         lpm_widthd                      => WIDTH,
         lpm_nrepresentation             => "UNSIGNED",
