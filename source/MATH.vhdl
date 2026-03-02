@@ -495,13 +495,14 @@ LIBRARY lpm;
 USE lpm.lpm_components.all;
 
 ENTITY INTDIV is
+    GENERIC ( WISTH : Integer := 16 );
     PORT (
         CLOCK   : IN std_logic;
         EN      : IN std_logic;
-        A       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        B       : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        QUOT    : OUT STD_LOGIC_VECTOR(15 downto 0);
-        REMND   : OUT STD_LOGIC_VECTOR(15 downto 0)
+        A       : IN STD_LOGIC_VECTOR(WIDTH - 1 DOWNTO 0);
+        B       : IN STD_LOGIC_VECTOR(WIDTH - 1 DOWNTO 0);
+        QUOT    : OUT STD_LOGIC_VECTOR(WIDTH - 1 downto 0);
+        REMND   : OUT STD_LOGIC_VECTOR(WIDTH - 1 downto 0)
     );
 END INTDIV;
 
@@ -512,8 +513,8 @@ BEGIN
 intdiv: lpm_divide
     GENERIC MAP (
         lpm_pipeline                    => 3, -- needs to be pipelined or timing failures exist
-        lpm_widthn                      => 16,
-        lpm_widthd                      => 16,
+        lpm_widthn                      => WIDTH,
+        lpm_widthd                      => WIDTH,
         lpm_nrepresentation             => "UNSIGNED",
         lpm_drepresentation             => "UNSIGNED"
     )

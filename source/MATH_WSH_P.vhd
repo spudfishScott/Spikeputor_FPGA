@@ -118,7 +118,7 @@ begin
             "0100000000000000" when "1110",          -- Integer Multiply (16 bit * 16 bit = 32 bit product)
             "0000000000000000" when others;
 
- with (WBS_ADDR_I(3 downto 0)) select           -- select output based on address of register to read
+    with (WBS_ADDR_I(3 downto 0)) select           -- select output based on address of register to read
         WBS_DATA_O <=
             busy_out                when "0000",     -- 0xFFE0 read is current calculation status
             input_a(31 downto 16)   when "0001",     -- 0xFFE1 read is Input A High Word
@@ -260,8 +260,8 @@ begin
 
     -- Integer division - 16 bit numerator and 16 bit denominator - answer in 3 cycles as 16 bit quotient and 16 bit remainder
     IDIV: entity work.INTDIV port map (
-	   CLOCK     => CLK,
-		  EN      => enabled(13),
+        CLOCK   => CLK,
+        EN      => enabled(13),
         A       => input_a(15 downto 0),
         B       => input_b(15 downto 0),
         QUOT    => idiv_quot,
