@@ -5,6 +5,9 @@ USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
 
 ENTITY INTDIV_SIM is
+    GENERIC (
+        LATENCY : integer := 8
+    );
     PORT (
         CLOCK   : IN std_logic;
         RESET   : In std_logic;
@@ -32,7 +35,19 @@ ARCHITECTURE SIM of INTDIV_SIM is
 begin
 
     -- output the result from the last pipeline stage
-    QUOT <= std_logic_vector(result_pipe11);
+    QUOT <= std_logic_vector(result_pipe0) when LATENCY = 1 else
+            std_logic_vector(result_pipe1) when LATENCY = 2 else
+            std_logic_vector(result_pipe2) when LATENCY = 3 else
+            std_logic_vector(result_pipe3) when LATENCY = 4 else
+            std_logic_vector(result_pipe4) when LATENCY = 5 else
+            std_logic_vector(result_pipe5) when LATENCY = 6 else
+            std_logic_vector(result_pipe6) when LATENCY = 7 else
+            std_logic_vector(result_pipe7) when LATENCY = 8 else
+            std_logic_vector(result_pipe8) when LATENCY = 9 else
+            std_logic_vector(result_pipe9) when LATENCY = 10 else
+            std_logic_vector(result_pipe10) when LATENCY = 11 else
+            std_logic_vector(result_pipe11) when LATENCY = 12 else
+            (others => '0');  -- default to zero if LATENCY is out of range
 
     process(CLOCK)
     begin
@@ -155,7 +170,8 @@ architecture Structural of AUDIO is
     signal arb_quot  : std_logic_vector(31 downto 0) := (others => '0');
     signal arb_rem   : std_logic_vector(31 downto 0) := (others => '0');
 
-    signal voice_cnt : integer range 0 to 12 := 0;   -- round robin counter for sharing division resource with 4 voices
+    constant DIV_LATENCY : integer := 8;
+    signal voice_cnt : integer range 0 to DIV_LATENCY-1 := 0;   -- round robin counter for sharing division resource with 4 voices
 
 begin
 
@@ -163,7 +179,7 @@ begin
     AUDIO_SIG0 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => CLK_FREQ,
-            LATENCY  => 12,
+            LATENCY  => DIV_LATENCY,
             LATENCY_OFFSET => 0
         )
         port map (
@@ -185,8 +201,8 @@ begin
     AUDIO_SIG1 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => 50_000_000,
-            LATENCY  => 12,
-            LATENCY_OFFSET => 1
+            LATENCY  => DIV_LATENCY,
+            LATENCY_OFFSET => 2
         )
         port map (
             CLK         => CLK,
@@ -207,8 +223,8 @@ begin
     AUDIO_SIG2 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => 50_000_000,
-            LATENCY  => 12,
-            LATENCY_OFFSET => 2
+            LATENCY  => DIV_LATENCY,
+            LATENCY_OFFSET => 4
         )
         port map (
             CLK         => CLK,
@@ -229,8 +245,8 @@ begin
     AUDIO_SIG3 : entity work.AUDIO_SIG
         generic map (
             CLK_FREQ => 50_000_000,
-            LATENCY  => 12,
-            LATENCY_OFFSET => 3
+            LATENCY  => DIV_LATENCY,
+            LATENCY_OFFSET => 6
         )
         port map (
             CLK         => CLK,
@@ -248,8 +264,11 @@ begin
             SIG_OUT     => sig_out(3)
         );
 
-    -- Temporary simulation divide function - comment out to synthesize on DE0
+    -- -- Temporary simulation divide function - comment out to synthesize on DE0
     -- IDIV0: entity work.INTDIV_SIM
+    --     GENERIC MAP (
+    --         LATENCY => DIV_LATENCY
+    --     )   
     --     PORT MAP (
     --         CLOCK   => CLK,
     --         RESET   => RESET,
@@ -262,7 +281,7 @@ begin
     INTDIV: entity work.INTDIV
     GENERIC MAP (
         WIDTH => 32,
-        LATENCY => 12
+        LATENCY => 8
     )
     PORT MAP (
         CLOCK       => CLK,
@@ -298,7 +317,7 @@ begin
                 num_voices_r <= 0;
             else
                 -- increment voice counter for round robin processing
-                if voice_cnt = 11 then
+                if voice_cnt = DIV_LATENCY-1 then
                     voice_cnt <= 0;
                 else
                     voice_cnt <= voice_cnt + 1;
@@ -368,12 +387,12 @@ begin
                     end case;
                 end if;
 
-                if voice_cnt < 4 then
+                if voice_cnt MOD 2 = 0 then -- on 0, 2, 4, and 6
                     -- route numerator, denominator, and quotient from correct voice generator to division module
-                    arb_num  <= num(voice_cnt);
-                    arb_den  <= den(voice_cnt);
+                    arb_num  <= num(voice_cnt/2);
+                    arb_den  <= den(voice_cnt/2);
                     -- put the quotient in the right input as soon as it's available
-                    quot((voice_cnt - 1) mod 4) <= arb_quot;
+                    quot((voice_cnt/2 - 1) mod 4) <= arb_quot;
                 end if;
 
                 -- if we're starting a new cycle of voices, set the accumulators directly, otherwise, add to it
@@ -403,7 +422,7 @@ begin
                     active_l(3) <= (VOICE3(3) OR VOICE3(2) OR VOICE3(1) OR VOICE3(0)) AND VOICE3(11);
                 end if;
 
-                -- recalculate number of active voices for each channelby treating each bit as a 1‑bit vector
+                -- recalculate number of active voices for each channel by treating each bit as a 1‑bit vector
                 num_voices_r <= to_integer(unsigned(active_r(0 to 0)))
                               + to_integer(unsigned(active_r(1 to 1)))
                               + to_integer(unsigned(active_r(2 to 2)))
