@@ -26,8 +26,12 @@ architecture Behavioral of AUDIO_tb is
     signal SET2   : std_logic := '0';
     signal SET3   : std_logic := '0';
 
-    signal AUDIO_R : std_logic_vector(3 downto 0);
+    signal AUDIO_H : std_logic_vector(3 downto 0);
+    signal AUDIO_M : std_logic_vector(3 downto 0);
     signal AUDIO_L : std_logic_vector(3 downto 0);
+
+    -- signal AUDIO_R : std_logic_vector(3 downto 0);
+    -- signal AUDIO_L : std_logic_vector(3 downto 0);
 
 begin
     -- instantiate the unit under test
@@ -43,8 +47,11 @@ begin
             SET1    => SET1,
             SET2    => SET2,
             SET3    => SET3,
-            AUDIO_R => AUDIO_R,
+            AUDIO_H => AUDIO_H,
+            AUDIO_M => AUDIO_M,
             AUDIO_L => AUDIO_L
+            -- AUDIO_R => AUDIO_R,
+            -- AUDIO_L => AUDIO_L
         );
 
     -- clock generator
@@ -110,29 +117,29 @@ begin
         -- single-voice tests
         ------------------------------------------------------------------
 
-        program_voice(2, "1100", "0011", "01", "01");
-        program_voice(3, "1100", "0100", "01", "10"); 
-        wait for 100000 * CLK_PERIOD;
+        -- program_voice(0, "1100", "0011", "01", "01");
+        -- -- program_voice(3, "1100", "0100", "01", "10"); 
+        -- wait for 100000 * CLK_PERIOD;
 
-        program_voice(2, "1100", "0101", "00", "01");
-        program_voice(3, "1100", "0110", "00", "10");
-        wait for 100000 * CLK_PERIOD;
+        -- program_voice(0, "1100", "0101", "00", "01");
+        -- -- program_voice(3, "1100", "0110", "00", "10");
+        -- wait for 100000 * CLK_PERIOD;
 
-        program_voice(2, "1100", "0111", "10", "01");
-        program_voice(3, "1100", "1000", "10", "10");
-        wait for 100000 * CLK_PERIOD;
+        -- program_voice(0, "1100", "0111", "10", "01");
+        -- -- program_voice(3, "1100", "1000", "10", "10");
+        -- wait for 100000 * CLK_PERIOD;
 
-        program_voice(2, "1100", "1000", "11", "01");
-        program_voice(3, "0101", "1000", "11", "10");
-        wait for 100000 * CLK_PERIOD;
+        -- program_voice(0, "1100", "1000", "11", "01");
+        -- -- program_voice(3, "0101", "1000", "11", "10");
+        -- wait for 100000 * CLK_PERIOD;
 
-                -- -- turn off all voices by sending note index 0
-        report "Clearing all voices" severity note;
-        program_voice(0, "0000", "0000", "00", "00");
-        program_voice(1, "0000", "0000", "00", "00");
-        program_voice(2, "0000", "0000", "00", "00");
-        program_voice(3, "0000", "0000", "00", "00");
-        wait for 200 * CLK_PERIOD;
+        --         -- -- turn off all voices by sending note index 0
+        -- report "Clearing all voices" severity note;
+        -- program_voice(0, "0000", "0000", "00", "00");
+        -- program_voice(1, "0000", "0000", "00", "00");
+        -- program_voice(2, "0000", "0000", "00", "00");
+        -- program_voice(3, "0000", "0000", "00", "00");
+        -- wait for 200 * CLK_PERIOD;
 
 
         -- -- ------------------------------------------------------------------
@@ -152,8 +159,9 @@ begin
         wait for 600000 * CLK_PERIOD;
 
         program_voice(3, "0111", "1000", "11", "11");
+        wait for 400000 * CLK_PERIOD;
 
-        -- -- -- turn off all voices by sending note index 0
+        -- -- turn off all voices by sending note index 0
         report "Clearing all voices" severity note;
         program_voice(0, "0000", "0000", "00", "00");
         program_voice(1, "0000", "0000", "00", "00");

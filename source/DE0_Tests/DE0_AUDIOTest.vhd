@@ -25,7 +25,8 @@ entity DE0_AUDIOTest is -- the interface to the DE0 board
 
         -- audio out
         VGA_R    : out std_logic_vector(3 downto 0);
-        VGA_G    : out std_logic_vector(3 downto 0)
+        VGA_G    : out std_logic_vector(3 downto 0);
+        VGA_B    : out std_logic_vector(3 downto 0)
 );
 end DE0_AUDIOTest;
 
@@ -42,8 +43,11 @@ architecture Structural of DE0_AUDIOTest is
     signal set2_sig   : std_logic := '0';
     signal set3_sig   : std_logic := '0';
 
-    signal sig_out_r  : std_logic_vector(3 downto 0);
+    signal sig_out_h  : std_logic_vector(3 downto 0);
+    signal sig_out_m  : std_logic_vector(3 downto 0);
     signal sig_out_l  : std_logic_vector(3 downto 0);
+    -- signal sig_out_r  : std_logic_vector(3 downto 0);
+    -- signal sig_out_l  : std_logic_vector(3 downto 0);
 
     signal prev_button_1 : std_logic := '0';
     signal prev_button_2 : std_logic := '0';
@@ -51,8 +55,11 @@ architecture Structural of DE0_AUDIOTest is
 
 begin
 
-    VGA_R <= sig_out_r;
-    VGA_G <= sig_out_l;
+    -- VGA_R <= sig_out_r;
+    -- VGA_G <= sig_out_l;
+    VGA_R <= sig_out_h;
+    VGA_G <= sig_out_m;
+    VGA_B <= sig_out_l;
 
     set0_sig <= set_strobe when voice_sel = "00" else '0';
     set1_sig <= set_strobe when voice_sel = "01" else '0';
@@ -68,18 +75,21 @@ begin
         CLK     => CLOCK_50,
         RESET   => NOT BUTTON(0),
 
-        VOICE0  => "000011" & voice0_sig,   -- 11 is channel
-        VOICE1  => "000011" & voice1_sig,
-        VOICE2  => "000011" & voice2_sig,
-        VOICE3  => "000011" & voice3_sig,
+        VOICE0  => "000000" & voice0_sig,
+        VOICE1  => "000000" & voice1_sig,
+        VOICE2  => "000000" & voice2_sig,
+        VOICE3  => "000000" & voice3_sig,
 
         SET0    => set0_sig,
         SET1    => set1_sig,
         SET2    => set2_sig,
         SET3    => set3_sig,
 
-        AUDIO_R => sig_out_r,
+        AUDIO_H => sig_out_h,
+        AUDIO_M => sig_out_m,
         AUDIO_L => sig_out_l
+        -- AUDIO_R => sig_out_r,
+        -- AUDIO_L => sig_out_l
     );
 
     DISPLAY : entity work.WORDTO7SEGS port map (
