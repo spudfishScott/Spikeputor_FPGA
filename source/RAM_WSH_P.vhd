@@ -35,7 +35,7 @@ architecture rtl of RAM_WSH_P is
 
     signal wbs_data32K  : std_logic_vector(15 downto 0) := (others => '0');
     signal wbs_data16K  : std_logic_vector(15 downto 0) := (others => '0');
-    signal wbs_data4K   : std_logic_vector(15 downto 0) := (others => '0');
+    signal wbs_data2K   : std_logic_vector(15 downto 0) := (others => '0');
 
     signal we_32K       : std_logic := '0';
     signal we_16K       : std_logic := '0';
