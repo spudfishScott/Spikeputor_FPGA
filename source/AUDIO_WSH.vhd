@@ -12,6 +12,9 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity AUDIO_WSH_P is
+    generic (
+        CLK_FREQ : integer := 50000000  -- default to 50 MHz clock, can be overridden by testbench or top-level module
+    );
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
@@ -52,7 +55,7 @@ begin
 
     AUDIO_CTRL : entity work.AUDIO
     generic map (
-        CLK_FREQ => 50000000
+        CLK_FREQ => CLK_FREQ  -- pass in system clock frequency for accurate timing
     )
     port map (
         CLK        => CLK,
