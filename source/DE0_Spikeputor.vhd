@@ -51,6 +51,10 @@ entity DE0_Spikeputor is
         -- UART
         UART_RXD     : in std_logic;
         UART_TXD     : out std_logic;
+        -- audio out (H, M, L)
+        VGA_R    : out std_logic_vector(3 downto 0);
+        VGA_G    : out std_logic_vector(3 downto 0);
+        VGA_B    : out std_logic_vector(3 downto 0);
         -- GPIO - DE0 GPIO1 pins, but relabel
         SPK_GPI      : in std_logic_vector(15 downto 0);        -- 16 bits of GPI (GPIO1[31 to 16])
         SPK_GPO      : out std_logic_vector(15 downto 0);       -- 16 bits of GPO (GPIO1[15 to 0])
@@ -477,6 +481,32 @@ begin
 
             -- GPI register input
             GPI         => SPK_GPI             -- 16 bits from GPI port
+        );
+
+    -- AUDIO Instance as Wishbone Provider (P4)
+    AUD1 : entity work.AUDIO_WSH_P
+        generic map ( CLK_FREQ => CLK_FREQ )
+        port map (
+            -- SYSCON inputs
+            CLK         => SYS_CLK,
+            RST_I       => RESET,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(4),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(4),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data4,              -- data out from P4 to Address Comparitor, which provides the wishbone data_o via a mux
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we,
+
+            -- audio chip control signals
+            AUDIO_H     => VGA_R,
+            AUDIO_M     => VGA_G,
+            AUDIO_L     => VGA_B
         );
 
     -- VIDEO Instance as Wishbone provider (P5)

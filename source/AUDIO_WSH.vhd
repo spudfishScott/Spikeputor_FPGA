@@ -29,17 +29,6 @@ entity AUDIO_WSH_P is
         WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing
         WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to bus
 
-        -- Audio Control signals
-        VOICE0      : out std_logic_vector(15 downto 0);
-        VOICE1      : out std_logic_vector(15 downto 0);
-        VOICE2      : out std_logic_vector(15 downto 0);
-        VOICE3      : out std_logic_vector(15 downto 0);
-
-        SET0        : out std_logic;
-        SET1        : out std_logic;
-        SET2        : out std_logic;
-        SET3        : out std_logic;
-
         -- audio signals out
         AUDIO_H     : out std_logic_vector(3 downto 0);
         AUDIO_M     : out std_logic_vector(3 downto 0);
@@ -101,11 +90,11 @@ begin
     begin
         if rising_edge(clk) then
             if (RST_I = '1') then   -- reset all internal values on RST_I
-                set_sig <= '0';
-                voice0 := (others => '0');
-                voice1 := (others => '0');
-                voice2 := (others => '0');
-                voice3 := (others => '0');
+                set_sig    <= '0';
+                voice0_sig <= (others => '0');
+                voice1_sig <= (others => '0');
+                voice2_sig <= (others => '0');
+                voice3_sig <= (others => '0');
             else
                 WBS_ACK_O <= WBS_CYC_I AND WBS_STB_I;
                 set_sig <= '0';
