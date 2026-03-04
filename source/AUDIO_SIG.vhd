@@ -45,7 +45,7 @@ architecture Behavioral of AUDIO_SIG is
 
     signal cycle_cnt    : integer range 0 to 2097151 := 0;                      -- cycle counter - (0 to 2^21 - 1)
     signal sin2_cnt     : integer range 0 to 3 := 0;                            -- subcycle counter for sine function (half cycle)
-    signal sin_index    : integer range 0 to 32 := 0;                           -- index into sine lookup table
+    signal sin_index    : integer range 0 to 63 := 0;                           -- index into sine lookup table
     signal sin_result   : std_logic_vector(14 downto 0) := (others => '0');     -- result from sine lookup table
 
     signal set_latch    : std_logic := '0';                                     -- latched version of set signal to synchronize with cal_timer
@@ -85,40 +85,73 @@ begin
             std_logic_vector(to_unsigned(79021, 29)) when "1100",     -- B8
             (others => '0') when others;
 
+            -- TODO: can expand this lookup table to make sine wave better resolved
     with (sin_index) select -- sin lookup scaled to max 8192
         sin_result <=
             std_logic_vector(to_unsigned(0, 15)) when 0,
-            std_logic_vector(to_unsigned(803, 15)) when 1,
-            std_logic_vector(to_unsigned(1598, 15)) when 2,
-            std_logic_vector(to_unsigned(2378, 15)) when 3,
-            std_logic_vector(to_unsigned(3135, 15)) when 4,
-            std_logic_vector(to_unsigned(3861, 15)) when 5,
-            std_logic_vector(to_unsigned(4551, 15)) when 6,
-            std_logic_vector(to_unsigned(5197, 15)) when 7,
-            std_logic_vector(to_unsigned(5793, 15)) when 8,
-            std_logic_vector(to_unsigned(6333, 15)) when 9,
-            std_logic_vector(to_unsigned(6811, 15)) when 10,
-            std_logic_vector(to_unsigned(7225, 15)) when 11,
-            std_logic_vector(to_unsigned(7568, 15)) when 12,
-            std_logic_vector(to_unsigned(7839, 15)) when 13,
-            std_logic_vector(to_unsigned(8035, 15)) when 14,
-            std_logic_vector(to_unsigned(8153, 15)) when 15,
-            std_logic_vector(to_unsigned(8192, 15)) when 16,
-            std_logic_vector(to_unsigned(8153, 15)) when 17,
-            std_logic_vector(to_unsigned(8035, 15)) when 18,
-            std_logic_vector(to_unsigned(7839, 15)) when 19,
-            std_logic_vector(to_unsigned(7568, 15)) when 20,
-            std_logic_vector(to_unsigned(7225, 15)) when 21,
-            std_logic_vector(to_unsigned(6811, 15)) when 22,
-            std_logic_vector(to_unsigned(6333, 15)) when 23,
-            std_logic_vector(to_unsigned(5793, 15)) when 24,
-            std_logic_vector(to_unsigned(5197, 15)) when 25,
-            std_logic_vector(to_unsigned(4551, 15)) when 26,
-            std_logic_vector(to_unsigned(3861, 15)) when 27,
-            std_logic_vector(to_unsigned(3135, 15)) when 28,
-            std_logic_vector(to_unsigned(2378, 15)) when 29,
-            std_logic_vector(to_unsigned(1598, 15)) when 30,
-            std_logic_vector(to_unsigned(803, 15)) when 31,
+            std_logic_vector(to_unsigned(402, 15)) when 1,
+            std_logic_vector(to_unsigned(803, 15)) when 2,
+            std_logic_vector(to_unsigned(1202, 15)) when 3,
+            std_logic_vector(to_unsigned(1598, 15)) when 4,
+            std_logic_vector(to_unsigned(1990, 15)) when 5,
+            std_logic_vector(to_unsigned(2378, 15)) when 6,
+            std_logic_vector(to_unsigned(2760, 15)) when 7,
+            std_logic_vector(to_unsigned(3135, 15)) when 8,
+            std_logic_vector(to_unsigned(3503, 15)) when 9,
+            std_logic_vector(to_unsigned(3861, 15)) when 10,
+            std_logic_vector(to_unsigned(4211, 15)) when 11,
+            std_logic_vector(to_unsigned(4551, 15)) when 12,
+            std_logic_vector(to_unsigned(4880, 15)) when 13,
+            std_logic_vector(to_unsigned(5197, 15)) when 14,
+            std_logic_vector(to_unsigned(5501, 15)) when 15,
+            std_logic_vector(to_unsigned(5793, 15)) when 16,
+            std_logic_vector(to_unsigned(6070, 15)) when 17,
+            std_logic_vector(to_unsigned(6333, 15)) when 18,
+            std_logic_vector(to_unsigned(6580, 15)) when 19,
+            std_logic_vector(to_unsigned(6811, 15)) when 20,
+            std_logic_vector(to_unsigned(7027, 15)) when 21,
+            std_logic_vector(to_unsigned(7225, 15)) when 22,
+            std_logic_vector(to_unsigned(7405, 15)) when 23,
+            std_logic_vector(to_unsigned(7568, 15)) when 24,
+            std_logic_vector(to_unsigned(7713, 15)) when 25,
+            std_logic_vector(to_unsigned(7839, 15)) when 26,
+            std_logic_vector(to_unsigned(7946, 15)) when 27,
+            std_logic_vector(to_unsigned(8035, 15)) when 28,
+            std_logic_vector(to_unsigned(8103, 15)) when 29,
+            std_logic_vector(to_unsigned(8153, 15)) when 30,
+            std_logic_vector(to_unsigned(8182, 15)) when 31,
+            std_logic_vector(to_unsigned(8192, 15)) when 32,
+            std_logic_vector(to_unsigned(8182, 15)) when 33,
+            std_logic_vector(to_unsigned(8153, 15)) when 34,
+            std_logic_vector(to_unsigned(8103, 15)) when 35,
+            std_logic_vector(to_unsigned(8035, 15)) when 36,
+            std_logic_vector(to_unsigned(7946, 15)) when 37,
+            std_logic_vector(to_unsigned(7839, 15)) when 38,
+            std_logic_vector(to_unsigned(7713, 15)) when 39,
+            std_logic_vector(to_unsigned(7568, 15)) when 40,
+            std_logic_vector(to_unsigned(7405, 15)) when 41,
+            std_logic_vector(to_unsigned(7225, 15)) when 42,
+            std_logic_vector(to_unsigned(7027, 15)) when 43,
+            std_logic_vector(to_unsigned(6811, 15)) when 44,
+            std_logic_vector(to_unsigned(6580, 15)) when 45,
+            std_logic_vector(to_unsigned(6333, 15)) when 46,
+            std_logic_vector(to_unsigned(6070, 15)) when 47,
+            std_logic_vector(to_unsigned(5793, 15)) when 48,
+            std_logic_vector(to_unsigned(5501, 15)) when 49,
+            std_logic_vector(to_unsigned(5197, 15)) when 50,
+            std_logic_vector(to_unsigned(4880, 15)) when 51,
+            std_logic_vector(to_unsigned(4551, 15)) when 52,
+            std_logic_vector(to_unsigned(4211, 15)) when 53,
+            std_logic_vector(to_unsigned(3861, 15)) when 54,
+            std_logic_vector(to_unsigned(3503, 15)) when 55,
+            std_logic_vector(to_unsigned(3135, 15)) when 56,
+            std_logic_vector(to_unsigned(2760, 15)) when 57,
+            std_logic_vector(to_unsigned(2378, 15)) when 58,
+            std_logic_vector(to_unsigned(1990, 15)) when 59,
+            std_logic_vector(to_unsigned(1598, 15)) when 60,
+            std_logic_vector(to_unsigned(1202, 15)) when 61,
+            std_logic_vector(to_unsigned(803, 15)) when 62,
+            std_logic_vector(to_unsigned(402, 15)) when 63,
             (others => '0') when others;
 
     process(CLK) is
@@ -205,9 +238,9 @@ begin
                                     end if;
 
                                 when "11" =>  -- sine wave - starts at 5)%, goes up to 100%, then down to 0%, then back up to 50% on a curve
-                                    if cycle_cnt >= (note_cycle/64) then    -- change the value every 64th of the note cycle
+                                    if cycle_cnt >= (note_cycle/128) then    -- change the value every 128th of the note cycle
                                         sin_index <= sin_index + 1;         -- increment lookup table index after using the current lookup value
-                                        cycle_cnt <= 0;                     -- reset cycle count to count to 1/64th of note cycle again
+                                        cycle_cnt <= 0;                     -- reset cycle count to count to 1/128th of note cycle again
                                         if sin_index = 31 then              -- after first half of the sine wave, set a flag to reverse the index in the lookup table
                                             sin_index <= 0;                 -- reset the lookup table index
                                             sin2_cnt <= sin2_cnt + 1;       -- 0 and 1 to update each half of the wave, 2 to end

@@ -1,6 +1,6 @@
 -- RAM Wishbone Interface Provider
--- 32/16/4 K of RAM (in three separate blocks due to Cyclone III constraints of 56 blocks total less 2 blocks for math)
--- thus 0xD000-0xFFFF is not accessable and always returns 0
+-- 32/16/2 K of RAM (in three separate blocks due to Cyclone III constraints of 56 blocks total less 3 blocks for math)
+-- thus 0xC800-0xFFFF is not accessable and always returns 0
 -- 16 bit wide data bus, 16 bit wide address bus
 -- RAM address is always even (bit 0 is ignored), and a full word is returned on an even address boundary
 
@@ -39,7 +39,7 @@ architecture rtl of RAM_WSH_P is
 
     signal we_32K       : std_logic := '0';
     signal we_16K       : std_logic := '0';
-    signal we_4K        : std_logic := '0';
+    signal we_2K        : std_logic := '0';
 
 begin
     RAM32K_inst : entity work.RAM   
@@ -71,30 +71,30 @@ begin
             q         => wbs_data16K
         );
     
-    RAM4K_inst : entity work.RAM
+    RAM2K_inst : entity work.RAM
         generic map (
-            NUM_WORDS  => 2048,     -- 4K bytes = 2K words of 16 bits each
-            ADDR_WIDTH => 11        -- 11 bits to address 2K words
+            NUM_WORDS  => 1024,     -- 2K bytes = 1K words of 16 bits each
+            ADDR_WIDTH => 10        -- 10 bits to address 1K words
         )
-        port map (                  -- 4K bytes from 0xC000 to 0xCFFF - ADDR[15:12]="1100", ADDR[0] = don't care
+        port map (                  -- 2K bytes from 0xC000 to 0xC7FF - ADDR[15:11]="11000", ADDR[0] = don't care
             clock     => CLK,
             address   => WBS_ADDR_I(11 downto 1),
             data      => WBS_DATA_I,
-            wren      => we_4K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_4K and CYC and STB are asserted
+            wren      => we_2K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_2K and CYC and STB are asserted
 
-            q         => wbs_data4K
+            q         => wbs_data2K
         );
 
     -- output to wishbone interface
     WBS_DATA_O  <= wbs_data32K when WBS_ADDR_I(15) = '0' else               -- 32K block for addresses 0x0000-0x7FFF
                    wbs_data16K when WBS_ADDR_I(15 downto 14) = "10" else    -- 16K block for addresses 0x8000-0xBFFF
-                   wbs_data4K  when WBS_ADDR_I(15 downto 12) = "1100" else  -- 4K block  for addresses 0xC000-0xCFFF
-                   zero16;                                                  -- return zero for addresses 0xD000-0xFFFF (will not get here - comparitor routes to ROM for 0xD000-0xFFFF)
+                   wbs_data2K  when WBS_ADDR_I(15 downto 11) = "11000" else -- 2K block  for addresses 0xC000-0xC7FF
+                   zero16;                                                  -- return zero for addresses 0xC800-0xFFFF (will not get here - comparitor routes to ROM for 0xD000-0xFFFF)
 
     -- internal address select and write enable logic
     we_32K <= WBS_WE_I when WBS_ADDR_I(15) = '0' else '0';                  -- only write to 32K block when address is in range 0x0000-0x7FFF
     we_16K <= WBS_WE_I when WBS_ADDR_I(15 downto 14) = "10" else '0';       -- only write to 16K block when address is in range 0x8000-0xBFFF
-    we_4K  <= WBS_WE_I when WBS_ADDR_I(15 downto 12) = "1100" else '0';     -- only write to 4K block when address is in range 0xC000-0xCFFF
+    we_2K  <= WBS_WE_I when WBS_ADDR_I(15 downto 11) = "11000" else '0';     -- only write to 2K block when address is in range 0xC000-0xC7FF
 
     WBS_ACK_O   <= WBS_STB_I AND WBS_CYC_I;         -- always acknowledge when CYC and STB are asserted
 

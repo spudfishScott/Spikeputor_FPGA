@@ -88,7 +88,7 @@ use ieee.numeric_std.all;
 
 entity PULSE_GEN is
     generic (
-        PULSE_WIDTH : natural range 1 to 1_000_000 := 10; -- Pulse width in clock ticks
+        PULSE_WIDTH : natural range 1 to 100_000_000 := 10; -- Pulse width in clock ticks
         RESET_LOW   : Boolean := true   -- If true, pulse can be reset by bringing START_PULSE low before pulse is finished
     );
 
