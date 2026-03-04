@@ -25,9 +25,9 @@ USE ieee.std_logic_1164.all;
 USE ieee.numeric_std.all;
 
 ENTITY DEBOUNCE IS
-  GENERIC (
-    counter_size  :  INTEGER := 19 --counter size (19 bits gives 10.5ms with 50MHz clock)
-  );
+    GENERIC (
+        counter_size  :  natural range 2 to 25 := 19 --counter size (19 bits gives 10.5ms with 50MHz clock)
+    );
 
   PORT (
     clk     : IN  STD_LOGIC;  --input clock
@@ -39,7 +39,7 @@ END DEBOUNCE;
 ARCHITECTURE logic OF DEBOUNCE IS
     SIGNAL flipflops   : STD_LOGIC_VECTOR(1 DOWNTO 0); --input flip flops
     SIGNAL counter_set : STD_LOGIC;                    --sync reset to zero
-    SIGNAL counter_out : Integer range 0 to (2**counter_size) := 0; --counter
+    SIGNAL counter_out : unsigned(counter_size-1 downto 0) := (others => '0'); --counter as sized vector
 
 BEGIN
 
@@ -51,12 +51,12 @@ BEGIN
             flipflops(0) <= button;                       -- keep the current and previous input signals
             flipflops(1) <= flipflops(0);
             IF (counter_set = '1') THEN                   -- reset counter because input is changing
-                counter_out <= 0;
-            ELSIF (counter_out = (2**counter_size)) THEN  -- stable input time is not yet met
-                counter_out <= counter_out + 1;
-            ELSE                                          -- stable input time is met
+                counter_out <= (others => '0');
+            ELSIF (counter_out = (others => '1')) THEN    -- stable input time is met
                 result <= flipflops(1);
-            END IF;    
+            ELSE                                          -- increment counter while stable time not met
+                counter_out <= counter_out + 1;
+            END IF;
         END IF;
     END PROCESS;
 END logic;
