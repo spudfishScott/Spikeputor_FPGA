@@ -32,7 +32,7 @@ entity AUDIO_SIG is
         WAVEFORM        : in std_logic_vector(1 downto 0);                      -- square/sawtooth/triangle/sine
         SET             : in std_logic;
 
-        SIG_OUT         : out std_logic_vector(13 downto 0)                     -- signal out (13 bits)
+        SIG_OUT         : out std_logic_vector(13 downto 0)                     -- signal out (14 bits)
     );
 end AUDIO_SIG;
 
@@ -43,7 +43,7 @@ architecture Behavioral of AUDIO_SIG is
     signal note_base    : std_logic_vector(28 downto 0) := (others => '0');     -- base frequency of the note in octave 8 * 10
     signal note_cycle   : integer range 0 to 2097151 := 0;                      -- number of cycles in one full waveform
 
-    signal cycle_cnt    : integer range 0 to 2097151 := 0;                      -- cycle counter
+    signal cycle_cnt    : integer range 0 to 2097151 := 0;                      -- cycle counter - (0 to 2^21 - 1)
     signal sin2_cnt     : integer range 0 to 3 := 0;                            -- subcycle counter for sine function (half cycle)
     signal sin_index    : integer range 0 to 32 := 0;                           -- index into sine lookup table
     signal sin_result   : std_logic_vector(14 downto 0) := (others => '0');     -- result from sine lookup table

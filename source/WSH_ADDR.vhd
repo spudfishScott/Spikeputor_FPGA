@@ -11,7 +11,7 @@
 -- In addition to standard RAM (P0), SDRAM (P10), and ROM (P1), the following providers are accessed through specific addresses, which override the above:
 --  GPO (P2)        read/write location 0xFFF1
 --  GPI (P3)        read only location 0xFFF2 - writing goes nowhere
---  SOUND (P4)      read/write to sound processor - locations TBD
+--  SOUND (P4)      read/write to sound processor - locations 0xFFF5-0xFFF8 (four addresses, one per voice, for note, octave, and waveform control)
 --  VIDEO (P5)      read/write to video coprocessor - 0xFF00 - 0xFFDF
 --  SERIAL (P6)     serial in/serial out - 0xFFF3
 --  STORAGE (P7)    read/write to SD card filesystem - 0xFFF4
@@ -74,6 +74,7 @@ architecture RTL of WSH_ADDR is
     signal spec    : std_logic := '0';                                  -- special location (p2-p9, p11)
     signal math    : std_logic := '0';                                  -- math flag
     signal video   : std_logic := '0';                                  -- video flag
+    signal audio   : std_logic := '0';                                  -- audio flag
     signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
@@ -103,6 +104,11 @@ begin
             '1' when x"00" to x"DF",
             '0' when others;
 
+    with addr_l select                                                                      -- audio address flag for a range (0xFFF5 to 0xFFF8)
+        audio <=
+            '1' when x"F5" to x"F8",
+            '0' when others;
+
     -- assign p_sel based on addressing logic described above
     p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, preempts all others
         else    0 when ram_e = '1'                                                        -- standard RAM
@@ -110,7 +116,7 @@ begin
         else    2 when spec = '1' AND addr_l = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
         else    6 when spec = '1' AND addr_l = SER_ADDR                                   -- read/write SERIAL
-        -- to do the rest 4
+        else    4 when spec = '1' AND audio = '1'                                         -- read/writr AUDIO
         else    7 when spec = '1' AND addr_l = FSSER_ADDR                                 -- read/write STORAGE (via Filesystem Serial)
         else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR                              -- read only KEYBOARD
         else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
