@@ -65,8 +65,8 @@ architecture RTL of VIDEO_WSH_P is
     signal word_flg     : std_logic := '0';                                     -- when '1', the register and reg+1 make up a 16-bit value to store/read - little endian
 
     -- Counters and indeces for initialization sequence
-    signal timer        : Integer := 0;                                         -- timer counter
-    signal cmd_index    : Integer := 0;                                         -- command index for multi-step commands
+    signal timer        : integer range 0 to 1000000 := 0;                                         -- timer counter
+    signal cmd_index    : integer range 0 to 1000 := 0;                                         -- command index for multi-step commands
     signal status_check : std_logic := '0';                                     -- status register check flag for multi-check commands
     signal powerup_done : std_logic := '0';                                     -- flag to indicate powerup sequence is done
 

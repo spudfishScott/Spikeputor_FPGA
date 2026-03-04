@@ -27,7 +27,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity SDRAM is
-    generic ( CLK_FREQ : Integer := 50_000_000 );   -- system clock frequency (default = 50 MHz)
+    generic ( CLK_FREQ : natural range 1 to 200_000_000 := 50_000_000 );   -- system clock frequency (default = 50 MHz)
     port (
         -- INPUTS
         CLK          : in  std_logic;

@@ -8,9 +8,9 @@ use ieee.numeric_std.all;
 
 entity FREQ_CLOCK is
     generic ( -- Desired Frequency in Hz
-        FREQUENCY : Integer := 1000;
-        SRC_FREQ : Integer := 50000000;
-        DUTY_CYC : Integer := 50
+        FREQUENCY : natural range 1 to 1_000_000 := 1000;
+        SRC_FREQ : natural range 1 to 200_000_000 := 50000000;
+        DUTY_CYC : natural range 1 to 99 := 50
     );
 
     port(
@@ -49,8 +49,8 @@ use ieee.numeric_std.all;
 
 entity CLK_ENABLE is
     generic (
-        QUANTA_MAX    : Integer := 4;
-        QUANTA_ENABLE : Integer := 1
+        QUANTA_MAX    : natural range 1 to 1024 := 4;
+        QUANTA_ENABLE : natural range 1 to 1024 := 1
     );
 
     port (
@@ -88,7 +88,7 @@ use ieee.numeric_std.all;
 
 entity PULSE_GEN is
     generic (
-        PULSE_WIDTH : Integer := 10; -- Pulse width in clock ticks
+        PULSE_WIDTH : natural range 1 to 1_000_000 := 10; -- Pulse width in clock ticks
         RESET_LOW   : Boolean := true   -- If true, pulse can be reset by bringing START_PULSE low before pulse is finished
     );
 
@@ -148,8 +148,8 @@ use ieee.numeric_std.all;
 
 entity AUTO_MANUAL_CLOCK is
     generic (
-        AUTO_FREQ : Integer := 1;           -- Frequency in Hz for automatic clock mode
-        SYS_FREQ  : Integer := 50000000     -- System clock frequency in Hz
+        AUTO_FREQ : natural range 1 to 10_000 := 1;           -- Frequency in Hz for automatic clock mode
+        SYS_FREQ  : natural range 1 to 200_000_000 := 50000000     -- System clock frequency in Hz
     );
     port (
         SYS_CLK     : in std_logic;  -- 50 MHz system clock input

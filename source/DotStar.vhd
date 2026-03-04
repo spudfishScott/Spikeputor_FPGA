@@ -50,14 +50,14 @@ end dotstar_driver;
 
 architecture rtl of dotstar_driver is
 
-    constant NUM_SETS         : integer := 23;                                                      -- number of LED sets in the whole display array
-    constant MAX_LEDS_PER_SET : integer := 28;                                                      -- max number of LEDs in each set (one more than actual so zero padding always works)
-    constant TOTAL_LEDS       : integer := 405;                                                     -- total number of LEDs (added the list above)
-    constant EXTRA_LEDs       : integer := 432 - TOTAL_LEDS + 1;                                    -- extra LEDs to make total a multiple of 72 (for end of strip) - temporary (then fix MAX_LEDS_PER_SET = 22)
+    constant NUM_SETS         : natural range 1 to 32 := 23;                                                      -- number of LED sets in the whole display array
+    constant MAX_LEDS_PER_SET : natural range 1 to 64 := 28;                                                      -- max number of LEDs in each set (one more than actual so zero padding always works)
+    constant TOTAL_LEDS       : natural range 1 to 512 := 405;                                                     -- total number of LEDs (added the list above)
+    constant EXTRA_LEDs       : natural range 0 to 511 := 432 - TOTAL_LEDS + 1;                                    -- extra LEDs to make total a multiple of 72 (for end of strip) - temporary (then fix MAX_LEDS_PER_SET = 22)
 
-    constant START_BITS       : integer := 32;                                                      -- number of bits in start frame (all '0's)
-    constant BITS_PER_LED     : integer := 32;                                                      -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
-    constant END_BITS         : integer := ((TOTAL_LEDS + 15) / 16) * 8;                            -- number of bits in end frame (at least (n/2) bits, rounded up to next byte, all '1's)
+    constant START_BITS       : natural range 1 to 32 := 32;                                                      -- number of bits in start frame (all '0's)
+    constant BITS_PER_LED     : natural range 1 to 32 := 32;                                                      -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
+    constant END_BITS         : natural range 0 to 1024 := ((TOTAL_LEDS + 15) / 16) * 8;                            -- number of bits in end frame (at least (n/2) bits, rounded up to next byte, all '1's)
 
     subtype COLOR_RANGE      is integer range BITS_PER_LED-9 downto 0;                              -- range for color data within LED register
     subtype BRIGHTNESS_RANGE is integer range BITS_PER_LED-1 downto BITS_PER_LED-8;                 -- range for brightness data within LED register

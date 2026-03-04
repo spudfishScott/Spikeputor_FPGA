@@ -15,7 +15,7 @@ library IEEE;
     use IEEE.std_logic_1164.all;
 
 entity FLASH_RAM is
-    generic (MAIN_CLK_NS : integer := 20 ); -- 50 MHz = 20 ns
+    generic (MAIN_CLK_NS : natural range 1 to 1000 := 20 ); -- 50 MHz = 20 ns
     port (
         -- controller signals
         CLK_IN      : in  std_logic;
@@ -356,7 +356,7 @@ library IEEE;
     use IEEE.std_logic_1164.all;
 
 entity FLASH_ROM is
-    generic (MAIN_CLK_NS : integer := 20 ); -- 50 MHz = 20 ns
+    generic (MAIN_CLK_NS : natural range 1 to 1000 := 20 ); -- 50 MHz = 20 ns
     port (
         -- controller signals
         CLK_IN      : in  std_logic;

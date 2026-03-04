@@ -8,8 +8,8 @@ use ieee.numeric_std.all;
 
 entity UART is
     generic (
-        CLK_SPEED  : Integer := 50_000_000;  -- Clock speed in Hz (default: 50 MHz)
-        BAUD_RATE  : Integer := 115_200       -- Baud rate for UART communication (default: 115200)
+        CLK_SPEED  : natural range 1 to 200_000_000 := 50_000_000;  -- Clock speed in Hz (default: 50 MHz)
+        BAUD_RATE  : natural range 1 to 2_000_000 := 115_200       -- Baud rate for UART communication (default: 115200)
     );
 
     port (

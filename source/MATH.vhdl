@@ -496,8 +496,8 @@ USE lpm.lpm_components.all;
 
 ENTITY INTDIV is
     GENERIC ( 
-        WIDTH   : Integer := 16;
-        LATENCY : Integer := 3
+        WIDTH   : natural range 1 to 32 := 16;
+        LATENCY : natural range 1 to 16 := 3
     );
     PORT (
         CLOCK   : IN std_logic;

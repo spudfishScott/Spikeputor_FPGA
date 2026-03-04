@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity LCD_I2C is
-    generic ( CLK_FREQ : integer := 50_000_000 );                                           -- system clock frequency in Hz
+    generic ( CLK_FREQ : natural range 1 to 200_000_000 := 50_000_000 );                                           -- system clock frequency in Hz
     port (
         CLK     : in std_logic;                                                             -- system clock
         RST     : in std_logic;                                                             -- reset

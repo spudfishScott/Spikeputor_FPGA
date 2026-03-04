@@ -112,7 +112,7 @@ use ieee.numeric_std.all;
 
 
 entity AUDIO is
-    generic ( CLK_FREQ : Integer :=  50_000_000 );   -- default to 50 MHz clock
+    generic ( CLK_FREQ : natural range 1 to 100_000_000 :=  50_000_000 );   -- default to 50 MHz clock
     port (
         CLK         : in std_logic;
         RESET       : in std_logic;
@@ -163,7 +163,7 @@ architecture Structural of AUDIO is
     signal arb_quot  : std_logic_vector(31 downto 0) := (others => '0');
     signal arb_rem   : std_logic_vector(31 downto 0) := (others => '0');
 
-    constant DIV_LATENCY : integer := 8;    -- should be a multiple of 4 (number of voices)
+    constant DIV_LATENCY : natural range 1 to 16 := 8;    -- should be a multiple of 4 (number of voices)
     signal voice_cnt : integer range 0 to DIV_LATENCY-1 := 0;   -- round robin counter for sharing division resource with 4 voices
 
 begin

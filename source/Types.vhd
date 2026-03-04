@@ -5,7 +5,7 @@ use ieee.math_real.all;
 
 package Types is
     -- for register memory arrays
-    constant BIT_DEPTH : Integer := 16;
+    constant BIT_DEPTH : natural range 1 to 32 := 16;
     type RARRAY is array(1 to 7) of std_logic_vector(BIT_DEPTH-1 downto 0);
 
     -- for DotStar LED driver
