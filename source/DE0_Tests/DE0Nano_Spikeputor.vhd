@@ -90,7 +90,6 @@ begin
         );
 
     -- Auto/Manual Clock Instance - generates CPU clock enable signal 5 Hz automatically or on button press in manual mode
-    -- TODO: convert to a wishbone master and integrate into arbiter
     CLK_EN_GEN_E : entity work.AUTO_MANUAL_CLOCK
         generic map (
             AUTO_FREQ => 5,

@@ -107,7 +107,7 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_gnt_sig : std_logic := '0';
 
     -- CPU display signals
-    signal wseg_out    : std_logic;
+    signal wseg_out    : std_logic; -- TODO: there will be two segment registers
     signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');
     signal const_out   : std_logic_vector(15 downto 0) := (others => '0');
     signal mdata_out   : std_logic_vector(16 downto 0) := (others => '0');
@@ -263,6 +263,7 @@ begin
             DATA_O      => arb_data_o
         );
 
+        -- TODO: cpu_tga becomes two bits to select  between DATA_SEGMENT and PC_SEGMENT
         cpu_ext <= SEGMENT when cpu_tga = '1' else x"00";   -- cpu_tga determines if the SEGMENT register should be used to extend the address coming out of the CPU
 
     -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and bank select register signals
@@ -320,7 +321,7 @@ begin
             M_TGD_O         => cpu_tgd,                       -- Wishbone user data tag to write to SEGMENT register or to a normal memory address
 
             -- Direct Display Values
-            WSEG_DISP       => wseg_out,
+            WSEG_DISP       => wseg_out,    -- TODO: there will be 2 signals for 2 segment registers
             INST_DISP       => inst_out,
             CONST_DISP      => const_out,
             MDATA_DISP      => mdata_out,
@@ -713,7 +714,7 @@ begin
             MDATA       => mdata_out,                                                           -- bits: write flag, Memory read/write (16 bits)
             PC          => pc_out,                                                              -- bits: JT flag, Program Counter (16 bits)
             SEGMENT     => wseg_out & SEGMENT,                                                  -- bits: WSEG, SEGMENT register (8 bits)
-
+-- TODO: there will be 2 segment registers
             ALU_OUT     => alu_out,                                                             -- bits: ALU Output (16 bits)
             ALU_CMP     => alu_cmp_out,                                                         -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
             ALU_SHIFT   => alu_sh_out,                                                          -- bits: shift dir, shift extend, shift result (16 bits), SHIFT selected

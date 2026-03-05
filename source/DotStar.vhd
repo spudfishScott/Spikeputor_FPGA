@@ -13,7 +13,8 @@ entity dotstar_driver is
         START        : in  std_logic;
 
         -- DotStar Signals in reverse display order
-        SEGMENT      : in std_logic_vector(8 downto 0);   -- Segment register (to extend address bus), prepnded  with WSEG            0
+        -- TODO: New SEGMENT register - now we have two - REGISTER_DATA and REGISTER_PC
+        SEGMENT      : in std_logic_vector(8 downto 0);   -- Segment register (to extend address bus), prepended  with WSEG           0
         PC           : in std_logic_vector(16 downto 0);  -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)       1
         MDATA        : in std_logic_vector(16 downto 0);  -- Memory Data, prepended with R/W signal (0 = read, 1 = write)             2
         CONST        : in std_logic_vector(15 downto 0);  -- Constant                                                                 3
@@ -99,7 +100,6 @@ begin
 
             if active = '0' then            -- start a new transaction only if not already active
                 if START = '1' then         -- if starting, initialize clock divider and set active
-                -- TODO: latch all 23 inputs here to keep the total path lengths small, thus increasing the possibility of speeding up the clock via PLL
                     regin_sig <= "1" & REGIN(15 downto 0);  -- the wdsel LED will always be lit with something, the rest is a normal 16 bit value
                     cmp_sig   <= "1" & ALU_CMP(4 downto 0); -- the CMPFN LED will always be lit with something, the rest are normals signals
                     active  <= '1';

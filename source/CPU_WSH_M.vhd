@@ -13,7 +13,7 @@ entity CPU_WSH_M is
         CLK       : in  std_logic;      -- System clock
         RESET     : in  std_logic;      -- System reset
         STALL     : in  std_logic;      -- CPU stall signal for debugging
-        SEGMENT   : in  std_logic_vector(7 downto 0);
+        SEGMENT   : in  std_logic_vector(7 downto 0);   -- TODO: will be two segment registers
 
         -- Memory interface
         M_DATA_I  : in  std_logic_vector(15 downto 0);
@@ -28,7 +28,7 @@ entity CPU_WSH_M is
         M_TGD_O   : out std_logic;
 
         -- Direct Display Values
-        WSEG_DISP       : out std_logic;
+        WSEG_DISP       : out std_logic;    -- TODO: need two of these, one for segment_data and other for segment_pc
         INST_DISP       : out std_logic_vector(15 downto 0);
         CONST_DISP      : out std_logic_vector(15 downto 0);
         MDATA_DISP      : out std_logic_vector(16 downto 0);
@@ -189,7 +189,7 @@ begin
         -- Inputs to Control Logic from other modules
         ALU_OUT     => s_alu_out,               -- ALU output to Control Logic
         MWDATA      => regb_out,                -- RegFile Channel B input to Control Logic for memory writing
-        Z           => azero_out               -- Zero flag input (from RegFile) to Control Logic
+        Z           => azero_out                -- Zero flag input (from RegFile) to Control Logic
     );
 
     -- RegFile Instance

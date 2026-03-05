@@ -78,7 +78,7 @@ begin
         )
         port map (                  -- 2K bytes from 0xC000 to 0xC7FF - ADDR[15:11]="11000", ADDR[0] = don't care
             clock     => CLK,
-            address   => WBS_ADDR_I(11 downto 1),
+            address   => WBS_ADDR_I(10 downto 1),
             data      => WBS_DATA_I,
             wren      => we_2K AND WBS_CYC_I AND WBS_STB_I,     -- only write when we_2K and CYC and STB are asserted
 

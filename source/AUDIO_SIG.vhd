@@ -68,7 +68,7 @@ begin
 
     -- calcaulate base note frequency and amount to shift down by based on OCTAVE and NOTE_IDX
     oct_shift <= 8 - to_integer(unsigned(OCTAVE)) when to_integer(unsigned(OCTAVE)) <= 8 else 0;   -- number of right bits to shift from octave 8, clamp octave to 8
-    with (NOTE_IDX) select  -- note base frequency is real frquency * 10 to avoid using real numbers - TODO: see if 100 works again
+    with (NOTE_IDX) select  -- note base frequency is real frquency * 10 to avoid using real numbers
         note_base <=
             (others => '0') when "0000",        -- rest
             std_logic_vector(to_unsigned(41860, 29)) when "0001",     -- C8
@@ -85,7 +85,6 @@ begin
             std_logic_vector(to_unsigned(79021, 29)) when "1100",     -- B8
             (others => '0') when others;
 
-            -- TODO: can expand this lookup table to make sine wave better resolved
     with (sin_index) select -- sin lookup scaled to max 8192
         sin_result <=
             std_logic_vector(to_unsigned(0, 15)) when 0,

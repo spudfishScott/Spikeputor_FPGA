@@ -2,6 +2,7 @@
 -- Data and ADDRESS buses are 16 bits wide
 -- Each CPU instruction cycle can be up to three read/writes, so execute them in a single wishbone BLOCK READ/WRITE cycle
 -- TGA_O is used as a custom tag to show whether or not the SEGMENT register should be added to the address bus to extend the address space of the computer
+-- TGD_O is used to control when the SEGMENT register is written to instead of memory
 -- ACK_I is the only termination signal currently supported. RTY_I and ERR_I are not supported.
 
 -- Contains the INST, CONST, and PC registers
@@ -83,7 +84,7 @@ entity CTRL_WSH_M is
             -- Control signals from Control Logic to RegFile
         WERF    : out std_logic;                                          -- Write Enable Register File - '1' to write to register file
         RBSEL   : out std_logic;                                          -- Register Channel B Select - '0' for OPB, '1' for OPC
-        WSEG    : out std_logic;                                          -- Write Segment signal
+        WSEG    : out std_logic;                                          -- Write Segment signal -- TODO: need two of these
         WDSEL   : out std_logic_vector(1 downto 0);                       -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data, "11" for Segment Register
         OPA     : out std_logic_vector(2 downto 0);                       -- Register Operand A
         OPB     : out std_logic_vector(2 downto 0);                       -- Register Operand B
@@ -129,8 +130,8 @@ begin
     -- Control Signal Logic
     MRDATA      <= MRDATA_reg;
     RWADDR      <= MEMRW_reg;
-    RBSEL       <= '1' when INST_reg(9) = '1' AND INST_REG(7 downto 6) = "11" else '0'; -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST, STC and STS instructions, else '0'
-    WSEG        <= '1' when  (INST_reg(9 downto 6) = "1111") else '0';      -- WSEG = 1 when writing to SEGMENT register, 0 otherwise
+    RBSEL       <= '1' when INST_reg(9) = '1' AND INST_REG(7 downto 6) = "11" else '0'; -- RBSEL = '0' for OPB, '1' for OPC RBSEL is '1' for ST, STC and STS instructions, else '0' (TODO: and JS)
+    WSEG        <= '1' when  (INST_reg(9 downto 6) = "1111") else '0';      -- WSEG = 1 when writing to SEGMENT register, 0 otherwise TODO: need two of these, one for data_seg, one for pc_seg
     WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command)
     WDSEL       <=  "11" when (INST_reg(9 downto 6) = "1110") else          -- Write Data Select:   use SEGMENT as Register Input for LDS instruction
                     "10" when (INST_reg(9 downto 6) = "1010") else                          --      use Memory Read Data as Register Input for LD instruction
@@ -147,6 +148,7 @@ begin
     WBS_WE_O    <= '1'  when ((INST_reg(9 downto 6) = "1011" OR INST_reg(9 downto 6) = "1111") AND (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT))
                              AND RST_I = '0' else '0';                      -- write enable high for STS, ST and STC instructions during execute with r/w phase
 
+    -- TODO: make these both two bits - 0b01 = memory data r/w commands, 0b10 = PC read commands
     WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';      -- output '1' in TGA_O during memory r/w commands, but NOT for fetching or branching instructions
     WBS_TGD_O <= '1' when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1111" else '0';    -- output '1' in TGD_O during STS command (WBS_DATA_O => SEGMENT)
 
@@ -196,7 +198,7 @@ begin
                                     PC_reg <= PC_INC_calc;          -- increment PC for constant
                                     WBS_ADDR_O <= PC_INC_calc;      -- set address of constant
                                 else
-                                    st_main <= ST_EXECUTE;           -- no constant for this opcode, so execute directly (keeping PC unchanged)
+                                    st_main <= ST_EXECUTE;          -- no constant for this opcode, so execute directly (keeping PC unchanged)
                                 end if;
                             else                                -- wait until ack received
                                 st_main <= ST_FETCH_I_WAIT;
@@ -223,6 +225,7 @@ begin
 
                         when ST_EXECUTE =>
                             -- execute instruction
+                            -- modify logic below to include new instructions LDZ and LDZC, which load from segment 0 even if SEGMENT_DATA is set
                             if INST_reg(9 downto 7) = "101" OR INST_reg(9 downto 6) = "1111" then     -- operation requires memory read or write or segment write (LD or ST commands, STS but not LDS)
                                 WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for STS, but doesn't matter to set it)
                                 MEMRW_reg  <= ALU_OUT;                          -- store address in a register for display
@@ -233,6 +236,8 @@ begin
                                         (INST_reg(8 downto 6) = "100" AND Z = '1') OR         -- branch if equal to zero (BEQ)
                                         (INST_reg(8 downto 6) = "101" AND Z = '0'))) then     -- branch if not equal to zero (BNE)
 
+                                            -- TODO: include a mechanism for a JS command - Jump to Segment. Jumps to register AND sets new segment for PC: JSC(rc, const) or JS(rc, ra) - rc = segment, ra or const = addr
+                                            -- LD/BR/ST bit = 1, Rb = 0b001
                                             PC_reg <= (ALU_OUT AND X"FFFE");          -- set PC to address in ALU output to jump (without lsb)
                                             WBS_ADDR_O <= (ALU_OUT AND X"FFFE");      -- set address of next instruction to ALU_OUT
                                 else

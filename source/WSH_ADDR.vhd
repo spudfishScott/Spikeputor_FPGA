@@ -4,8 +4,8 @@
 --  ADDR_I - from the master arbiter
 --  WE_I   - from the master arbiter
 --  STB_I  - from the master arbiter
---  TGD_I  - route the data bus to update the SEGMENT register
---  RAM?ROM is determined by msb (bit 23) of ADDR_I (1 = ROM, 0 = RAM) and also a portion of segment 0 is ROM (currently 0xD000-0xFFFF)
+--  TGD_I  - when non-zero, route the data bus to update the DATA_SEGMENT register (0b01) or the PC_SEGMENT register (0b10)
+--  RAM?ROM is determined by msb (bit 23) of ADDR_I (1 = ROM, 0 = RAM) and also a portion of segment 0 is ROM (currently 0xC800-0xFFFF)
 --  Px_DATA_O - data output from each provider
 
 -- In addition to standard RAM (P0), SDRAM (P10), and ROM (P1), the following providers are accessed through specific addresses, which override the above:
@@ -34,7 +34,7 @@ entity WSH_ADDR is
         ADDR_I      : in std_logic_vector(23 downto 0);     -- standard address bus - bottom 16 bits is on Segment 0, msb = ROM/RAM for extended memory, bits 22->16 = segment number
         WE_I        : in std_logic;                         -- write enable flag
         STB_I       : in std_logic;                         -- wishbone strobe signal
-        TGD_I       : in std_logic;                         -- when TGD_I and WE_I are high, route to P9, SEGMENT write
+        TGD_I       : in std_logic_vector(1 downto 0);      -- when TGD_I is non-zero and WE_I is high, route to P9, SEGMENT write
 
         -- Data out from providers
         P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0) 0x0000-0xCFFF
@@ -86,7 +86,7 @@ begin
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
     addr_l <= ADDR_I(7 downto 0);     -- extract last byte of address
 
-    ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 12) < "1101")                -- standard RAM:0x0000-0xCFFF, Segment 0
+    ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 12) < "11001")               -- standard RAM:0x0000-0xC7FF, Segment 0
                    else '0';
     sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0 and not a ROM address
                    else '0';
@@ -110,16 +110,17 @@ begin
             '0' when others;
 
     -- assign p_sel based on addressing logic described above
-    p_sel <=    9 when TGD_I = '1' AND WE_I = '1'                                         -- write to SEGMENT when TDG and WE are set, preempts all others
+    -- TODO: TGD will have two bits, one for DATA_SEGMENT, other for PC_SEGMENT
+    p_sel <=    9 when TGD_I /= "00" AND WE_I = '1'                                       -- write to SEGMENT when TGD and WE are set, preempts all others
         else    0 when ram_e = '1'                                                        -- standard RAM
         else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
         else    2 when spec = '1' AND addr_l = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
-        else    6 when spec = '1' AND addr_l = SER_ADDR                                   -- read/write SERIAL
         else    4 when spec = '1' AND audio = '1'                                         -- read/writr AUDIO
+        else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
+        else    6 when spec = '1' AND addr_l = SER_ADDR                                   -- read/write SERIAL
         else    7 when spec = '1' AND addr_l = FSSER_ADDR                                 -- read/write STORAGE (via Filesystem Serial)
         else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR                              -- read only KEYBOARD
-        else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
         else   11 when spec = '1' AND math = '1'                                          -- MATH coprocessor if address matches math range (0xFFE0 - 0xFFE7)
         else   10 when sdram_e = '1'                                                      -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    1;                                                                        -- default to read ROM

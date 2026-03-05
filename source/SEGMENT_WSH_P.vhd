@@ -1,4 +1,5 @@
 -- SEGMENT Register Wishbone Interface Provider
+-- TODO: expand to include two SEGMENT registers, one for data and another for PC
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -15,6 +16,7 @@ entity SEGMENT_WSH_P is
         WBS_CYC_I   : in std_logic;
         WBS_STB_I   : in std_logic;
         WBS_ACK_O   : out std_logic;
+        -- TODO: Inlude TGD_I so we know which SEGMENT register to write to
 
         -- memory read/write signals
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
