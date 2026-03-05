@@ -1,5 +1,4 @@
 -- SEGMENT Register Wishbone Interface Provider
--- TODO: expand to include two SEGMENT registers, one for data and another for PC
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -16,7 +15,7 @@ entity SEGMENT_WSH_P is
         WBS_CYC_I   : in std_logic;
         WBS_STB_I   : in std_logic;
         WBS_ACK_O   : out std_logic;
-        -- TODO: Inlude TGD_I so we know which SEGMENT register to write to
+        WBS_TGD_I   : in std_logic_vector(1 downto 0);     -- 0b01 for DATA_SEGMENT (just SEGMENT for now, other tbd), 0b10 for PC_SEGMENT
 
         -- memory read/write signals
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
@@ -25,27 +24,48 @@ entity SEGMENT_WSH_P is
 
         -- system outputs
         SEGMENT     : out std_logic_vector(7 downto 0)      -- the output of the SEGMENT register
+        -- TODO:
+        -- DATA_SEGMENT     : out std_logic_vector(7 downto 0);      -- the output of the DATA_SEGMENT register
+        -- PC_SEGMENT       : out std_logic_vector(7 downto 0)       -- the output of the PC_SEGMENT register
     );
 end SEGMENT_WSH_P;
 
 architecture rtl of SEGMENT_WSH_P is
-    signal le_sig : std_logic;
-    signal segment_sig : std_logic_vector(7 downto 0);
+    signal le_data_sig : std_logic;
+    signal le_pc_sig   : std_logic;
+
+    signal data_segment_sig : std_logic_vector(7 downto 0);
+    signal pc_segment_sig : std_logic_vector(7 downto 0);
 
 begin
-    SEG_REG : entity work.REG_LE
+    -- instantiate the two segment registers
+    DATA_SEG_REG : entity work.REG_LE
     generic map ( width => 8 )
     port map (
         CLK => CLK,
-        LE  => le_sig,       -- only write when we and cyc and stb are all asserted
+        LE  => le_data_sig,       -- only write when we and cyc and stb are all asserted and tgd is for DATA
         D   => WBS_DATA_I(7 downto 0),
-        Q   => segment_sig
+        Q   => data_segment_sig
     );
 
-    SEGMENT    <= segment_sig;
-    WBS_DATA_O <= (15 downto 8 => '0') & segment_sig;
+    PC_SEG_REG : entity work.REG_LE
+    generic map ( width => 8 )
+    port map (
+        CLK => CLK,
+        LE  => le_pc_sig,         -- only write when we and cyc and stb are all asserted and tgd is for DATA
+        D   => WBS_DATA_I(7 downto 0),
+        Q   => pc_segment_sig
+    );
+
+    SEGMENT    <= data_segment_sig;
+    -- DATA_SEGMENT <= data_segment_sig;
+    -- PC_SEGMENT   <= pc_segment_sig;
+
+    WBS_DATA_O <= (15 downto 8 => '0') & pc_segment_sig when WBS_TGD_I(1) = '1'
+            else  (15 downto 8 => '0') & data_segment_sig;
     
-    le_sig     <= WBS_CYC_I AND WBS_STB_I AND WBS_WE_I;
+    le_data_sig     <= WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(0);   -- bit 0 is for DATA SEGMENT
+    le_pc_sig       <= WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(1);   -- bit 1 is for PC SEGMENT
 
     process(clk) is
     begin

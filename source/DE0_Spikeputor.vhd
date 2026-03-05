@@ -103,7 +103,7 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_data_o  : std_logic_vector(15 downto 0) := (others => '0');
     signal cpu_we      : std_logic := '0';
     signal cpu_tga     : std_logic := '0';
-    signal cpu_tgd     : std_logic := '0';
+    signal cpu_tgd     : std_logic_vector(1 downto 0) := '0';
     signal cpu_gnt_sig : std_logic := '0';
 
     -- CPU display signals
@@ -307,7 +307,7 @@ begin
             CLK             => SYS_CLK,
             RESET           => RESET,
             STALL           => '0',                           -- Temp Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
-            SEGMENT         => SEGMENT,                       -- Segment Register input to CPU (so it can store in a register)
+            SEGMENT         => SEGMENT,                       -- Segment Register input to CPU (so it can store in a register via STS command)
 
             -- Memory standard Wishbone interface signals
             M_DATA_I        => data_i,                        -- Wishbone Data from providers (from address comparitor)
@@ -629,6 +629,7 @@ begin
             WBS_CYC_I   => arb_cyc,
             WBS_STB_I   => stb_sel_sig(9),     -- strobe signal from Address Comparitor (use other bits for other providers)
             WBS_ACK_O   => ack(9),             -- ack bit for the full set of provider acks (use other bits for other providers)
+            WBS_TGD_I   => cpu_tgd,            -- TGD is only set via the CPU Wishbone master, so no need to use the arbiter
 
             -- memory read/write signals
             WBS_DATA_I  => arb_data_o,

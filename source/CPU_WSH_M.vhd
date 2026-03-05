@@ -25,7 +25,7 @@ entity CPU_WSH_M is
         M_STB_O   : out std_logic;
         M_WE_O    : out std_logic;
         M_TGA_O   : out std_logic;
-        M_TGD_O   : out std_logic;
+        M_TGD_O   : out std_logic_vector(1 downto 0);
 
         -- Direct Display Values
         WSEG_DISP       : out std_logic;    -- TODO: need two of these, one for segment_data and other for segment_pc

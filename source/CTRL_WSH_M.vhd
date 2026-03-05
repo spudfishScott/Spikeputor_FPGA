@@ -70,7 +70,7 @@ entity CTRL_WSH_M is
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from provider
         WBS_WE_O    : out std_logic;                        -- write enable output - write when high, read when low
         WBS_TGA_O   : out std_logic;                        -- address tag for whether or not to use extended address bus
-        WBS_TGD_O   : out std_logic;                        -- data tag for whether or not data out goes to SEGMENT register
+        WBS_TGD_O   : out std_logic_vector(1 downto 0);     -- data tag for whether or not data out goes to SEGMENT registers (0b01 = DATA, 0b10 = PC)
 
         -- Spikeputor Signals
             -- Data outputs from Control Logic to other modules
@@ -150,7 +150,9 @@ begin
 
     -- TODO: make these both two bits - 0b01 = memory data r/w commands, 0b10 = PC read commands
     WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';      -- output '1' in TGA_O during memory r/w commands, but NOT for fetching or branching instructions
-    WBS_TGD_O <= '1' when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1111" else '0';    -- output '1' in TGD_O during STS command (WBS_DATA_O => SEGMENT)
+
+     -- output "01" in TGD_O during STS command (WBS_DATA_O => DATA_SEGMENT), TBD "10" in TDG_O for writing to PC_SEGMENT
+    WBS_TGD_O <= "01" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1111" else "00";
 
     PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
 

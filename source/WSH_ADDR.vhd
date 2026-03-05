@@ -110,7 +110,6 @@ begin
             '0' when others;
 
     -- assign p_sel based on addressing logic described above
-    -- TODO: TGD will have two bits, one for DATA_SEGMENT, other for PC_SEGMENT
     p_sel <=    9 when TGD_I /= "00" AND WE_I = '1'                                       -- write to SEGMENT when TGD and WE are set, preempts all others
         else    0 when ram_e = '1'                                                        -- standard RAM
         else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
