@@ -415,7 +415,7 @@ begin
                                                 rc_only <= true;
                                             when "111" =>
                                                 string_reg <= x"205344532020";          -- " SDS  "
-                                                rc_only <= true;
+                                                rc_only <= true;    -- TODO: problem with this logic
                                             when others =>
                                                 string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                         end case;

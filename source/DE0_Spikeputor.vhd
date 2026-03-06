@@ -628,6 +628,7 @@ begin
     SEG : entity work.SEGMENT_WSH_P
         port map (
             CLK         => SYS_CLK,
+            RST_I       => RESET,
 
             -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
             -- handshaking signals

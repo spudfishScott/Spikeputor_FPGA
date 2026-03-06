@@ -86,10 +86,10 @@ architecture rtl of SDRAM is
     signal rd_data : std_logic_vector(15 downto 0) := (others=>'0');
 
     -- timing signals (constrained ranges to reduce synthesis widths)
-    signal ref_cnt     : integer range 0 to REF_INTERVAL := 0;
+    signal ref_cnt     : integer := 0;
     signal ref_pending : std_logic := '0';
-    signal timer       : integer range 0 to (CLK_FREQ/5000) := 0; -- initial reset uses CLK_FREQ/5000
-    signal ar_count    : integer range 0 to 7 := 0; -- counts 0..7 for 8 refresh commands
+    signal timer       : integer := 0; -- initial reset uses CLK_FREQ/5000
+    signal ar_count    : integer := 0; -- counts 0..7 for 8 refresh commands
 
     begin
     DRAM_CLK <= CLK;  -- wire the system clock right into the DRAM clock
