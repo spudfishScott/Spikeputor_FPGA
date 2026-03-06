@@ -61,8 +61,8 @@ begin
     -- if RST = '1', clear the registers
     data_in     <= WBS_DATA_I(7 downto 0) when RST_I = '0' else (7 downto 0 => '0');
 
-    le_data_sig <= (WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(0)) OR RST_I = '1';   -- bit 0 of TGD is for DATA SEGMENT
-    le_pc_sig   <= (WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(1)) OR RST_I = '1';   -- bit 1 of TGD is for PC SEGMENT
+    le_data_sig <= '1' when (WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(0)) OR RST_I = '1' else '0';   -- bit 0 of TGD is for DATA SEGMENT
+    le_pc_sig   <= '1' when (WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(1)) OR RST_I = '1' else '0';   -- bit 1 of TGD is for PC SEGMENT
 
     DATA_SEGMENT <= data_segment_sig;
     PC_SEGMENT   <= pc_segment_sig;
