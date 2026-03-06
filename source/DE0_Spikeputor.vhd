@@ -91,8 +91,9 @@ architecture Structural of DE0_Spikeputor is
     constant RESET_VECTOR    : std_logic_vector(15 downto 0) := x"0000";        -- Address PC is set to on RESET
 
     -- Signal Declarations
-    signal SEGMENT     : std_logic_vector(7 downto 0) := (others => '0');
-    signal GPO_REG     : std_logic_vector(15 downto 0) := (others => '0');
+    signal DATA_SEGMENT      : std_logic_vector(7 downto 0) := (others => '0');
+    signal PC_SEGMENT        : std_logic_vector(7 downto 0) := (others => '0');
+    signal GPO_REG           : std_logic_vector(15 downto 0) := (others => '0');
 
     -- CPU Memory interface signals
     signal cpu_cyc     : std_logic := '0';
@@ -103,11 +104,14 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_data_o  : std_logic_vector(15 downto 0) := (others => '0');
     signal cpu_we      : std_logic := '0';
     signal cpu_tga     : std_logic := '0';
-    signal cpu_tgd     : std_logic_vector(1 downto 0) := '0';
+    signal cpu_tgd     : std_logic_vector(1 downto 0) := "00";
     signal cpu_gnt_sig : std_logic := '0';
 
     -- CPU display signals
-    signal wseg_out    : std_logic; -- TODO: there will be two segment registers
+    signal wseg_out    : std_logic;
+    -- TODO: there will be two segment registers to write to
+    -- signal wseg_d_out : std_logic;
+    -- signal wseg_p_out : std_logic;
     signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');
     signal const_out   : std_logic_vector(15 downto 0) := (others => '0');
     signal mdata_out   : std_logic_vector(16 downto 0) := (others => '0');
@@ -263,8 +267,9 @@ begin
             DATA_O      => arb_data_o
         );
 
-        -- TODO: cpu_tga becomes two bits to select  between DATA_SEGMENT and PC_SEGMENT
-        cpu_ext <= SEGMENT when cpu_tga = '1' else x"00";   -- cpu_tga determines if the SEGMENT register should be used to extend the address coming out of the CPU
+        -- cpu_ext <= SEGMENT when cpu_tga = '1' else x"00";   
+        -- cpu_tga determines if the DATA_SEGMENT or PC_SEGMENT register should be used to extend the address coming out of the CPU
+        cpu_ext <= DATA_SEGMENT when cpu_tga = '1' else PC_SEGMENT;
 
     -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and bank select register signals
     ADDR_CMP : entity work.WSH_ADDR
@@ -272,7 +277,7 @@ begin
             ADDR_I      => arb_addr,        -- full 24 bit address
             WE_I        => arb_we,
             STB_I       => arb_stb,
-            TGD_I       => cpu_tgd,         -- flag to write data bus to SEGMENT register
+            TGD_I       => cpu_tgd,         -- flag to write data bus to either DATA_SEGMENT (0b01) or PC_SEGMENT (0b10) registers, or to memory (0b00)
 
             P0_DATA_O   => data0,           -- map each provider data output into the address comparator
             P1_DATA_O   => data1,
@@ -307,7 +312,7 @@ begin
             CLK             => SYS_CLK,
             RESET           => RESET,
             STALL           => '0',                           -- Temp Debug signal will stall the CPU in between each phase. Will wait until STALL is low to proceed. Set to '0' for no stalling.
-            SEGMENT         => SEGMENT,                       -- Segment Register input to CPU (so it can store in a register via STS command)
+            SEGMENT         => DATA_SEGMENT,                  -- Data Segment Register input to CPU (so it can store in a register via LDS command, not required for PC Segment)
 
             -- Memory standard Wishbone interface signals
             M_DATA_I        => data_i,                        -- Wishbone Data from providers (from address comparitor)
@@ -317,11 +322,14 @@ begin
             M_CYC_O         => cpu_cyc,                       -- Wishbone CYC to providers
             M_STB_O         => cpu_stb,                       -- Wishbone STB to providers
             M_WE_O          => cpu_we,                        -- Wishbone WE to providers
-            M_TGA_O         => cpu_tga,                       -- Wishbone user address tag to use extended address (1 = use segment register)
-            M_TGD_O         => cpu_tgd,                       -- Wishbone user data tag to write to SEGMENT register or to a normal memory address
+            M_TGA_O         => cpu_tga,                       -- Wishbone user address tag to use extended address for PC (0) or DATA (1)
+            M_TGD_O         => cpu_tgd,                       -- Wishbone user data tag to write to one of the SEGMENT registers or to a normal memory address (0b01 = data segment register, 0b10 = pc segment register)
 
             -- Direct Display Values
-            WSEG_DISP       => wseg_out,    -- TODO: there will be 2 signals for 2 segment registers
+            WSEG_DISP       => wseg_out,    
+            -- TODO: there will be 2 signals for 2 segment registers to display
+            -- WSEGD_DISP      => wseg_d_out,
+            -- WSEGP_DISP      => wseg_p_out,
             INST_DISP       => inst_out,
             CONST_DISP      => const_out,
             MDATA_DISP      => mdata_out,
@@ -371,10 +379,7 @@ begin
             -- external signals
             RX_SERIAL   => UART_RXD,                            -- Serial communication to DMA
             TX_SERIAL   => UART_TXD,                            -- Serial communication from DMA
-            RST_O       => dma_rst,                             -- DMA reset signal
-
-            -- debug signals
-            DEBUG_STATE => LEDG(8 downto 4)                     -- 5 bits to send current state information out for debugging, sending to LEDG(8 downto 4) for now
+            RST_O       => dma_rst                              -- DMA reset signal
         );
 
     -- Spikeputor CPU Clock Throttle Control as Wishbone Master (M2)
@@ -393,7 +398,7 @@ begin
         );
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    -- RAM (P0), ROM (P1), GPO (P2), GPI (P3), SOUND (P4), VIDEO (P5), SERIAL (P6), STORAGE (P7), KEYBOARD (P8), SEGMENT (P9), SDRAM (P10), MATH (P11)
+    -- RAM (P0), ROM (P1), GPO (P2), GPI (P3), SOUND (P4), VIDEO (P5), SERIAL (P6), STORAGE (P7), KEYBOARD (P8), SEGMENTS (P9), SDRAM (P10), MATH (P11)
 
     -- RAM Instance as Wishbone provider (P0)
     RAM : entity work.RAM_WSH_P
@@ -619,7 +624,7 @@ begin
             PS2_DATA    => PS2_KBDAT
         );
 
-    -- SEGMENT Instance as Wishbone provider (P9)
+    -- SEGMENTS Instance as Wishbone provider (P9)
     SEG : entity work.SEGMENT_WSH_P
         port map (
             CLK         => SYS_CLK,
@@ -629,7 +634,7 @@ begin
             WBS_CYC_I   => arb_cyc,
             WBS_STB_I   => stb_sel_sig(9),     -- strobe signal from Address Comparitor (use other bits for other providers)
             WBS_ACK_O   => ack(9),             -- ack bit for the full set of provider acks (use other bits for other providers)
-            WBS_TGD_I   => cpu_tgd,            -- TGD is only set via the CPU Wishbone master, so no need to use the arbiter
+            WBS_TGD_I   => cpu_tgd,            -- TGD is only set via the CPU Wishbone master during the wishbone cycle (cleared after the cycle), so no need to use the arbiter
 
             -- memory read/write signals
             WBS_DATA_I  => arb_data_o,
@@ -637,7 +642,9 @@ begin
             WBS_DATA_O  => data9,
 
             -- SEGMENT register
-            SEGMENT     => SEGMENT             -- output of SEGMENT provider is a direct connection to the rest of the computer (not on the data bus)
+            -- SEGMENT     => SEGMENT             -- output of SEGMENT provider is a direct connection to the rest of the computer (not on the data bus)
+            DATA_SEGMENT => DATA_SEGMENT,
+            PC_SEGMENT  => PC_SEGMENT
         );
 
     -- SDRAM Instance as Wishbone provider (P10)
@@ -714,8 +721,10 @@ begin
             CONST       => const_out,                                                           -- bits: Constant (16 bits)
             MDATA       => mdata_out,                                                           -- bits: write flag, Memory read/write (16 bits)
             PC          => pc_out,                                                              -- bits: JT flag, Program Counter (16 bits)
-            SEGMENT     => wseg_out & SEGMENT,                                                  -- bits: WSEG, SEGMENT register (8 bits)
--- TODO: there will be 2 segment registers
+            SEGMENT     => wseg_out & DATA_SEGMENT,                                             -- bits: WSEG, SEGMENT register (8 bits)
+            -- TODO:
+            -- DATA_SEGMENT => wseg_d_out & DATA SEGMENT,
+            -- PC_SEGMENT   => wseg_p_out & PC_SEGMENT,
             ALU_OUT     => alu_out,                                                             -- bits: ALU Output (16 bits)
             ALU_CMP     => alu_cmp_out,                                                         -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
             ALU_SHIFT   => alu_sh_out,                                                          -- bits: shift dir, shift extend, shift result (16 bits), SHIFT selected
@@ -754,7 +763,10 @@ begin
             INST        => inst_out,                                                            -- current instruction
             CONST       => const_out,                                                           -- current constant
             ADDR        => rwaddr_out,                                                          -- current address being read or written
-            SEGMENT     => SEGMENT,                                                             -- current segment
+            SEGMENT     => DATA_SEGMENT,                                                        -- current segment
+            -- TODO:
+            -- DATA_SEGMENT => DATA_SEGMENT,
+            -- PC_SEGMENT  => PC_SEGMENT,
             PC          => pc_out,                                                              -- current program counter value (includes JT)
             MDATA       => mdata_out,                                                           -- current data for memory read/write (includes write flag)
 
@@ -778,7 +790,7 @@ begin
     LEDG(1) <= dma_gnt_sig;             -- DMA grant given
     LEDG(0) <= clk_gnt_sig;             -- Clock Generator grant given
 
-    LEDG(3) <= '0';
+    LEDG(8 downto 3) <= PC_SEGMENT(5 downto 0); -- lower 5 bits of PC_SEGMENT out to LEDs
 
     -- 7-SEG Display
     HEX0_DP <= '1';

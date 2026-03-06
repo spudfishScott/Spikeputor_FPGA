@@ -13,7 +13,7 @@ entity CPU_WSH_M is
         CLK       : in  std_logic;      -- System clock
         RESET     : in  std_logic;      -- System reset
         STALL     : in  std_logic;      -- CPU stall signal for debugging
-        SEGMENT   : in  std_logic_vector(7 downto 0);   -- TODO: will be two segment registers
+        SEGMENT   : in  std_logic_vector(7 downto 0);   -- the DATA_SEGMENT, to implement RDS
 
         -- Memory interface
         M_DATA_I  : in  std_logic_vector(15 downto 0);
@@ -28,7 +28,10 @@ entity CPU_WSH_M is
         M_TGD_O   : out std_logic_vector(1 downto 0);
 
         -- Direct Display Values
-        WSEG_DISP       : out std_logic;    -- TODO: need two of these, one for segment_data and other for segment_pc
+        WSEG_DISP       : out std_logic;    
+        -- TODO: need two of these, one for segment_data and other for segment_pc
+        -- WSEG_D_DISP  : out std_logic;
+        -- WSEG_P_DISP  : out std_logic;
         INST_DISP       : out std_logic_vector(15 downto 0);
         CONST_DISP      : out std_logic_vector(15 downto 0);
         MDATA_DISP      : out std_logic_vector(16 downto 0);
@@ -58,6 +61,9 @@ architecture Behavioral of CPU_WSH_M is
     -- Register File control signals
     signal werf_out  : std_logic := '0';
     signal wseg_out  : std_logic := '0';
+    -- TODO: need two of these, one for segment_data and other for segment_pc
+    -- wseg_d_out    : out std_logic;
+    -- Wseg_p_out    : out std_logic;
     signal rbsel_out : std_logic := '0';
     signal wdsel_out : std_logic_vector(1 downto 0) := (others => '0');
     signal opa_out   : std_logic_vector(2 downto 0) := (others => '0');
@@ -108,6 +114,9 @@ begin
 
     -- wire internal signals to display outputs
     WSEG_DISP       <= wseg_out;
+    -- TODO: need two of these, one for segment_data and other for segment_pc
+    -- WSEG_D_DISP  <= wseg_d_out;
+    -- WSEG_P_DISP  <= wseg_p_out;
     INST_DISP       <= inst_out;
     CONST_DISP      <= const_out;
     MDATA_DISP      <= rbsel_out & mdata_sig;
@@ -178,6 +187,9 @@ begin
         -- Control signals from Control Logic to other modules
         WERF        => werf_out,                -- WERF output to REG_FILE
         WSEG        => wseg_out,                -- WSEG output to SEGMENT register
+        -- TODO: make two of these, one for data and one for pc segment
+        -- WSEG_D   => wseg_d_out,
+        -- WSEG_P   => wseg_p_out,
         RBSEL       => rbsel_out,               -- RBSEL output to REG_FILE
         WDSEL       => wdsel_out,               -- WDSEL output to REG_FILE
         OPA         => opa_out,                 -- OPA output to REG_FILE
@@ -199,7 +211,7 @@ begin
         IN0         => pcinc_out,       -- Register Input: PC + 2
         IN1         => s_alu_out,       -- Register Input: ALU output
         IN2         => mrdata_out,      -- Register Input: Memory Read Data
-        IN3         => x"00" & SEGMENT, -- Register Input: Segment register (zero padded)
+        IN3         => x"00" & SEGMENT, -- Register Input: Segment register (zero padded) - Required to implement LDS command (only the DATA_SEGMENT)
         WDSEL       => wdsel_out,       -- WDSEL from Control Logic
         OPA         => opa_out,         -- OPA from INST
         OPB         => opb_out,         -- OPB from INST

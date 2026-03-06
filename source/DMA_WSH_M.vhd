@@ -49,9 +49,7 @@ entity DMA_WSH_M is
 
         RX_SERIAL   : in std_logic;                         -- external UART RX
         TX_SERIAL   : out std_logic;                        -- external UART TX
-        RST_O       : out std_logic;                        -- DMA signal to reset the Spikeputor
-
-        DEBUG_STATE  : out std_logic_vector(4 downto 0)     -- 5 bits to send current state information out for debugging
+        RST_O       : out std_logic                         -- DMA signal to reset the Spikeputor
     );
 end DMA_WSH_M;
 
@@ -102,8 +100,7 @@ begin
             RD_DATA     => data_out_sig,                        -- Data to send from the Spikeputor
             RD_READY    => rdy_out,                             -- Strobed when RD_DATA is valid
             HALTED      => halted_sig,                          -- set when DMA has control of the bus (CPU is halted)
-            RESET_REQ   => rst_sig,                             -- Request to reset the spikeputor
-            DEBUG_STATE => DEBUG_STATE                          -- 5 bits to send current state information out
+            RESET_REQ   => rst_sig                             -- Request to reset the spikeputor
         );
 
     WBS_ADDR_O   <= current_addr;       -- set up bus address

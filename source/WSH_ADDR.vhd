@@ -88,6 +88,7 @@ begin
 
     ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 12) < "11001")               -- standard RAM:0x0000-0xC7FF, Segment 0
                    else '0';
+
     sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0 and not a ROM address
                    else '0';
 
@@ -110,9 +111,9 @@ begin
             '0' when others;
 
     -- assign p_sel based on addressing logic described above
-    p_sel <=    9 when TGD_I /= "00" AND WE_I = '1'                                       -- write to SEGMENT when TGD and WE are set, preempts all others
+    p_sel <=    9 when TGD_I /= "00" AND WE_I = '1'                                       -- write to SEGMENTS when TGD and WE are set, preempts all others
         else    0 when ram_e = '1'                                                        -- standard RAM
-        else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xE000-0xFFFF)
+        else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xC800-0xFFFF)
         else    2 when spec = '1' AND addr_l = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
         else    4 when spec = '1' AND audio = '1'                                         -- read/writr AUDIO

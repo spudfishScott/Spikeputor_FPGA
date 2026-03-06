@@ -52,9 +52,7 @@ entity dma_uart_ctrl is
         RD_DATA     : in std_logic_vector(15 downto 0);         -- Data to send from the Spikeputor
         RD_READY    : in std_logic;                             -- Strobed when RD_DATA is valid
         HALTED      : in std_logic;                             -- set when spikeputor is halted (WBS_CYC_O signal)
-        RESET_REQ   : out std_logic;                            -- Request to reset the spikeputor
-
-        DEBUG_STATE : out std_logic_vector(4 downto 0)          -- 5 bits to send current state information out
+        RESET_REQ   : out std_logic                             -- Request to reset the spikeputor
     );
 end entity dma_uart_ctrl;
 
@@ -129,29 +127,6 @@ begin
     WR_RD    <= '1' when cmd_state = S_WRITE else '0';                       -- Set write flag on WRITE command only
     WR_READY <= wr_rdy_sig;
     WR_DATA  <= word_buf;
-
-    with p_state select
-        DEBUG_STATE <=
-            "00000" when WAIT_START,
-            "00001" when ACK_START,
-            "00010" when DMA_START,
-            "00011" when S_READ,
-            "00100" when S_WRITE,
-            "00101" when RESET,
-            "00110" when HDR_0,
-            "00111" when HDR_1,
-            "01000" when HDR_2,
-            "01001" when HDR_3,
-            "01010" when HDR_4,
-            "01011" when ACK_HEADER,
-            "01100" when LOAD_L,
-            "01101" when SEND_L,
-            "01110" when SEND_H,
-            "01111" when SEND_DONE,
-            "10000" when WRITE_MEM,
-            "10001" when NEXT_TRANSFER,
-            "11111" when others;
-
 
     --  State machine to implement transfer protocol
     process(CLK)

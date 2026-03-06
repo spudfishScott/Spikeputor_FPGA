@@ -375,7 +375,7 @@ begin
                                             end case;
                                     end case;
                                 else                                -- LD/ST/BR opcode
-                                    if (s_inst(15 downto 10) = "101010") then   -- JMP/LD/ST
+                                    if (s_inst(15 downto 10) = "101010") then   -- JMP/LD/ST -- TODO: JS
                                         case s_inst(8 downto 6) is      -- switching on Rb
                                             when "000" =>
                                                 string_reg <= x"204A4D502020";          -- " JMP  "
@@ -389,7 +389,7 @@ begin
                                             when others =>
                                                 string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                         end case;
-                                    elsif (s_inst(15 downto 11) = "01000") then -- JMPC/LDC/STC/BEQ/BNE/LDS/STS
+                                    elsif (s_inst(15 downto 11) = "01000") then -- JMPC/LDC/STC/BEQ/BNE/LDS/STS -- TODO: JSC
                                         case s_inst(8 downto 6) is
                                             when "000" =>
                                                 string_reg <= x"204A4D504320";          -- " JMPC "
@@ -408,13 +408,13 @@ begin
                                                 if s_jt = '0' then
                                                     string_reg <= x"20424E452020";      -- " BNE  "
                                                 else
-                                                    string_reg <= x"20424E45205E";      -- " BNE  *"
+                                                    string_reg <= x"20424E45205E";      -- " BNE *"
                                                 end if;
                                             when "110" =>
                                                 string_reg <= x"204C44532020";          -- " LDS  "
                                                 rc_only <= true;
                                             when "111" =>
-                                                string_reg <= x"205354532020";          -- " STS  "
+                                                string_reg <= x"205344532020";          -- " SDS  "
                                                 rc_only <= true;
                                             when others =>
                                                 string_reg <= x"3F3F3F3F3F3F";          -- "??????"
@@ -447,7 +447,7 @@ begin
                                 loop_index <= 15;                                       -- next step, convert NEXT_PC to hex string
                                 cmd_index <= 5;
 
-                            when 5 =>                           -- convert NEXT_PC to 4 hexadecimal digit string
+                            when 5 =>                           -- convert NEXT_PC to 4 hexadecimal digit string  TODO: make this PC_SEG:ADDR
                                 string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
                                     <= to_hex_ascii(s_pc(loop_index downto loop_index - 3));
                                 loop_index <= loop_index - 4;                               -- decrement loop index to next digit
