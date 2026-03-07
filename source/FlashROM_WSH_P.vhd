@@ -1,5 +1,5 @@
 -- Flash ROM Wishbone Interface Provider
--- 64 K of ROM, 16 bit wide data bus, 16 bit wide address bus, customize to point to a different sector of 64K ROM if needed
+-- 64 K of ROM per sector, 16 bit wide data bus, 16 bit wide address bus, 6 bit sector for 22 bits total per word
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

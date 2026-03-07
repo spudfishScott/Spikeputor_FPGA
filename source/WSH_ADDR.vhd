@@ -86,7 +86,7 @@ begin
     p_addr <= ADDR_I(15 downto 0);    -- extract primary address from full address
     addr_l <= ADDR_I(7 downto 0);     -- extract last byte of address
 
-    ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 12) < "11001")               -- standard RAM:0x0000-0xC7FF, Segment 0
+    ram_e   <= '1' when (seg  = "0000000" AND ADDR_I(15 downto 11) < "11001" AND ADDR_I(23) = '0') -- standard RAM:0x0000-0xC7FF, Segment 0, not ROM
                    else '0';
 
     sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0 and not a ROM address
@@ -116,7 +116,7 @@ begin
         else    1 when spec = '0' AND ram_e = '0' AND sdram_e = '0'                       -- ROM if not a special I/O location and not a RAM location (including 0xC800-0xFFFF)
         else    2 when spec = '1' AND addr_l = GPO_ADDR                                   -- read/write GPO
         else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
-        else    4 when spec = '1' AND audio = '1'                                         -- read/writr AUDIO
+        else    4 when spec = '1' AND audio = '1'                                         -- read/write AUDIO
         else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
         else    6 when spec = '1' AND addr_l = SER_ADDR                                   -- read/write SERIAL
         else    7 when spec = '1' AND addr_l = FSSER_ADDR                                 -- read/write STORAGE (via Filesystem Serial)

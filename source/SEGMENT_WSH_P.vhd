@@ -67,9 +67,10 @@ begin
     DATA_SEGMENT <= data_segment_sig;
     PC_SEGMENT   <= pc_segment_sig;
 
-    WBS_DATA_O <= (15 downto 8 => '0') & pc_segment_sig when WBS_TGD_I(1) = '1'
-            else  (15 downto 8 => '0') & data_segment_sig when WBS_TGD_I(0) = '1';
-
+    WBS_DATA_O <= (15 downto 8 => '0') & pc_segment_sig when WBS_TGD_I = "10"
+            else  (15 downto 8 => '0') & data_segment_sig when WBS_TGD_I = "01"
+            else (others => '0');
+            
     process(clk) is
     begin
         if rising_edge(clk) then
