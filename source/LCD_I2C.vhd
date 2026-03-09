@@ -436,10 +436,10 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement the loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 3;                                         -- come back here after last character, but to next step
-                                    loop_index <= 10;                                       -- next step, print 11 spaces
+                                    loop_index <= 11;                                       -- next step, print 12 spaces
                                 end if;
 
-                            when 3 =>                           -- print 11 spaces
+                            when 3 =>                           -- print 12 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
@@ -495,10 +495,10 @@ begin
                                 loop_index <= loop_index - 1;                               -- decrement loop index to next byte
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 7;                                         -- come back here after last character, but to next step
-                                    loop_index <= 10; -- print 11 spaces
+                                    loop_index <= 11;                                       -- print 12 spaces
                                 end if;
 
-                            when 7 =>                           -- print 13 (now 11) spaces
+                            when 7 =>                           -- print 13 (now 12) spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
