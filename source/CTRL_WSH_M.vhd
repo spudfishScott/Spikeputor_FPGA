@@ -118,6 +118,7 @@ architecture rtl of CTRL_WSH_M is
     signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- MRDATA register (for display)
 
     signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
+    signal TGA_sig     : std_logic := '0';                                   -- TGA signal to determine which SEGMENT register is used
 
     -- state machine
     type fsm_main is (ST_FETCH_I, ST_FETCH_I_WAIT, ST_FETCH_C, ST_FETCH_C_WAIT, ST_EXECUTE, ST_EXECUTE_RW, ST_EXECUTE_RW_WAIT);
@@ -154,7 +155,8 @@ begin
     WBS_WE_O    <= '1'  when ((INST_reg(9 downto 6) = "1011" OR INST_reg(9 downto 6) = "1111" OR INST_reg(9 downto 6) = "1001") AND (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT))
                              AND RST_I = '0' else '0';                      -- write enable high for STS, ST and STC, JS and JSC instructions during execute with r/w phase
 
-    WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';      -- output '1' in TGA_O during memory r/w commands, but NOT for fetching or branching instructions (PC manipulation)
+   --WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';      -- output '1' in TGA_O during memory r/w commands, but NOT for fetching or branching instructions (PC manipulation)
+    WBS_TGA_O <= TGA_sig;
 
     WBS_TGD_O <= "01" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1111" else     -- output "01" in TGD_O during the RW state of STS command (WBS_DATA_O => DATA_SEGMENT)
                  "10" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1001" else     -- output "10" during the RW state of JS commands (WBS_DATA_O => PC_SEGMENT)
@@ -171,6 +173,7 @@ begin
                 PC_reg     <= RESET_VECTOR;        -- set PC to reset vector
                 prev_PC    <= RESET_VECTOR;        -- set display PC pipeline to reset vector
                 WERF_sig   <= '0';                 -- do not write to registers during reset
+                TGA_sig    <= '0';                 -- extend address with PC_SEGMENT register
                 MRDATA_reg <= (others => '0');     -- clear MRDATA registere
                 MEMRW_reg  <= (others => '0');     -- clear memory r/w address
 
@@ -236,6 +239,7 @@ begin
                             if INST_reg(9 downto 7) = "101" OR INST_reg(9 downto 6) = "1111" OR INST_reg(9 downto 6) = "1001" then     -- operation requires memory read or write or segment write (LD or ST commands, JS commands, SDS but not LDS)
                                 WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for STS and JS, but doesn't matter to set it)
                                 MEMRW_reg  <= ALU_OUT;                          -- store address in a register for display
+                                TGA_sig <= '1';                                 -- set up address to be extended by DATA_SEGMENT register (BEFORE STB is set)
                                 st_main <= ST_EXECUTE_RW;                       -- go to execute_rw state
                             else                                                -- other instructions - do not need to read or write to memory
                                 if ((INST_reg(9) = '1') AND                     -- check to see if the branch should be taken (formerly JT = 1)
@@ -253,6 +257,7 @@ begin
                                 WERF_sig <= '1';        -- write to register (input based on WDSEL) on next clock
 
                                 WBS_CYC_O <= '0';           -- end wishbone cycle
+                                TGA_sig <= '0';             -- set up address to be extended by PC_SEGMENT register
                                 st_main <= ST_FETCH_I;      -- go back to fetch next instruction, no wishbone read/write phase needed
                             end if;
 
@@ -285,12 +290,14 @@ begin
 
                                 WBS_STB_O <= '0';                           -- deassert strobe
                                 WBS_CYC_O <= '0';                           -- end wishbone cycle
+                                TGA_sig <= '0';                             -- set up address to be extended by PC_SEGMENT register
                                 st_main <= ST_FETCH_I;                      -- go back to fetch next instruction
                             else
                                 st_main <= ST_EXECUTE_RW_WAIT;      -- wait until ack received
                             end if;
 
                         when others =>                      -- should never occur
+                            TGA_sig <= '0';                         -- set up address to be extended by PC_SEGMENT register
                             st_main <= ST_FETCH_I;                  -- default to fetch instruction state
                     end case;
                 end if;

@@ -173,8 +173,8 @@ begin
         WBS_DATA_O  => M_DATA_O, -- data output from master, input to providers
         WBS_DATA_I  => M_DATA_I, -- data input to master, output from providers
         WBS_WE_O    => M_WE_O,   -- write enable output from master, input to providers
-        WBS_TGA_O   => M_TGA_O,  -- tag for whether to use extended address bus from segment register
-        WBS_TGD_O   => M_TGD_O,  -- tag for whether to use data to store in memory or in segment register
+        WBS_TGA_O   => M_TGA_O,  -- tag for whether to use data segment or pc segment for extended address bus
+        WBS_TGD_O   => M_TGD_O,  -- tag for whether to use data to store in memory or in data or pc segment register
 
         -- Internal Spikeputor signals
         -- Data outputs from Control Logic to other modules
