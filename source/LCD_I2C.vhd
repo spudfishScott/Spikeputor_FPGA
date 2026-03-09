@@ -415,7 +415,7 @@ begin
                                                 rc_only <= true;
                                             when "111" =>
                                                 string_reg <= x"205344532020";          -- " SDS  "
-                                                rc_only <= true;    -- TODO: problem with this logic
+                                                rc_only <= true;
                                             when others =>
                                                 string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                         end case;
@@ -502,7 +502,7 @@ begin
 
                             when 9 =>                       -- convert CONST to 4 hexadecimal digit string if needed
                                 if (s_inst(10) = '0' OR rc_only) then           -- this step not needed, go to next step
-                                    cmd_index <= 10;                                         -- go to next step, print spaces or second argument (register)
+                                    cmd_index <= 10;                                        -- go to next step, print spaces or second argument (register)
                                     loop_index <= 4;                                        -- print 5 characters
                                 else                                            -- convert CONST and add to the string register
                                     string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
@@ -521,8 +521,12 @@ begin
                                     case loop_index is
                                         when 3 =>
                                             data_wr <= x"52";                               -- ascii for 'R'
-                                        when 2 =>                                          -- convert Rb to ascii digit
-                                            data_wr <= to_hex_ascii("0" & s_inst(8 downto 6));
+                                        when 2 =>                                          -- convert Rb or Rc to ascii digit
+                                            if (rc_only) then
+                                                data_wr <= to_hex_ascii("0" & s_inst(5 downto 3));  -- Rc
+                                            else
+                                                data_wr <= to_hex_ascii("0" & s_inst(8 downto 6));  -- Rb
+                                            end if;
                                         when others =>
                                             data_wr <= x"20";                               -- otherwise get ascii for leading and trailing space    
                                     end case;
