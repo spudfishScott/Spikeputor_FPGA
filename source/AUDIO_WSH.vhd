@@ -40,11 +40,12 @@ entity AUDIO_WSH_P is
 end AUDIO_WSH_P;
 
 architecture rtl of AUDIO_WSH_P is
-    signal set_sig    : std_logic := '0';
     signal set0_sig   : std_logic := '0';
     signal set1_sig   : std_logic := '0';
     signal set2_sig   : std_logic := '0';
     signal set3_sig   : std_logic := '0';
+
+    signal ack        : std_logic := '0';
 
     signal voice0_sig : std_logic_vector(15 downto 0) := (others => '0');
     signal voice1_sig : std_logic_vector(15 downto 0) := (others => '0');
@@ -76,12 +77,6 @@ begin
         AUDIO_L    => AUDIO_L
     );
 
-    -- connections to AUDIO controller
-    set0_sig   <= set_sig when WBS_ADDR_I(3 downto 0) = "0101" else '0';
-    set1_sig   <= set_sig when WBS_ADDR_I(3 downto 0) = "0110" else '0';
-    set2_sig   <= set_sig when WBS_ADDR_I(3 downto 0) = "0111" else '0';
-    set3_sig   <= set_sig when WBS_ADDR_I(3 downto 0) = "1000" else '0';
-
     -- data output is just the appropriate latched voice value based on register
     WBS_DATA_O <= voice0_sig when WBS_ADDR_I(3 downto 0) = "0101" else
                   voice1_sig when WBS_ADDR_I(3 downto 0) = "0110" else
@@ -89,34 +84,65 @@ begin
                   voice3_sig when WBS_ADDR_I(3 downto 0) = "1000" else
                   (others => '0');
 
+    WBS_ACK_0 <= ack;
+
     process(clk) is
     begin
         if rising_edge(clk) then
             if (RST_I = '1') then   -- reset all internal values on RST_I
-                set_sig    <= '0';
                 voice0_sig <= (others => '0');
                 voice1_sig <= (others => '0');
                 voice2_sig <= (others => '0');
                 voice3_sig <= (others => '0');
+                ack <= '0';
+                set_sig0 <= '0';
+                set_sig1 <= '0';
+                set_sig2 <= '0';
+                set_sig3 <= '0';
             else
-                WBS_ACK_O <= WBS_CYC_I AND WBS_STB_I;
-                set_sig <= '0';
-
                 if WBS_CYC_I = '1' and WBS_STB_I = '1' and WBS_WE_I = '1' then  -- when writing, set the voice data and strobe SET signal on appropriate voice.
-                    set_sig <= '1';
                     case WBS_ADDR_I(3 downto 0) is  -- select voice signal based on last nybble of address
                         when "0101" =>
-                            voice0_sig <= WBS_DATA_I;
+                            if set0_sig = '0' then
+                                set0_sig <= '1';            -- strobe the set signal
+                                voice0_sig <= WBS_DATA_I;   -- lath the data in
+                            else
+                                set0_sig <= '0';            -- clear set signal
+                                ack <= '1';                 -- set ack
+                            end if;
                         when "0110" =>
-                            voice1_sig <= WBS_DATA_I;
+                            if set1_sig = '0' then
+                                set1_sig <= '1';            -- strobe the set signal
+                                voice1_sig <= WBS_DATA_I;   -- lath the data in
+                            else
+                                set1_sig <= '0';            -- clear set signal
+                                ack <= '1';                 -- set ack
+                            end if;
                         when "0111" =>
-                            voice2_sig <= WBS_DATA_I;
+                            if set2_sig = '0' then
+                                set2_sig <= '1';            -- strobe the set signal
+                                voice2_sig <= WBS_DATA_I;   -- lath the data in
+                            else
+                                set2_sig <= '0';            -- clear set signal
+                                ack <= '1';                 -- set ack
+                            end if;
                         when "1000" =>
-                            voice3_sig <= WBS_DATA_I;
+                            if set3_sig = '0' then
+                                set3_sig <= '1';            -- strobe the set signal
+                                voice3_sig <= WBS_DATA_I;   -- lath the data in
+                            else
+                                set3_sig <= '0';            -- clear set signal
+                                ack <= '1';                 -- set ack
+                            end if;
                         when others =>
                             null;
                     end case;
                 end if;
+
+                if WBS_CYC = '0' OR WBS_STB = '0' then      -- clear acknowledgement if cycle ends
+                    ack <= '0';
+                end if;
+
             end if;
         end if;
     end process;
