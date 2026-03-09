@@ -84,7 +84,7 @@ begin
                   voice3_sig when WBS_ADDR_I(3 downto 0) = "1000" else
                   (others => '0');
 
-    WBS_ACK_0 <= ack;
+    WBS_ACK_O <= ack;
 
     process(clk) is
     begin
@@ -95,51 +95,53 @@ begin
                 voice2_sig <= (others => '0');
                 voice3_sig <= (others => '0');
                 ack <= '0';
-                set_sig0 <= '0';
-                set_sig1 <= '0';
-                set_sig2 <= '0';
-                set_sig3 <= '0';
+                set0_sig <= '0';
+                set1_sig <= '0';
+                set2_sig <= '0';
+                set3_sig <= '0';
             else
-                if WBS_CYC_I = '1' and WBS_STB_I = '1' and WBS_WE_I = '1' then  -- when writing, set the voice data and strobe SET signal on appropriate voice.
-                    case WBS_ADDR_I(3 downto 0) is  -- select voice signal based on last nybble of address
-                        when "0101" =>
-                            if set0_sig = '0' then
-                                set0_sig <= '1';            -- strobe the set signal
-                                voice0_sig <= WBS_DATA_I;   -- lath the data in
-                            else
-                                set0_sig <= '0';            -- clear set signal
-                                ack <= '1';                 -- set ack
-                            end if;
-                        when "0110" =>
-                            if set1_sig = '0' then
-                                set1_sig <= '1';            -- strobe the set signal
-                                voice1_sig <= WBS_DATA_I;   -- lath the data in
-                            else
-                                set1_sig <= '0';            -- clear set signal
-                                ack <= '1';                 -- set ack
-                            end if;
-                        when "0111" =>
-                            if set2_sig = '0' then
-                                set2_sig <= '1';            -- strobe the set signal
-                                voice2_sig <= WBS_DATA_I;   -- lath the data in
-                            else
-                                set2_sig <= '0';            -- clear set signal
-                                ack <= '1';                 -- set ack
-                            end if;
-                        when "1000" =>
-                            if set3_sig = '0' then
-                                set3_sig <= '1';            -- strobe the set signal
-                                voice3_sig <= WBS_DATA_I;   -- lath the data in
-                            else
-                                set3_sig <= '0';            -- clear set signal
-                                ack <= '1';                 -- set ack
-                            end if;
-                        when others =>
-                            null;
-                    end case;
-                end if;
-
-                if WBS_CYC = '0' OR WBS_STB = '0' then      -- clear acknowledgement if cycle ends
+                if WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0' then  -- Wishbone cycle request is pending
+                    if WBS_WE_I = '1' then      -- when writing, set the voice data and strobe SET signal on appropriate voice.
+                        case WBS_ADDR_I(3 downto 0) is  -- select voice signal based on last nybble of address
+                            when "0101" =>
+                                if set0_sig = '0' then
+                                    set0_sig <= '1';            -- strobe the set signal
+                                    voice0_sig <= WBS_DATA_I;   -- latch the data in, wait a cycle
+                                else
+                                    set0_sig <= '0';            -- clear set signal
+                                    ack <= '1';                 -- set ack
+                                end if;
+                            when "0110" =>
+                                if set1_sig = '0' then
+                                    set1_sig <= '1';            -- strobe the set signal
+                                    voice1_sig <= WBS_DATA_I;   -- latch the data in, wait a cycle
+                                else
+                                    set1_sig <= '0';            -- clear set signal
+                                    ack <= '1';                 -- set ack
+                                end if;
+                            when "0111" =>
+                                if set2_sig = '0' then
+                                    set2_sig <= '1';            -- strobe the set signal
+                                    voice2_sig <= WBS_DATA_I;   -- latch the data in, wait a cycle
+                                else
+                                    set2_sig <= '0';            -- clear set signal
+                                    ack <= '1';                 -- set ack
+                                end if;
+                            when "1000" =>
+                                if set3_sig = '0' then
+                                    set3_sig <= '1';            -- strobe the set signal
+                                    voice3_sig <= WBS_DATA_I;   -- latc`h the data in, wait a cycle
+                                else
+                                    set3_sig <= '0';            -- clear set signal
+                                    ack <= '1';                 -- set ack
+                                end if;
+                            when others =>
+                                null;
+                        end case;
+                    else
+                        ack <= '1';                             -- just acknowledge a read
+                    end if;
+                elsif WBS_CYC_I = '0' OR WBS_STB_I = '0' then    -- clear acknowledgement if cycle ends
                     ack <= '0';
                 end if;
 
