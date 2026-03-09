@@ -12,7 +12,8 @@ entity LCD_I2C is
         INST    : in std_logic_vector(15 downto 0);                                         -- current instruction
         CONST   : in std_logic_vector(15 downto 0);                                         -- current constant
         ADDR    : in std_logic_vector(15 downto 0);                                         -- current address being read or written
-        SEGMENT : in std_logic_vector(7 downto 0);                                          -- current segment
+        SEGMENT : in std_logic_vector(7 downto 0);                                          -- current data segment
+        PC_SEG  : in std_logic_vector(7 downto 0);                                          -- current pc segment
         PC      : in std_logic_vector(16 downto 0);                                         -- current program counter value (includes JT)
         MDATA   : in std_logic_vector(16 downto 0);                                         -- current data for memory read/write (includes write flag)
 
@@ -52,7 +53,8 @@ architecture RTL of LCD_I2C is
     signal s_addr       : std_logic_vector(15 downto 0) := (others => '0');      -- local copy of ADDR
     signal s_pc         : std_logic_vector(15 downto 0) := (others => '0');      -- local copy of PC
     signal s_mdata      : std_logic_vector(15 downto 0) := (others => '0');      -- local copy of memory data
-    signal s_seg        : std_logic_vector(7 downto 0) := (others => '0');       -- local copy of SEGMENT
+    signal s_seg        : std_logic_vector(7 downto 0) := (others => '0');       -- local copy of data SEGMENT
+    signal s_pcseg      : std_logic_vector(7 downto 0) := (others => '0');       -- local copy of PC_SEGMENT
     signal s_wr         : std_logic := '0';                                      -- local copy of write flag
     signal s_jt         : std_logic := '0';                                      -- local copy of JT flag
 
@@ -105,6 +107,7 @@ begin
                     s_mdata <= MDATA(15 downto 0);
                     s_wr <= MDATA(16);
                     s_seg <= SEGMENT;
+                    s_pcseg <= PC_SEG;
                     s_jt <= PC(16);
                 end if;
 
@@ -395,7 +398,7 @@ begin
                                             when "000" =>
                                                 string_reg <= x"204A4D504320";          -- " JMPC "
                                             when "001" =>
-                                                string_reg <= x"204A54422020";          -- " JSC  "
+                                                string_reg <= x"204A53432020";          -- " JSC  "
                                             when "010" =>
                                                 string_reg <= x"204C44432020";          -- " LDC  "
                                             when "011" =>
@@ -433,10 +436,10 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement the loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 3;                                         -- come back here after last character, but to next step
-                                    loop_index <= 13;                                       -- next step, print 14 spaces
+                                    loop_index <= 10;                                       -- next step, print 11 spaces
                                 end if;
 
-                            when 3 =>                           -- print 14 spaces
+                            when 3 =>                           -- print 11 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
@@ -447,28 +450,55 @@ begin
                             when 4 =>                           -- print arrow
                                 data_wr <= x"7E";
                                 state <= SENDBYTE;
-                                loop_index <= 15;                                       -- next step, convert NEXT_PC to hex string
+                                loop_index <= 47;                                       -- next step, convert PC_SEG:NEXT_PC to hex string
                                 cmd_index <= 5;
 
                             when 5 =>                           -- convert NEXT_PC to 4 hexadecimal digit string  TODO: make this PC_SEG:ADDR
-                                string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
-                                    <= to_hex_ascii(s_pc(loop_index downto loop_index - 3));
-                                loop_index <= loop_index - 4;                               -- decrement loop index to next digit
-                                if (loop_index = 3) then                                    -- come back here to this step unless we're finished
-                                    cmd_index <= 6;                                         -- come back here after converting last digit, but to next step
-                                    loop_index <= 31;                                       -- next step, print four characters of the hex string
+                                -- string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
+                                --     <= to_hex_ascii(s_pc(loop_index downto loop_index - 3));
+                                -- loop_index <= loop_index - 4;                               -- decrement loop index to next digit
+                                -- if (loop_index = 3) then                                    -- come back here to this step unless we're finished
+                                --     cmd_index <= 6;                                         -- come back here after converting last digit, but to next step
+                                --     loop_index <= 31;                                       -- next step, print four characters of the hex string
+                                -- end if;
+
+                                if loop_index > 31 then
+                                    string_reg(loop_index downto loop_index - 7)            -- get next digit of SEGMENT into string as ascii character
+                                        <= to_hex_ascii(s_pcseg((loop_index - 31)/2 - 1 downto (loop_index - 31)/2 - 4));
+                                else
+                                    string_reg(loop_index downto loop_index - 7)            -- get next digit of PC_INC into string as ascii character
+                                        <= to_hex_ascii(s_pc((loop_index + 1)/2 - 1 downto (loop_index + 1)/2 - 4));
+                                end if;
+                                loop_index <= loop_index - 8;                               -- decrement loop index to next byte
+                                if (loop_index = 7) then                                    -- come back here to this step unless we're finished
+                                    cmd_index <= 6;                                        -- come back here after converting last digit, but to next step
+                                    loop_index <= 6;                                        -- next step, print SEG:ADDR (7 characters)
                                 end if;
 
                             when 6 =>                           -- print hex string to the LCD, character by character
-                                data_wr <= string_reg(loop_index downto loop_index - 7);    -- get next byte to print
+                                -- data_wr <= string_reg(loop_index downto loop_index - 7);    -- get next byte to print
+                                -- state <= SENDBYTE;                                          -- next state -> send the byte
+                                -- loop_index <= loop_index - 8;                               -- decrement loop index to next byte
+                                -- if (loop_index = 7) then                                    -- come back here to this step unless we're finished
+                                --     cmd_index <= 7;                                         -- come back here after last character, but to next step
+                                --     loop_index <= 12;                                       -- next up, print 13 spaces
+                                -- end if;
+
+                                if loop_index > 4 then
+                                    data_wr <= string_reg(loop_index * 8 - 1 downto loop_index * 8 - 8);    -- get next byte of SEGMENT to print
+                                elsif loop_index = 4 then
+                                    data_wr <= x"3A";                                       -- ascii for ":"
+                                else
+                                    data_wr <= string_reg(loop_index * 8 + 7 downto loop_index * 8);        -- get next byte of ADDR to print
+                                end if;
                                 state <= SENDBYTE;                                          -- next state -> send the byte
-                                loop_index <= loop_index - 8;                               -- decrement loop index to next byte
-                                if (loop_index = 7) then                                    -- come back here to this step unless we're finished
+                                loop_index <= loop_index - 1;                               -- decrement loop index to next byte
+                                if (loop_index = 0) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 7;                                         -- come back here after last character, but to next step
-                                    loop_index <= 12;                                       -- next up, print 13 spaces
+                                    loop_index <= 10; -- print 11 spaces
                                 end if;
 
-                            when 7 =>                           -- print 13 spaces
+                            when 7 =>                           -- print 13 (now 11) spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index

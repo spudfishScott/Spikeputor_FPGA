@@ -764,10 +764,9 @@ begin
             INST        => inst_out,                                                            -- current instruction
             CONST       => const_out,                                                           -- current constant
             ADDR        => rwaddr_out,                                                          -- current address being read or written
-            SEGMENT     => DATA_SEGMENT,                                                        -- current segment
-            -- TODO:
-            -- DATA_SEGMENT => DATA_SEGMENT,
-            -- PC_SEGMENT  => PC_SEGMENT,
+            SEGMENT     => DATA_SEGMENT,                                                        -- current data segment
+            PC_SEG      => PC_SEGMENT,                                                          -- current PC segment
+
             PC          => pc_out,                                                              -- current program counter value (includes JT)
             MDATA       => mdata_out,                                                           -- current data for memory read/write (includes write flag)
 
