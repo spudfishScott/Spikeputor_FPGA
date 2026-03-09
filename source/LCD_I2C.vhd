@@ -436,10 +436,10 @@ begin
                                 loop_index <= loop_index - 8;                               -- decrement the loop index to next byte
                                 if (loop_index = 7) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 3;                                         -- come back here after last character, but to next step
-                                    loop_index <= 11;                                       -- next step, print 12 spaces
+                                    loop_index <= 12;                                       -- next step, print 13 spaces
                                 end if;
 
-                            when 3 =>                           -- print 12 spaces
+                            when 3 =>                           -- print 13 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index
@@ -453,15 +453,7 @@ begin
                                 loop_index <= 47;                                       -- next step, convert PC_SEG:NEXT_PC to hex string
                                 cmd_index <= 5;
 
-                            when 5 =>                           -- convert NEXT_PC to 4 hexadecimal digit string  TODO: make this PC_SEG:ADDR
-                                -- string_reg(loop_index * 2 + 1 downto loop_index * 2 - 6)    -- get next digit into string as ascii character
-                                --     <= to_hex_ascii(s_pc(loop_index downto loop_index - 3));
-                                -- loop_index <= loop_index - 4;                               -- decrement loop index to next digit
-                                -- if (loop_index = 3) then                                    -- come back here to this step unless we're finished
-                                --     cmd_index <= 6;                                         -- come back here after converting last digit, but to next step
-                                --     loop_index <= 31;                                       -- next step, print four characters of the hex string
-                                -- end if;
-
+                            when 5 =>                           -- convert PC_SEG:NEXT_PC to string
                                 if loop_index > 31 then
                                     string_reg(loop_index downto loop_index - 7)            -- get next digit of SEGMENT into string as ascii character
                                         <= to_hex_ascii(s_pcseg((loop_index - 31)/2 - 1 downto (loop_index - 31)/2 - 4));
@@ -476,14 +468,6 @@ begin
                                 end if;
 
                             when 6 =>                           -- print hex string to the LCD, character by character
-                                -- data_wr <= string_reg(loop_index downto loop_index - 7);    -- get next byte to print
-                                -- state <= SENDBYTE;                                          -- next state -> send the byte
-                                -- loop_index <= loop_index - 8;                               -- decrement loop index to next byte
-                                -- if (loop_index = 7) then                                    -- come back here to this step unless we're finished
-                                --     cmd_index <= 7;                                         -- come back here after last character, but to next step
-                                --     loop_index <= 12;                                       -- next up, print 13 spaces
-                                -- end if;
-
                                 if loop_index > 4 then
                                     data_wr <= string_reg(loop_index * 8 - 1 downto loop_index * 8 - 8);    -- get next byte of SEGMENT to print
                                 elsif loop_index = 4 then
@@ -495,10 +479,10 @@ begin
                                 loop_index <= loop_index - 1;                               -- decrement loop index to next byte
                                 if (loop_index = 0) then                                    -- come back here to this step unless we're finished
                                     cmd_index <= 7;                                         -- come back here after last character, but to next step
-                                    loop_index <= 11;                                       -- print 12 spaces
+                                    loop_index <= 10;                                       -- print 11 spaces
                                 end if;
 
-                            when 7 =>                           -- print 13 (now 12) spaces
+                            when 7 =>                           -- print 11 spaces
                                 data_wr <= x"20";                                           -- ascii for space
                                 state <= SENDBYTE;                                          -- next state -> send the byte
                                 loop_index <= loop_index - 1;                               -- decrement loop index

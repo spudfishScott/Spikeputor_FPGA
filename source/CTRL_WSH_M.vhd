@@ -84,10 +84,8 @@ entity CTRL_WSH_M is
             -- Control signals from Control Logic to RegFile
         WERF    : out std_logic;                                          -- Write Enable Register File - '1' to write to register file
         RBSEL   : out std_logic;                                          -- Register Channel B Select - '0' for OPB, '1' for OPC
-        WSEG    : out std_logic;                                          -- Write Segment signal
-        -- TODO: need two of these
-        -- WSEG_D  : out std_logic;
-        -- WSEG_P  : out std_logic;
+        WSEG_D  : out std_logic;
+        WSEG_P  : out std_logic;
         WDSEL   : out std_logic_vector(1 downto 0);                       -- Write Data Select - "01" for ALU, "00" for PC+2, "10" for Memory Read Data, "11" for Segment Register
         OPA     : out std_logic_vector(2 downto 0);                       -- Register Operand A
         OPB     : out std_logic_vector(2 downto 0);                       -- Register Operand B
@@ -135,10 +133,9 @@ begin
     MRDATA      <= MRDATA_reg;
     RWADDR      <= MEMRW_reg;
     RBSEL       <= '1' when INST_reg(9) = '1' AND (INST_REG(7 downto 6) = "11" OR INST_REG(8 downto 6) = "001") else '0'; -- RBSEL = '0' for OPB, '1' for OPC  - RBSEL is '1' for LDS, ST, STC, STS and JS instructions, else '0'
-    WSEG        <= '1' when  (INST_reg(9 downto 6) = "1111") else '0';      -- WSEG = 1 when writing to SEGMENT register, 0 otherwise
-    -- TODO: need two of these, one for data_seg, one for pc_seg
-    -- WSEG_D   <= '1' when (INST_reg(9 downto 6) = "1111") else '0';          -- WSEG_D = 1 when writing to DATA_SEGMENT register, 0 otherwise
-    -- WSEG_P   <= '1' when (INST_reg(9 downto 6) = "1001") else '0';          -- WSEG_P = 1 when writing to PC_SEGMENT register, 0 otherwise
+    -- WSEG        <= '1' when  (INST_reg(9 downto 6) = "1111") else '0';      -- WSEG = 1 when writing to SEGMENT register, 0 otherwise
+    WSEG_D   <= '1' when (INST_reg(9 downto 6) = "1111") else '0';          -- WSEG_D = 1 when writing to DATA_SEGMENT register, 0 otherwise
+    WSEG_P   <= '1' when (INST_reg(9 downto 6) = "1001") else '0';          -- WSEG_P = 1 when writing to PC_SEGMENT register, 0 otherwise
     WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command)
     WDSEL       <=  "11" when (INST_reg(9 downto 6) = "1110") else          -- Write Data Select:   use SEGMENT as Register Input for LDS instruction
                     "10" when (INST_reg(9 downto 6) = "1010") else                          --      use Memory Read Data as Register Input for LD instruction

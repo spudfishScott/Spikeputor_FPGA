@@ -28,10 +28,8 @@ entity CPU_WSH_M is
         M_TGD_O   : out std_logic_vector(1 downto 0);
 
         -- Direct Display Values
-        WSEG_DISP       : out std_logic;    
-        -- TODO: need two of these, one for segment_data and other for segment_pc
-        -- WSEG_D_DISP  : out std_logic;
-        -- WSEG_P_DISP  : out std_logic;
+        WSEG_D_DISP  : out std_logic;
+        WSEG_P_DISP  : out std_logic;
         INST_DISP       : out std_logic_vector(15 downto 0);
         CONST_DISP      : out std_logic_vector(15 downto 0);
         MDATA_DISP      : out std_logic_vector(16 downto 0);
@@ -59,16 +57,14 @@ end CPU_WSH_M;
 
 architecture Behavioral of CPU_WSH_M is
     -- Register File control signals
-    signal werf_out  : std_logic := '0';
-    signal wseg_out  : std_logic := '0';
-    -- TODO: need two of these, one for segment_data and other for segment_pc
-    -- wseg_d_out    : out std_logic;
-    -- Wseg_p_out    : out std_logic;
-    signal rbsel_out : std_logic := '0';
-    signal wdsel_out : std_logic_vector(1 downto 0) := (others => '0');
-    signal opa_out   : std_logic_vector(2 downto 0) := (others => '0');
-    signal opb_out   : std_logic_vector(2 downto 0) := (others => '0');
-    signal opc_out   : std_logic_vector(2 downto 0) := (others => '0');
+    signal werf_out   : std_logic := '0';
+    signal wseg_d_out : out std_logic;
+    signal wseg_p_out : out std_logic;
+    signal rbsel_out  : std_logic := '0';
+    signal wdsel_out  : std_logic_vector(1 downto 0) := (others => '0');
+    signal opa_out    : std_logic_vector(2 downto 0) := (others => '0');
+    signal opb_out    : std_logic_vector(2 downto 0) := (others => '0');
+    signal opc_out    : std_logic_vector(2 downto 0) := (others => '0');
 
     -- Special Registers
     signal const_out  : std_logic_vector(15 downto 0) := (others => '0');
@@ -113,10 +109,8 @@ architecture Behavioral of CPU_WSH_M is
 begin
 
     -- wire internal signals to display outputs
-    WSEG_DISP       <= wseg_out;
-    -- TODO: need two of these, one for segment_data and other for segment_pc
-    -- WSEG_D_DISP  <= wseg_d_out;
-    -- WSEG_P_DISP  <= wseg_p_out;
+    WSEG_D_DISP  <= wseg_d_out;
+    WSEG_P_DISP  <= wseg_p_out;
     INST_DISP       <= inst_out;
     CONST_DISP      <= const_out;
     MDATA_DISP      <= rbsel_out & mdata_sig;
@@ -186,10 +180,8 @@ begin
         RWADDR      => rwaddr_out,              -- address of memory r/w for display only
         -- Control signals from Control Logic to other modules
         WERF        => werf_out,                -- WERF output to REG_FILE
-        WSEG        => wseg_out,                -- WSEG output to SEGMENT register
-        -- TODO: make two of these, one for data and one for pc segment
-        -- WSEG_D   => wseg_d_out,
-        -- WSEG_P   => wseg_p_out,
+        WSEG_D   => wseg_d_out,
+        WSEG_P   => wseg_p_out,
         RBSEL       => rbsel_out,               -- RBSEL output to REG_FILE
         WDSEL       => wdsel_out,               -- WDSEL output to REG_FILE
         OPA         => opa_out,                 -- OPA output to REG_FILE

@@ -13,8 +13,7 @@ entity dotstar_driver is
         START        : in  std_logic;
 
         -- DotStar Signals in reverse display order
-        -- TODO: New SEGMENT register - now we have two - REGISTER_DATA and REGISTER_PC
-        SEGMENT      : in std_logic_vector(8 downto 0);   -- Segment register (to extend address bus), prepended  with WSEG           0
+        DATA_SEGMENT : in std_logic_vector(8 downto 0);   -- Data Segment register (to extend address bus), prepended with D_WSEG     0
         PC           : in std_logic_vector(16 downto 0);  -- Program Counter, prepended with JT signal (1 = jump, 0 = continue)       1
         MDATA        : in std_logic_vector(16 downto 0);  -- Memory Data, prepended with R/W signal (0 = read, 1 = write)             2
         CONST        : in std_logic_vector(15 downto 0);  -- Constant                                                                 3
@@ -41,6 +40,7 @@ entity dotstar_driver is
 
         GPO          : in std_logic_vector(15 downto 0);  -- General Purpose Output Register                                          22
         GPI          : in std_logic_vector(15 downto 0);  -- General Purpose Input                                                    23
+        PC_SEGMENT   : in std_logic_vector(8 downto 0);   -- PC Segment register (to extend address bus), prepended with P_WSEG       24
 
          -- OUTPUTS
         DATA_OUT     : out std_logic;
@@ -51,9 +51,9 @@ end dotstar_driver;
 
 architecture rtl of dotstar_driver is
 
-    constant NUM_SETS         : natural range 1 to 32 := 23;                                                      -- number of LED sets in the whole display array
+    constant NUM_SETS         : natural range 1 to 32 := 24;                                                      -- number of LED sets in the whole display array
     constant MAX_LEDS_PER_SET : natural range 1 to 64 := 28;                                                      -- max number of LEDs in each set (one more than actual so zero padding always works)
-    constant TOTAL_LEDS       : natural range 1 to 512 := 405;                                                     -- total number of LEDs (added the list above)
+    constant TOTAL_LEDS       : natural range 1 to 512 := 414;                                                     -- total number of LEDs (added the list above)
     constant EXTRA_LEDs       : natural range 0 to 511 := 432 - TOTAL_LEDS + 1;                                    -- extra LEDs to make total a multiple of 72 (for end of strip) - temporary (then fix MAX_LEDS_PER_SET = 22)
 
     constant START_BITS       : natural range 1 to 32 := 32;                                                      -- number of bits in start frame (all '0's)
@@ -150,6 +150,9 @@ begin
                         if set_index /= NUM_SETS+2 then             -- if not finished all LED sets + extra set for zero padding the end of the last strip
                             -- for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
                             case set_index is
+                                when 24 =>
+                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto PC_SEGMENT'length => '0') & PC_SEGMENT;
+                                    num_leds <= PC_SEGMENT'length;
                                 when 23 =>
                                     set_reg <= (MAX_LEDS_PER_SET-1 downto GPI'length => '0') & GPI;
                                     num_leds <= GPI'length;
@@ -220,8 +223,8 @@ begin
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto PC'length => '0') & PC;
                                     num_leds <= PC'length;
                                 when 0 =>
-                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto SEGMENT'length => '0') & SEGMENT;
-                                    num_leds <= SEGMENT'length;
+                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto DATA_SEGMENT'length => '0') & DATA_SEGMENT;
+                                    num_leds <= DATA_SEGMENT'length;
                                 when others =>
                                     set_reg  <= (others => '0');
                                     num_leds <= EXTRA_LEDs;  -- pad with extra LEDs to make total a multiple of 72
@@ -243,6 +246,20 @@ begin
 
                             -- Override color for specific cases
                             case set_index is
+                                when 24 =>
+                                    if led_index = 8 then
+                                        if set_reg(led_index) = '1' then
+                                            led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for P_WSEG = 1
+                                        end if;
+                                    elsif led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                        if set_reg(led_index) = '1' then
+                                            led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
+                                        else
+                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                        end if;
+                                    elsif set_reg(led_index) = '1' then
+                                        led_reg(COLOR_RANGE) <= x"000004";      -- PC_SEGMENT is all red LEDs
+                                    end if;
                                 when 23 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         led_reg(COLOR_RANGE) <= x"000400";          -- color GPI green
@@ -395,7 +412,7 @@ begin
                                 when 0 =>
                                     if led_index = 8 then
                                         if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for WSEG = 1
+                                            led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for D_WSEG = 1
                                         end if;
                                     elsif led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
                                         if set_reg(led_index) = '1' then
@@ -404,7 +421,7 @@ begin
                                             led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
                                         end if;
                                     elsif set_reg(led_index) = '1' then
-                                        led_reg(COLOR_RANGE) <= x"000004";      -- SEGMENT is all red LEDs
+                                        led_reg(COLOR_RANGE) <= x"000004";      -- DATA_SEGMENT is all red LEDs
                                     end if;
                                 when others =>
                                     null;  -- keep default NO_COLOR

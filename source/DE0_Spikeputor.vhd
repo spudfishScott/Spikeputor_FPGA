@@ -108,10 +108,8 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_gnt_sig : std_logic := '0';
 
     -- CPU display signals
-    signal wseg_out    : std_logic;
-    -- TODO: there will be two segment registers to write to
-    -- signal wseg_d_out : std_logic;
-    -- signal wseg_p_out : std_logic;
+    signal wseg_d_out : std_logic;
+    signal wseg_p_out : std_logic;
     signal inst_out    : std_logic_vector(15 downto 0) := (others => '0');
     signal const_out   : std_logic_vector(15 downto 0) := (others => '0');
     signal mdata_out   : std_logic_vector(16 downto 0) := (others => '0');
@@ -326,10 +324,8 @@ begin
             M_TGD_O         => cpu_tgd,                       -- Wishbone user data tag to write to one of the SEGMENT registers or to a normal memory address (0b01 = data segment register, 0b10 = pc segment register)
 
             -- Direct Display Values
-            WSEG_DISP       => wseg_out,    
-            -- TODO: there will be 2 signals for 2 segment registers to display
-            -- WSEGD_DISP      => wseg_d_out,
-            -- WSEGP_DISP      => wseg_p_out,
+            WSEGD_DISP      => wseg_d_out,
+            WSEGP_DISP      => wseg_p_out,
             INST_DISP       => inst_out,
             CONST_DISP      => const_out,
             MDATA_DISP      => mdata_out,
@@ -722,10 +718,8 @@ begin
             CONST       => const_out,                                                           -- bits: Constant (16 bits)
             MDATA       => mdata_out,                                                           -- bits: write flag, Memory read/write (16 bits)
             PC          => pc_out,                                                              -- bits: JT flag, Program Counter (16 bits)
-            SEGMENT     => wseg_out & DATA_SEGMENT,                                             -- bits: WSEG, SEGMENT register (8 bits)
-            -- TODO:
-            -- DATA_SEGMENT => wseg_d_out & DATA SEGMENT,
-            -- PC_SEGMENT   => wseg_p_out & PC_SEGMENT,
+            DATA_SEGMENT => wseg_d_out & DATA SEGMENT,                                          -- bits: D_WSEG, DATA_SEGMENT register (8 bits)
+            PC_SEGMENT   => wseg_p_out & PC_SEGMENT,                                            -- bits: P_WSEG, PC_SEGMENT register (8 bits)
             ALU_OUT     => alu_out,                                                             -- bits: ALU Output (16 bits)
             ALU_CMP     => alu_cmp_out,                                                         -- bits: compare function (2 bits), Z, V, N, Result, CMP selected
             ALU_SHIFT   => alu_sh_out,                                                          -- bits: shift dir, shift extend, shift result (16 bits), SHIFT selected
