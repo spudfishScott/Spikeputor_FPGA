@@ -375,24 +375,27 @@ begin
                                             end case;
                                     end case;
                                 else                                -- LD/ST/BR opcode
-                                    if (s_inst(15 downto 10) = "101010") then   -- JMP/LD/ST -- TODO: JS
+                                    if (s_inst(15 downto 10) = "101010") then   -- JMP/LD/ST/JS
+                                        no_rb <= true;
                                         case s_inst(8 downto 6) is      -- switching on Rb
                                             when "000" =>
                                                 string_reg <= x"204A4D502020";          -- " JMP  "
+                                            when "001" =>
+                                                string_reg <= x"20204A532020";          -- "  JS  "
                                             when "010" =>
                                                 string_reg <= x"20204C442020";          -- "  LD  "
-                                                no_rb <= true;
                                             when "011" =>
                                                 string_reg <= x"202053542020";          -- "  ST  "
-                                                no_rb <= true;
                                                 rc_first <= true;
                                             when others =>
                                                 string_reg <= x"3F3F3F3F3F3F";          -- "??????"
                                         end case;
-                                    elsif (s_inst(15 downto 11) = "01000") then -- JMPC/LDC/STC/BEQ/BNE/LDS/STS -- TODO: JSC
+                                    elsif (s_inst(15 downto 11) = "01000") then -- JMPC/LDC/STC/BEQ/BNE/LDS/STS/JSC
                                         case s_inst(8 downto 6) is
                                             when "000" =>
                                                 string_reg <= x"204A4D504320";          -- " JMPC "
+                                            when "001" =>
+                                                string_reg <= x"204A54422020";          -- " JSC  "
                                             when "010" =>
                                                 string_reg <= x"204C44432020";          -- " LDC  "
                                             when "011" =>
