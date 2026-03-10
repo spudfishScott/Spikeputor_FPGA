@@ -58,8 +58,8 @@ end CPU_WSH_M;
 architecture Behavioral of CPU_WSH_M is
     -- Register File control signals
     signal werf_out   : std_logic := '0';
-    signal wseg_d_out : out std_logic;
-    signal wseg_p_out : out std_logic;
+    signal wseg_d_out : std_logic := '0';
+    signal wseg_p_out : std_logic := '0';
     signal rbsel_out  : std_logic := '0';
     signal wdsel_out  : std_logic_vector(1 downto 0) := (others => '0');
     signal opa_out    : std_logic_vector(2 downto 0) := (others => '0');
@@ -137,7 +137,7 @@ begin
     REGIN_DISP      <= wdsel_out & regin_sig;
 
     -- these two intermediate signals are incorporated into the MDATA_DISP and PC_DISP outputs, above
-    mdata_sig       <= mrdata_out when (rbsel_out = '0' OR wseg_out = '1') else regb_out;       -- get mdata from memory read or write (rbsel = 1 AND wseg = 0 on ST commands only)
+    mdata_sig       <= mrdata_out when (rbsel_out = '0' OR wseg_d_out = '1') else regb_out;     -- get mdata from memory read or write (rbsel = 1 AND wseg = 0 on ST commands only)
 
     jt_sig          <= '1' when ((inst_out(9) = '1') AND                    -- Calculate value of JT flag (1 = jump, 0 = use pc_inc)
                                  ((inst_out(8 downto 6) = "000") OR                             -- unconditional jump (JMP)

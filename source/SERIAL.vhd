@@ -61,16 +61,16 @@ architecture Behavioral of SERIAL is
     signal tx_bit     : integer range 0 to 9 := 0;                          -- bit counter for transmitted data (10 bits: 1 start, 8 data, 1 stop)
     signal tx_shift   : std_logic_vector(9 downto 0) := (others => '1');    -- shift register to store data to be transmitted
 
-    TYPE SERBUF IS ARRAY(0 to 15) OF STD_LOGIC_VECTOR(7 DOWNTO 0);          -- sixteen byte buffer
+    TYPE SERBUF IS ARRAY(0 to 31) OF STD_LOGIC_VECTOR(7 DOWNTO 0);          -- sixteen (now 32) byte buffer
     SIGNAL ser_buffer        : SERBUF := (others => (others => '0'));       -- ring buffer for recieved bytes
-    SIGNAL buffer_head       : unsigned(3 downto 0) := (others => '0');     -- points to next position to write new key
-    SIGNAL buffer_tail       : unsigned(3 downto 0) := (others => '0');     -- points to next position to read key
+    SIGNAL buffer_head       : unsigned(4 downto 0) := (others => '0');     -- points to next position to write new key
+    SIGNAL buffer_tail       : unsigned(4 downto 0) := (others => '0');     -- points to next position to read key
     SIGNAL buffer_full       : std_logic := '0';                            -- flag if buffer is full
     SIGNAL overflow_s        : std_logic := '0';                            -- buffer overflow flag
-    SIGNAL rx_ready_s        : std_logic_vector(3 downto 0) := (others => '0');
+    SIGNAL rx_ready_s        : std_logic_vector(4 downto 0) := (others => '0');
 
 begin
-    RX_READY <= rx_ready_s;
+    RX_READY <= '0' if rx_ready_s = 0 else '1';
     RX_DATA <= ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
     
