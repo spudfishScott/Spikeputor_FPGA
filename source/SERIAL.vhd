@@ -61,14 +61,17 @@ architecture Behavioral of SERIAL is
     signal tx_bit     : integer range 0 to 9 := 0;                          -- bit counter for transmitted data (10 bits: 1 start, 8 data, 1 stop)
     signal tx_shift   : std_logic_vector(9 downto 0) := (others => '1');    -- shift register to store data to be transmitted
 
-    TYPE SERBUF IS ARRAY(0 to 15) OF STD_LOGIC_VECTOR(7 DOWNTO 0);          -- sixteen (now 32) byte buffer
-    SIGNAL ser_buffer        : SERBUF := (others => (others => '0'));       -- ring buffer for recieved bytes
-    SIGNAL buffer_head       : unsigned(3 downto 0) := (others => '0');     -- points to next position to write new key
-    SIGNAL buffer_tail       : unsigned(3 downto 0) := (others => '0');     -- points to next position to read key
+    -- TYPE SERBUF IS ARRAY(0 to 15) OF STD_LOGIC_VECTOR(7 DOWNTO 0);          -- sixteen (now 32) byte buffer
+    -- SIGNAL ser_buffer        : SERBUF := (others => (others => '0'));       -- ring buffer for recieved bytes
+    -- SIGNAL buffer_head       : unsigned(3 downto 0) := (others => '0');     -- points to next position to write new key
+    -- SIGNAL buffer_tail       : unsigned(3 downto 0) := (others => '0');     -- points to next position to read key
 
     SIGNAL buffer_full       : std_logic := '0';                            -- flag if buffer is full
     SIGNAL overflow_s        : std_logic := '0';                            -- buffer overflow flag
     SIGNAL rx_ready_s        : std_logic_vector(3 downto 0) := (others => '0');
+
+    SIGNAL buffer_head       : unsigned(8 downto 0) := (others => '0');
+    SIGNAL buffer_tail       : unsigned(8 downto 0) := (others => '0');
 
     SIGNAL buf_addr          : std_logic_vector(8 downto 0) := (others => '0');
     SIGNAL buf_data_in       : std_logic_vector(7 downto 0) := (others => '0');
@@ -94,7 +97,7 @@ begin
     );
 
     RX_READY <= rx_ready_s;
-    RX_DATA  <= ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
+    RX_DATA  <= rx_data_out; --ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
     
     baud_s <= BAUD when RST = '0' else DEFAULT_BAUD;
@@ -138,13 +141,24 @@ begin
                 buffer_tail <= (others => '0');
                 buffer_full <= '0';
                 overflow_s  <= '0';
+                rx_data_out <= (others => '0');
 
             else
                 if buffer_full = '0' then   -- current number of bytes on the buffer
-                    rx_ready_s <= std_logic_vector(buffer_head - buffer_tail);
+                    if buffer_head - buffer_tail = 0 then
+                        rx_ready_s <= "0000";
+                    else
+                        rx_ready_s <= "0001";
                 else 
-                    rx_ready_s <= x"F";     -- 0xF when buffer is full even though difference = 0
+                    rx_ready_s <= x"F";     -- 0xF when buffer is full even though difference may be 0
                 end if;
+
+                if buf_wr = '0' AND tx_state /= RX_STOP then
+                    rx_data_out <= buf_data_out;            -- expose the topmost data item in the buffer if not writing to it
+                    buf_addr    <= std_logic_vector(buffer_tail);   -- default buffer address is buffer tail
+                end if;
+
+                buf_wr      <= '0';                             -- reset buffer write each cycle
 
                 if CMD = '1' then                           -- if CMD is high, latch in new baud rate and flush buffer
                     bit_period <= baud_period;  -- set baud period based on current baud value
@@ -161,6 +175,7 @@ begin
                         if (buffer_tail /= buffer_head OR buffer_full = '1') then
                             buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
                             buffer_full <= '0';                 -- buffer can no longer be full (unless we're also recieving, see below)
+                            buf_addr    <= std_logic_vector(buffer_tail + 1);  -- set new buffer address
                         end if;
                     end if;
 
@@ -194,10 +209,15 @@ begin
                             end if;
 
                         when RX_STOP =>
+                            if rx_cnt = 1 then
+                                buf_addr    <= buffer_head;     -- set up buffer address one cycle before time to write
+                            end if;
                             if rx_cnt = 0 then                  -- wait for counter to expire
                                 rx_state <= RX_IDLE;            -- go back to idle state when it does - even if no stop bit detected
                                 if rx_ser_s = '1' then          -- check for stop bit (should be high)
-                                    ser_buffer(to_integer(buffer_head)) <= rx_shift;    -- latch data into the buffer
+                                    buf_data_in <= rx_shift;
+                                    buf_wr      <= '1';         -- might have to do this on next clock pulse - see if it works
+                                --    ser_buffer(to_integer(buffer_head)) <= rx_shift;    -- latch data into the buffer
                                     buffer_head <= buffer_head + 1; -- always increment buffer_head when adding to buffer
 
                                      -- logic is different if RX_NEXT is being strobed or not
