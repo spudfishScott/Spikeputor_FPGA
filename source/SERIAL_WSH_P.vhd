@@ -159,8 +159,8 @@ begin
                             null;
                     end case;
                 else                                                        -- read: strobe rx_next_s to get next item from buffer, if any
-                    data_out <= rx_ready_s & status & rx_data_s;        -- latch in the output data
-                    if rx_ready_s /= x"0" then                             -- if there's data in the buffer, get the next item
+                    data_out <= rx_ready_s & status & rx_data_s;            -- latch in the output data
+                    if rx_ready_s /= x"0" then                              -- if there's data in the buffer, get the next item
                         rx_next_s <= '1';
                     end if;
                 end if;

@@ -43,17 +43,18 @@ USE altera_mf.altera_mf_components.all;
 ENTITY RAM IS
     GENERIC (
         NUM_WORDS   : INTEGER := 16384;          -- 32K bytes = 16K words of 16 bits each
-        ADDR_WIDTH  : INTEGER := 14              -- 14 bits to address 16K words
+        ADDR_WIDTH  : INTEGER := 14;             -- 14 bits to address 16K words
+        DATA_WIDTH  : INTEGER := 16              -- 16 bits words each
     );
 
     PORT (
         CLOCK       : IN STD_LOGIC  := '1';
 
         ADDRESS     : IN STD_LOGIC_VECTOR (ADDR_WIDTH-1 DOWNTO 0);
-        DATA        : IN STD_LOGIC_VECTOR (15 DOWNTO 0);
+        DATA        : IN STD_LOGIC_VECTOR (DATA_WIDTH-1 DOWNTO 0);
         WREN        : IN STD_LOGIC  := '0';
 
-        Q           : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
+        Q           : OUT STD_LOGIC_VECTOR (DATA_WIDTH-1 DOWNTO 0)
     );
 END RAM;
 
@@ -75,7 +76,7 @@ BEGIN
         power_up_uninitialized          => "FALSE",
         read_during_write_mode_port_a   => "NEW_DATA_NO_NBE_READ",
         widthad_a                       => ADDR_WIDTH,
-        width_a                         => 16,
+        width_a                         => DATA_WIDTH,
         width_byteena_a                 => 1
     )
     PORT MAP (
