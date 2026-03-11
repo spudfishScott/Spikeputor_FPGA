@@ -70,6 +70,8 @@ architecture Behavioral of SERIAL is
     SIGNAL buffer_tail       : unsigned(8 downto 0) := (others => '0');
 
     SIGNAL buf_updating      : std_logic := '0';
+    SIGNAL next_req          : std_logic := '0';
+
     SIGNAL buf_addr          : std_logic_vector(8 downto 0) := (others => '0');
     SIGNAL buf_data_in       : std_logic_vector(7 downto 0) := (others => '0');
     SIGNAL buf_wr            : std_logic := '0';
@@ -93,8 +95,8 @@ begin
         q         => buf_data_out
     );
 
-    RX_READY <= rx_ready_s;
-    RX_SIZE  <= std_logic_vector(buffer_tail - buffer_head) when buffer_full = '0' else (others => '1');
+    RX_READY <= rx_ready_s when buf_updating = '0' else '0';    -- always not ready when buffer is updating
+    RX_SIZE  <= std_logic_vector(buffer_head - buffer_tail) when buffer_full = '0' else (others => '1');
     RX_DATA  <= rx_data_out; --ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
     
@@ -141,15 +143,10 @@ begin
                 overflow_s  <= '0';
                 rx_data_out <= (others => '0');
                 rx_ready_s  <= '0';
+                next_req <= '0';
 
             else
                 buf_wr      <= '0';                             -- reset buffer write each cycle
-
-                -- update buffer output if needed
-                if buf_updating = '1' then
-                    rx_data_out <= buf_data_out;    -- latch data out if updating
-                    buf_updating <= '0';            -- clear updating flag, next cycle will update buffer_ready
-                end if;
                 
                 -- update buffer ready
                 if buffer_full = '0' then
@@ -173,13 +170,22 @@ begin
                         overflow_s  <= '0';
                     end if;
                 else
-                    if RX_NEXT = '1' then    -- if RX_NEXT is high and there's data on the buffer, increment buffer_tail to next position and get data fro buffer
-                        if (buffer_tail /= buffer_head OR buffer_full = '1') then
-                            buf_addr    <= std_logic_vector(buffer_tail + 1);  -- set new buffer address
-                            buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
-                            buffer_full <= '0';                 -- buffer can no longer be full (unless we're also recieving, see below)
-                            buf_updating <= '1';                -- set updating so new data will be latched in next cycle
-                            rx_ready_s <= '0';                  -- next buffer item is not ready yet
+                    if RX_NEXT = '1' then    -- if RX_NEXT is high, latch in next_request
+                        next_req <= '1';
+                    end if;
+
+                    if (RX_NEXT = '1' OR next_req = '1') then
+                        if buf_updating = '1' then
+                            rx_data_out <= buf_data_out;    -- latch buffer data out
+                            buf_updating <= '0';            -- clear updating flag
+                            next_req <= '0';                -- clear next request flag
+                        elsif (buffer_tail /= buffer_head OR buffer_full = '1') then
+                                buf_addr    <= std_logic_vector(buffer_tail + 1);  -- set new buffer address
+                                buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
+                                buffer_full <= '0';                 -- buffer can no longer be full (unless we're also recieving, see below)
+                                buf_updating <= '1';                -- set updating so new data will be latched in next cycle
+                        else        -- nothing to read, request is over
+                            next_req <= 0;
                         end if;
                     end if;
 
