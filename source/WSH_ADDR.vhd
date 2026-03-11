@@ -13,11 +13,16 @@
 --  GPI (P3)        read only location 0xFFF2 - writing goes nowhere
 --  SOUND (P4)      read/write to sound processor - locations 0xFFF5-0xFFF8 (four addresses, one per voice, for note, octave, and waveform control)
 --  VIDEO (P5)      read/write to video coprocessor - 0xFF00 - 0xFFDF
---  SERIAL (P6)     serial in/serial out - 0xFFF3
---  STORAGE (P7)    read/write to SD card filesystem - 0xFFF4
+--  SERIAL (P6)     serial in/serial out - 0xFFF3 (TODO: second address for bytes in buffer?)
+--  STORAGE (P7)    read/write to SD card filesystem - 0xFFF4 (TODO: second address for bytes in buffer)
 --  KEYBOARD (P8)   read keyboard input buffer 0xFFF0 (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which is used to expand the total amount of RAM available
 --  MATH (P11)      floating point unit - 0xFFE0 - 0xFFE7
+-- TODO DE0 Board I/O (P12): 
+    -- 0xFFF9 - status of switches on buttons - read only
+    -- 0xFFFA - number on 7 segment display
+    -- 0xFFFB - four bits per 7 segment display bit 0: digit on/off, bit 1: decimal point on/off, bit 2: replace digit with '-' sign, bit 3: replace digit with º sign
+    -- 0xFFFC - bottom 10 bits for on-board LEDs
 
 -- Outputs are:
 --  Individual provider select signals, which go to provider STB_I inputs

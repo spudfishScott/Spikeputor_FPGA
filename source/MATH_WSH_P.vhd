@@ -23,7 +23,7 @@
     -- 0xFFE4 - Input B Low Word  (when needed - use for INTMUL and INTDIV)
     -- 0xFFE5 - Output High Word (read only)
     -- 0xFFE6 - Output Low Word (read only)
-    -- 0xFFE7 - INTDIV Remainder Output (read only)
+    -- 0xFFE7 - INTDIV Remainder (MOD) Output (read only)
 
     -- Usage:
         -- Store A high in 0xFFE1
@@ -31,7 +31,7 @@
         -- Store B high (if used) in 0xFFE3
         -- Store B low (if used) in 0xFFE4
         -- Store Function in 0xFFE0
-        -- Poll 0xFFE0 until 0 (up to 30 cycles and as few as 0, depending on the function)
+        -- Poll 0xFFE0 until 0 (up to 16 cycles and as few as 0, depending on the function)
         -- Read result high from 0xFFE5
         -- Read result low from 0xFFE6
         -- Read INTDIV remainder from 0xFFE7
@@ -169,7 +169,7 @@ begin
                                 when others =>
                                     busy <= 0;              -- undefined functions produce 0 immediately
                             end case;
-                        -- Only allow writes to inputs if not busy or result will not make sense (until/if data pipelining is implemented)
+                        -- Only allow writes to inputs if not busy or result will not make sense
                         when "0001" =>      -- 0xFFE1 = Input A High
                             if busy = 0 then
                                 input_a(31 downto 16) <= WBS_DATA_I;            -- latch Input A High word
