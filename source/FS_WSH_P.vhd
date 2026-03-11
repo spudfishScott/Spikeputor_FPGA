@@ -152,10 +152,10 @@ begin
                 tx_load_s   <= '0';
             end if;
 
-                command     <= '0';                             -- set these signal to '0' for strobe
-                flush       <= '0';
-                rx_next_s   <= '0';
-                tx_load_s   <= '0';
+            command     <= '0';                             -- set these signal to '0' for strobe
+            flush       <= '0';
+            rx_next_s   <= '0';
+            tx_load_s   <= '0';
 
             if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
                 ack <= '1';
@@ -192,7 +192,7 @@ begin
                         end if;
                     end if;
                 end if;
-                
+
             elsif (WBS_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
                 ack <= '0';                 -- reset internal ack signal when that happens
             end if;
