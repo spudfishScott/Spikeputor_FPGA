@@ -1,6 +1,6 @@
 -- FILESYSTEM SERIAL Wishbone Interface Provider
--- Identical to the SERIAL except it includes a nRESET pin interface
--- single memory register is 0xFFF4
+-- Identical to the SERIAL except it includes a nRESET pin interface and address logic is inverted
+-- memory register is 0xFFF4
     -- WRITE:
         -- High Byte: COMMAND
             -- 0x00:    READ/WRITE      - send and receive the low byte via the serial interface
@@ -28,10 +28,12 @@
             --                  0xF     <unused>
     -- READ:
         -- High Byte: STATUS
-            -- High Nybble      Number of bytes available to read from the ring buffer
+            -- High Nybble      x"F" = byte is ready to read, 0 = nothing to read yet
             -- Low Nybble       Current Baud Rate, 0x0 if still transmitting, or 0xF if ring buffer has overflowed (entire byte will be 0xFF)
         -- Low Byte: DATA received from the serial port 
             -- If no data is available, this will read as 0x00, but the high nybble of the status signal should be used to check if data is actually available before reading
+-- memory register 0xFFFF:
+    -- READ only: number of bytes available in ring buffer
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -55,7 +57,7 @@ entity FS_WSH_P is
         WBS_ACK_O   : out std_logic;
 
         -- memory read/write signals
-        WBS_ADDR_I  : in std_logic_vector(23 downto 0);     -- lsb is ignored, but it is still part of the address bus
+        WBS_ADDR_I  : in std_logic_vector(23 downto 0);
         WBS_DATA_O  : out std_logic_vector(15 downto 0);    -- data output to master
         WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
         WBS_WE_I    : in std_logic;                         -- write enable input - when high, master is writing, when low, master is reading
@@ -75,7 +77,8 @@ architecture rtl of FS_WSH_P is
     signal command       : std_logic := '0';                                     -- strobe to set baud rate and/or flush buffer
 
     signal rx_data_s     : std_logic_vector(7 downto 0) := (others => '0');      -- received byte
-    signal rx_ready_s    : std_logic_vector(3 downto 0) := (others => '0');      -- number of bytes available in ring buffer
+    signal rx_ready_s    : std_logic := '0';                                     -- byte is ready to read
+    signal rx_size_s     : std_logic_vector(8 downto 0) := (others => '0');      -- number of bytes in buffer
     signal rx_next_s     : std_logic := '0';                                     -- strobe for each byte read from buffer (if bytes in buffer > 0)
     signal rx_overflow_s : std_logic := '0';                                     -- ring buffer overflow flag
 
@@ -108,6 +111,7 @@ begin
         RX_SERIAL   => RX_SERIAL,
         RX_DATA     => rx_data_s,
         RX_READY    => rx_ready_s,
+        RX_SIZE     => rx_size_s,
         RX_NEXT     => rx_next_s,
         RX_OVERFLOW => rx_overflow_s,
 
@@ -156,33 +160,38 @@ begin
             if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then     -- wait for wishbone transaction to start
                 ack <= '1';
                 if (WBS_WE_I = '1') then                                    -- write: take action
-                    case WBS_DATA_I(15 downto 8) is                         -- get top byte of data
-                        when x"00" =>       -- 0x00 = write data
-                            if tx_busy_s = '0' then -- only start writing if transmission is not currently happening, otherwise do nothing
-                                tx_data_s <= WBS_DATA_I(7 downto 0);        -- latch in data to be sent
-                                tx_load_s <= '1';                           -- strobe tx load to send that data
-                            end if;
+                    if WBS_ADDR_I(0) = '0' then                 -- only write if address in 0xFFF4, not 0xFFFF
+                        case WBS_DATA_I(15 downto 8) is                         -- get top byte of data
+                            when x"00" =>       -- 0x00 = write data
+                                if tx_busy_s = '0' then -- only start writing if transmission is not currently happening, otherwise do nothing
+                                    tx_data_s <= WBS_DATA_I(7 downto 0);        -- latch in data to be sent
+                                    tx_load_s <= '1';                           -- strobe tx load to send that data
+                                end if;
 
-                        when x"01" =>       -- 0x01 = Flush Buffer
-                            flush   <= '1';         -- strobe FLUSH flag
-                            command <= '1';         -- strobe command
+                            when x"01" =>       -- 0x01 = Flush Buffer
+                                flush   <= '1';         -- strobe FLUSH flag
+                                command <= '1';         -- strobe command
 
-                        when x"80" =>       -- 0x80 = Set Baud Rate
-                            baud_rate <= WBS_DATA_I(3 downto 0);            -- latch in baud rate to set
-                            command   <= '1';                               -- strobe command to set the rate
+                            when x"80" =>       -- 0x80 = Set Baud Rate
+                                baud_rate <= WBS_DATA_I(3 downto 0);            -- latch in baud rate to set
+                                command   <= '1';                               -- strobe command to set the rate
 
-                        when others =>                                      -- otherwise do nothing
-                            null;
-                    end case;
+                            when others =>                                      -- otherwise do nothing
+                                null;
+                        end case;
+                    end if;
                 else                                                        -- read: strobe rx_next_s to get next item from buffer, if any
-                    data_out <= rx_ready_s & status & rx_data_s;        -- latch in the output data
-                    if rx_ready_s /= x"0" then                             -- if there's data in the buffer, get the next item
-                        rx_next_s <= '1';
+                    if WBS_ADDR_I(0) = '1' then                             -- if address is 0xFFFF, output number of bytes in buffer (zero padded hi bits)
+                        data_out <= (15 downto 9 => '0') & rx_size_s;
+                    else                                                    -- else output the current rx_ready/status/data and if ready, update the buffer
+                        if rx_ready_s = '1' then                                -- latch in the output data
+                            data_out <= x"F" & status & rx_data_s;
+                            rx_next_s <= '1';
+                        else
+                            data_out <= x"0" & status & rx_data_s;
+                        end if;
                     end if;
                 end if;
-
-            elsif (WBS_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
-                ack <= '0';                 -- reset internal ack signal when that happens
             end if;
         end if;
     end process;

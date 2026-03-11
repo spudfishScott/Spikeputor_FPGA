@@ -25,7 +25,8 @@ entity SERIAL is
 
         RX_SERIAL   : in  std_logic;                     -- Serial data input
         RX_DATA     : out std_logic_vector(7 downto 0);  -- Received byte output
-        RX_READY    : out std_logic_vector(3 downto 0);  -- Number of bytes available on the buffer
+        RX_READY    : out std_logic_vector;              -- Next byte is ready to be read
+        RX_SIZE     : out std_logic_vector(8 downto 0);  -- Number of bytes in the buffer
         RX_NEXT     : in std_logic;                      -- strobe to recieve a byte if available
         RX_OVERFLOW : out std_logic;                     -- set if the ring buffer overflows
 
@@ -63,7 +64,7 @@ architecture Behavioral of SERIAL is
 
     SIGNAL buffer_full       : std_logic := '0';                            -- flag if buffer is full
     SIGNAL overflow_s        : std_logic := '0';                            -- buffer overflow flag
-    SIGNAL rx_ready_s        : std_logic_vector(3 downto 0) := (others => '0');
+    SIGNAL rx_ready_s        : std_logic;
 
     SIGNAL buffer_head       : unsigned(8 downto 0) := (others => '0');
     SIGNAL buffer_tail       : unsigned(8 downto 0) := (others => '0');
@@ -93,6 +94,7 @@ begin
     );
 
     RX_READY <= rx_ready_s;
+    RX_SIZE  <= std_logic_vector(buffer_tail - buffer_head) when buffer_full = '0' else (others => '1');
     RX_DATA  <= rx_data_out; --ser_buffer(to_integer(buffer_tail));                         -- current RX data is pointed to by buffer_tail index
     RX_OVERFLOW <= overflow_s;
     
@@ -138,6 +140,7 @@ begin
                 buffer_full <= '0';
                 overflow_s  <= '0';
                 rx_data_out <= (others => '0');
+                rx_ready_s  <= '0';
 
             else
                 buf_wr      <= '0';                             -- reset buffer write each cycle
@@ -151,12 +154,12 @@ begin
                 -- update buffer ready
                 if buffer_full = '0' then
                     if buffer_head = buffer_tail then   -- 0 if nothing in the buffer, 1 if something
-                        rx_ready_s <= "0000";
+                        rx_ready_s <= '0';
                     else
-                        rx_ready_s <= "0001";
+                        rx_ready_s <= '1';
                     end if;
                 else 
-                    rx_ready_s <= x"F";     -- 0xF when buffer is full
+                    rx_ready_s <= '1';                  -- 1 when buffer is full
                 end if;
 
                 if CMD = '1' then                           -- if CMD is high, latch in new baud rate and flush buffer
@@ -165,7 +168,6 @@ begin
                     if FLUSH = '1' then         -- flush input buffer, clear buffer output, and clear overflow error
                         buffer_head <= (others => '0');
                         buffer_tail <= (others => '0');
-                      --  ser_buffer  <= (others => (others => '0'));
                         buffer_full <= '0';
                         rx_data_out <= (others => '0');
                         overflow_s  <= '0';
@@ -177,7 +179,7 @@ begin
                             buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
                             buffer_full <= '0';                 -- buffer can no longer be full (unless we're also recieving, see below)
                             buf_updating <= '1';                -- set updating so new data will be latched in next cycle
-                            rx_ready_s <= "0000";               -- next buffer item is not ready yet
+                            rx_ready_s <= '0';                  -- next buffer item is not ready yet
                         end if;
                     end if;
 
@@ -219,7 +221,6 @@ begin
                                 if rx_ser_s = '1' then          -- check for stop bit (should be high)
                                     buf_data_in <= rx_shift;    -- latch new data into data_in
                                     buf_wr      <= '1';         -- strobe wr to write it
-                                --    ser_buffer(to_integer(buffer_head)) <= rx_shift;    -- latch data into the buffer
                                     buffer_head <= buffer_head + 1; -- always increment buffer_head when adding to buffer
 
                                      -- logic is different if RX_NEXT is being strobed or not

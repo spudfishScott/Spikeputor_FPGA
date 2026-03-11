@@ -13,8 +13,8 @@
 --  GPI (P3)        read only location 0xFFF2 - writing goes nowhere
 --  SOUND (P4)      read/write to sound processor - locations 0xFFF5-0xFFF8 (four addresses, one per voice, for note, octave, and waveform control)
 --  VIDEO (P5)      read/write to video coprocessor - 0xFF00 - 0xFFDF
---  SERIAL (P6)     serial in/serial out - 0xFFF3 (TODO: second address for bytes in buffer?)
---  STORAGE (P7)    read/write to SD card filesystem - 0xFFF4 (TODO: second address for bytes in buffer)
+--  SERIAL (P6)     serial in/serial out, buffer length - 0xFFF3, 0xFFFE
+--  STORAGE (P7)    read/write to SD card filesystem, buffer length - 0xFFF4, 0xFFFF
 --  KEYBOARD (P8)   read keyboard input buffer 0xFFF0 (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which is used to expand the total amount of RAM available
 --  MATH (P11)      floating point unit - 0xFFE0 - 0xFFE7
@@ -66,8 +66,6 @@ architecture RTL of WSH_ADDR is
     constant KEYBOARD_ADDR  : std_logic_vector(7 downto 0) := x"F0"; -- keyboard address - read only
     constant GPO_ADDR       : std_logic_vector(7 downto 0) := x"F1"; -- GPO address - read/write
     constant GPI_ADDR       : std_logic_vector(7 downto 0) := x"F2"; -- GPI address - read only
-    constant SER_ADDR       : std_logic_vector(7 downto 0) := x"F3"; -- SERIAL address - read/write
-    constant FSSER_ADDR     : std_logic_vector(7 downto 0) := x"F4"; -- STORAGE address - read/write
     -- Video and Math use ranges which are addressed in the 'math' and 'video' logic below
 
 -- sound - use VGA output for sound? three voices, 4-bits each. So one address for volume and waveform control of all three voices, one address for frequency control for each voice - 4 total
@@ -80,6 +78,8 @@ architecture RTL of WSH_ADDR is
     signal math    : std_logic := '0';                                  -- math flag
     signal video   : std_logic := '0';                                  -- video flag
     signal audio   : std_logic := '0';                                  -- audio flag
+    signal serial  : std_logic := '0';                                  -- serial flag
+    signal fs_ser  : std_logic := '0';                                  -- gile system serial flag
     signal sdram_e : std_logic := '0';                                  -- sdram selected
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
@@ -115,6 +115,18 @@ begin
             '1' when x"F5" to x"F8",
             '0' when others;
 
+    with addr_l select
+        serial <=
+            '1' when x"F3",
+            '1' when x"FE",
+            '0' when others;
+
+    with addr_l select
+        fs_ser <=
+            '1' when x"F4",
+            '1' when x"FF",
+            '0' when others;
+
     -- assign p_sel based on addressing logic described above
     p_sel <=    9 when TGD_I /= "00" AND WE_I = '1'                                       -- write to SEGMENTS when TGD and WE are set, preempts all others
         else    0 when ram_e = '1'                                                        -- standard RAM
@@ -123,8 +135,8 @@ begin
         else    3 when spec = '1' AND addr_l = GPI_ADDR                                   -- read only GPI
         else    4 when spec = '1' AND audio = '1'                                         -- read/write AUDIO
         else    5 when spec = '1' AND video = '1'                                         -- VIDEO coprocessor if address matches video range (0xFF00 - 0xFFDF)
-        else    6 when spec = '1' AND addr_l = SER_ADDR                                   -- read/write SERIAL
-        else    7 when spec = '1' AND addr_l = FSSER_ADDR                                 -- read/write STORAGE (via Filesystem Serial)
+        else    6 when spec = '1' AND serial = '1'                                        -- read/write SERIAL
+        else    7 when spec = '1' AND fs_ser = '1'                                        -- read/write STORAGE (via Filesystem Serial)
         else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR                              -- read only KEYBOARD
         else   11 when spec = '1' AND math = '1'                                          -- MATH coprocessor if address matches math range (0xFFE0 - 0xFFE7)
         else   10 when sdram_e = '1'                                                      -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
