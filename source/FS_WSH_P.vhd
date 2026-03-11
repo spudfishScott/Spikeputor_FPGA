@@ -192,6 +192,9 @@ begin
                         end if;
                     end if;
                 end if;
+                
+            elsif (WBS_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
+                ack <= '0';                 -- reset internal ack signal when that happens
             end if;
         end if;
     end process;

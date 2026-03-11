@@ -25,7 +25,7 @@ entity SERIAL is
 
         RX_SERIAL   : in  std_logic;                     -- Serial data input
         RX_DATA     : out std_logic_vector(7 downto 0);  -- Received byte output
-        RX_READY    : out std_logic_vector;              -- Next byte is ready to be read
+        RX_READY    : out std_logic;                     -- Next byte is ready to be read
         RX_SIZE     : out std_logic_vector(8 downto 0);  -- Number of bytes in the buffer
         RX_NEXT     : in std_logic;                      -- strobe to recieve a byte if available
         RX_OVERFLOW : out std_logic;                     -- set if the ring buffer overflows
