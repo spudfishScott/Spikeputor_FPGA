@@ -63,20 +63,17 @@ architecture Behavioral of SERIAL is
     signal tx_shift   : std_logic_vector(9 downto 0) := (others => '1');    -- shift register to store data to be transmitted
 
     SIGNAL buffer_full       : std_logic := '0';                            -- flag if buffer is full
-	 SIGNAL buffer_empty   : std_logic := '1';
+    SIGNAL buffer_empty      : std_logic := '1';                            -- flag if buffer is empty
     SIGNAL overflow_s        : std_logic := '0';                            -- buffer overflow flag
     SIGNAL rx_ready_s        : std_logic;
 
     SIGNAL buffer_head       : unsigned(8 downto 0) := (others => '0');
     SIGNAL buffer_tail       : unsigned(8 downto 0) := (others => '0');
 
-    -- SIGNAL buf_updating      : std_logic := '0';
-
     SIGNAL buf_addr          : std_logic_vector(8 downto 0) := (others => '0');
     SIGNAL buf_data_in       : std_logic_vector(7 downto 0) := (others => '0');
     SIGNAL buf_wr            : std_logic := '0';
     SIGNAL buf_data_out      : std_logic_vector(7 downto 0) := (others => '0');
-  --  SIGNAL rx_data_out       : std_logic_vector(7 downto 0) := (others => '0');
 
 begin
 
@@ -137,18 +134,17 @@ begin
                 rx_state    <= RX_IDLE;                     -- reset state machine
                 rx_shift    <= (others => '1');             -- reset shift register
                 bit_period  <= baud_period;                 -- reset bit_period to default baud rate
-                buffer_head <= (others => '0');             -- flush input buffer
+
+                buffer_head <= (others => '0');             -- flush input buffer and clear flags, mark buffer as empty
                 buffer_tail <= (others => '0');
                 buffer_full <= '0';
                 overflow_s  <= '0';
-                -- rx_data_out <= (others => '0');
                 rx_ready_s  <= '0';
                 buf_wr <= '0';
                 buf_addr <= (others => '0');
-					 buffer_empty <= '1';
+                buffer_empty <= '1';
             else
-                -- update buffer valid signal
-                -- if (buffer_head /= buffer_tail OR buffer_full = '1') AND buf_updating = '0' AND rx_state /= RX_BUFWRITE then
+                -- update buffer valid signal - valid when buffer is not empty, but invalid when buffer is being updated
                 if buffer_empty = '0' AND rx_state /= RX_BUFWRITE then
                     rx_ready_s <= '1';
                 else
@@ -158,36 +154,30 @@ begin
                 if CMD = '1' then                           -- if CMD is high, latch in new baud rate and flush buffer if requested
                     bit_period <= baud_period;  -- set baud period based on current baud value
 
-                    if FLUSH = '1' then         -- flush input buffer, clear buffer output, and clear overflow error
+                    if FLUSH = '1' then         -- flush input buffer, clear buffer output, and clear overflow error and flags, mark buffer as empty
                         buffer_head <= (others => '0');
                         buffer_tail <= (others => '0');
                         buffer_full <= '0';
-								buffer_empty <= '1';
+                        buffer_empty <= '1';
                         buf_addr <= (others => '0');
-                        -- rx_data_out <= (others => '0');
                         overflow_s  <= '0';
-                        -- buf_updating <= '0';
                         buf_wr <= '0';
                     end if;
                 else
-						if rx_state /= RX_BUFWRITE then
-							buf_addr <= std_logic_vector(buffer_tail);
-						end if;
-                    -- if (RX_NEXT = '1' OR buf_updating = '1') then   -- first or second time through
+
+                    -- update the buffer address based on buffer_tail unless buffer is being written to
+                    if rx_state /= RX_BUFWRITE then
+                        buf_addr <= std_logic_vector(buffer_tail);
+                    end if;
+
                     if RX_NEXT = '1' then
                         rx_ready_s <= '0';                  -- invalidate data for this cycle until buffer_tail is handled
-                        -- if buf_updating = '1' then
-                        --     rx_data_out <= buf_data_out;    -- latch buffer data out
-                        --     buf_updating <= '0';            -- clear updating flag
-                        -- elsif (buffer_tail /= buffer_head OR buffer_full = '1') then    -- start getting buffer data from buffer
                         if (buffer_tail /= buffer_head OR buffer_full = '1') then
-                                -- buf_addr    <= std_logic_vector(buffer_tail);  -- set new buffer address
-                                buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
-                          --      buf_addr     <= std_logic_vector(buffer_tail + 1);  -- set current buffer address
-                                buffer_full <= '0';                 -- buffer can no longer be full (unless we're also recieving, see below)
-                                -- buf_updating <= '1';                -- set updating so buffer data will be read and latched in next cycle
-								else
-									buffer_empty <= '1';
+                            buffer_tail <= buffer_tail + 1;     -- increment buffer_tail with automatic wrap-around
+                            buffer_full <= '0';                 -- buffer can no longer be full (unless we're also recieving, see below)
+                            if (buffer_tail + 1 = buffer_head) then
+                                buffer_empty <= '1';            -- mark buffer as empty when the last item at the tail of the buffer has been read and now tail = head
+                            end if;
                         end if;
                     end if;
 
@@ -243,30 +233,32 @@ begin
                                     buf_wr      <= '1';             -- strobe wr to write it
                                 else
                                     buf_wr <= '0';                                    -- clear write flag
-												buffer_empty <= '0';
+                                    buffer_empty <= '0';                              -- set buffer as not empty
                                     buf_addr     <= std_logic_vector(buffer_tail);    -- set current buffer address for reading
                                     rx_state <= RX_IDLE;                              -- return to idle state
-												    -- logic is different if RX_NEXT is being strobed or not
+                                    
+                                    -- edge case logic - different if RX_NEXT is being strobed or not
                                     if RX_NEXT = '0' then       -- logic for RX_NEXT = '0'
-                                        if (buffer_head = buffer_tail) then
-                                            buffer_full <= '1';         -- buffer will be full after this
-                                            if (buffer_full = '1') then
+                                        if (buffer_head = buffer_tail) then -- advanced buffer head has collided with tail
+                                            buffer_full <= '1';             -- buffer will be full after this
+                                            if (buffer_full = '1') then     -- buffer was already full, so overflow!
                                                 overflow_s <= '1';              -- latch overflow signal if adding to an already full buffer
                                                 buffer_tail <= buffer_tail + 1; -- buffer overflow, new data coming in erases old data
                                             end if;
                                         end if;
-                                    else                        -- logic for RX_NEXT = '1'
-                                        if (buffer_tail /= buffer_head- 1) then
-                                            buffer_tail <= buffer_tail + 1;     -- increment both tail and head
+                                    else                        -- logic for RX_NEXT = '1' - buffer is being read at the same time it was being written to
+                                        if (buffer_tail /= buffer_head - 1) then
+                                            buffer_tail <= buffer_tail + 1;     -- increment both tail and head if they started equal
                                         else
-                                            if (buffer_full = '1') then
-                                                buffer_tail <= buffer_tail + 1;     -- increment both tail and head
-                                                buffer_full <= '1';                 -- buffer is still full
+                                            if (buffer_full = '1') then         -- buffer was full
+                                                buffer_tail <= buffer_tail + 1;     -- increment both tail and head if they started full
+                                                buffer_full <= '1';                 -- buffer is still full (overrides buffer_full <= '0' above)
                                             else
-                                                buffer_tail <= buffer_tail;         -- do NOT increment buffer tail (overriding the logic above)
+                                                buffer_tail <= buffer_tail;         -- do NOT increment buffer tail if buffer wasn't full before (overriding the logic above)
                                             end if;
                                         end if;
                                     end if;
+
                                 end if;
                                 rx_cnt <= rx_cnt - 1;           -- count down to write to buffer in three steps
                             end if;

@@ -18,8 +18,8 @@
 --  KEYBOARD (P8)   read keyboard input buffer 0xFFF0 (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which is used to expand the total amount of RAM available
 --  MATH (P11)      floating point unit - 0xFFE0 - 0xFFE7
--- TODO DE0 Board I/O (P12): 
-    -- 0xFFF9 - status of switches on buttons - read only
+--  TODO DE0 Board I/O (P12): 
+    -- 0xFFF9 - status of switches and buttons - read only
     -- 0xFFFA - number on 7 segment display
     -- 0xFFFB - four bits per 7 segment display bit 0: digit on/off, bit 1: decimal point on/off, bit 2: replace digit with '-' sign, bit 3: replace digit with º sign
     -- 0xFFFC - bottom 10 bits for on-board LEDs

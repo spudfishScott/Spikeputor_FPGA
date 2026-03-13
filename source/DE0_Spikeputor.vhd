@@ -80,6 +80,8 @@ entity DE0_Spikeputor is
         -- LCD I2C Interface -- relabel to SDA and SCL
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
         LCD_SDA      : inout std_logic                          -- GPIO0[31], Pin 40
+        -- Manual Control Interface
+        LCD_EN       : in std_logic;                            -- rename to MAN_RST
     );
 end DE0_Spikeputor;
 
@@ -177,7 +179,8 @@ architecture Structural of DE0_Spikeputor is
 
     -- clock logic
     signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
-    signal startup_res  : std_logic := '1';                                  -- startup reset signal
+    signal startup_res  : std_logic := '1';                                  -- startup reset signal pulse
+    signal manual_res   : std_logic := '0';                                  -- manual reset signal pulse
     signal SYS_CLK      : std_logic;                                         -- system clock signal
     signal RESET        : std_logic;                                         -- system reset signal
     signal MAN_CLK      : std_logic;                                         -- system manual clock
@@ -185,6 +188,7 @@ architecture Structural of DE0_Spikeputor is
     -- Input synchronized signals
     signal sw_sync      : std_logic_vector(9 downto 0) := (others => '0');
     signal button_sync  : std_logic_vector(2 downto 0) := (others => '0');
+    signal reset_sync   : std_logic_vector(0 downto 0) := (others => '0');
 
     -- DotStar and LCD Control
     signal led_refresh  : std_logic := '0';                                  -- signal to start the DotStar LED refresh process
@@ -196,7 +200,7 @@ architecture Structural of DE0_Spikeputor is
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL), update CLK_FREQ as well
-    RESET   <= startup_res OR dma_rst OR (NOT button_sync(0));               -- Reset is startup reset or DMA reset or Button 0 (active low)
+    RESET   <= startup_res OR dma_rst OR NOT(manual_res);-- OR (NOT button_sync(0));               -- Reset is startup reset or DMA reset or Button 0 (active low)
     MAN_CLK <= NOT button_sync(1);                                           -- Button 1 is manual clock (active low) now, but might not always be
 
     -- startup reset pulse generator
@@ -209,6 +213,18 @@ begin
             START_PULSE => '1',
             CLK_IN      => SYS_CLK,
             PULSE_OUT   => startup_res
+        );
+
+    -- manual reset button reset pulse generator
+    PG2: entity work.PULSE_GEN
+        generic map ( 
+           PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
+           RESET_LOW => false
+        )
+        port map (
+            START_PULSE => reset_sync(0),
+            CLK_IN      => SYS_CLK,
+            PULSE_OUT   => manual_res
         );
 
     -- Input Synchronizers
@@ -227,6 +243,14 @@ begin
             ASYNC_IN => BUTTON, -- buttons
             SYNC_OUT => button_sync
         );
+
+    RESET_SYNC_E : entity work.SYNC_REG
+        generic map ( WIDTH => 1 )
+        port map (
+            CLK_IN   => SYS_CLK,
+            ASYNC_IN => LCD_EN,    -- manual reset signal in
+            SYNC_OUT => reset_sync
+        )
 
     -- WISHBONE ROUTING ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- Round Robin Wishbone Bus Arbiter
