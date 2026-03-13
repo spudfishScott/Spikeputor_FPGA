@@ -79,9 +79,10 @@ entity DE0_Spikeputor is
         FSSER_NRST   : out std_logic;                           -- GPIO0[25], pin 34
         -- LCD I2C Interface -- relabel to SDA and SCL
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
-        LCD_SDA      : inout std_logic                          -- GPIO0[31], Pin 40
-        -- Manual Control Interface
-        LCD_EN       : in std_logic;                            -- rename to MAN_RST
+        LCD_SDA      : inout std_logic;                         -- GPIO0[31], Pin 40
+        -- External Control Interface
+        EXT_CTRL_IN  : in std_logic_vector(8 downto 0)          -- external control signals (reset, man clk, manual clk sel, clk speed, others . . .) from DE0 LCD ctrl
+        EXT_CTRL_OUT : out std_logic_vector(2 downto 0)         -- external control outputs (Clock LED, others . . .)
     );
 end DE0_Spikeputor;
 
@@ -181,14 +182,14 @@ architecture Structural of DE0_Spikeputor is
     signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
     signal startup_res  : std_logic := '1';                                  -- startup reset signal pulse
     signal manual_res   : std_logic := '0';                                  -- manual reset signal pulse
+
     signal SYS_CLK      : std_logic;                                         -- system clock signal
     signal RESET        : std_logic;                                         -- system reset signal
-    signal MAN_CLK      : std_logic;                                         -- system manual clock
 
     -- Input synchronized signals
     signal sw_sync      : std_logic_vector(9 downto 0) := (others => '0');
     signal button_sync  : std_logic_vector(2 downto 0) := (others => '0');
-    signal reset_sync   : std_logic_vector(0 downto 0) := (others => '0');
+    signal ext_ctrl_sync : std_logic_vector(11 downto 0) := (others => '0');
 
     -- DotStar and LCD Control
     signal led_refresh  : std_logic := '0';                                  -- signal to start the DotStar LED refresh process
@@ -200,8 +201,7 @@ architecture Structural of DE0_Spikeputor is
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL), update CLK_FREQ as well
-    RESET   <= startup_res OR dma_rst OR NOT(manual_res);-- OR (NOT button_sync(0));               -- Reset is startup reset or DMA reset or Button 0 (active low)
-    MAN_CLK <= NOT button_sync(1);                                           -- Button 1 is manual clock (active low) now, but might not always be
+    RESET   <= startup_res OR dma_rst OR manual_res;                         -- Reset is startup reset or DMA reset or Manual reset button
 
     -- startup reset pulse generator
     PG1: entity work.PULSE_GEN
@@ -222,7 +222,7 @@ begin
            RESET_LOW => false
         )
         port map (
-            START_PULSE => reset_sync(0),
+            START_PULSE => NOT(ext_ctrl_sync(0)),       -- active low external reset button - eventually this should be hardware debounmced
             CLK_IN      => SYS_CLK,
             PULSE_OUT   => manual_res
         );
@@ -232,25 +232,25 @@ begin
         generic map ( WIDTH => 10 )
         port map (
             CLK_IN   => SYS_CLK,
-            ASYNC_IN => SW, -- switches
-            SYNC_OUT => sw_sync
+            ASYNC_IN => SW,             -- DE0 switches
+            SYNC_OUT => sw_sync         -- DE0 switches synced
         );
 
     BUTTON_SYNC_E : entity work.SYNC_REG
         generic map ( WIDTH => 3 )
         port map (
             CLK_IN   => SYS_CLK,
-            ASYNC_IN => BUTTON, -- buttons
-            SYNC_OUT => button_sync
+            ASYNC_IN => BUTTON,         -- DE0 buttons
+            SYNC_OUT => button_sync     -- DE0 buttons synced
         );
 
-    RESET_SYNC_E : entity work.SYNC_REG
-        generic map ( WIDTH => 1 )
+    EXT_CTRL_SYNC_E : entity work.SYNC_REG
+        generic map ( WIDTH => 9 )
         port map (
             CLK_IN   => SYS_CLK,
-            ASYNC_IN => LCD_EN,    -- manual reset signal in
-            SYNC_OUT => reset_sync
-        )
+            ASYNC_IN => EXT_CTRL_IN,     -- external signals in
+            SYNC_OUT => ext_ctrl_sync    -- external signals synced
+        );
 
     -- WISHBONE ROUTING ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- Round Robin Wishbone Bus Arbiter
@@ -411,10 +411,11 @@ begin
             M_CYC_O    => clk_gnt_req,          -- set high when clock wants to hold the bus
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
-            SPD_IN     => sw_sync(6 downto 4),  -- input for clock speed for auto mode
-            MAN_SEL    => sw_sync(0),           -- Switch 0 selects between auto and manual clock
-            MAN_START  => MAN_CLK,
-            CPU_CLOCK  => LEDG(9)               -- send clock to LED(9) for now - eventually to DotStar or another output
+            -- Clock control signals
+            SPD_IN     => ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
+            MAN_SEL    => ext_ctrl_sync(2)              -- selects between auto and manual clock
+            MAN_START  => NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low)
+            CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
