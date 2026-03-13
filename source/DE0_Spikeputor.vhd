@@ -181,7 +181,7 @@ architecture Structural of DE0_Spikeputor is
     -- clock logic
     signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
     signal startup_res  : std_logic := '1';                                  -- startup reset signal pulse
-    signal manual_res   : std_logic := '0';                                  -- manual reset signal pulse
+    -- signal manual_res   : std_logic := '0';                                  -- manual reset signal pulse
 
     signal SYS_CLK      : std_logic;                                         -- system clock signal
     signal RESET        : std_logic;                                         -- system reset signal
@@ -201,7 +201,7 @@ architecture Structural of DE0_Spikeputor is
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL), update CLK_FREQ as well
-    RESET   <= startup_res OR dma_rst OR manual_res;                         -- Reset is startup reset or DMA reset or Manual reset button
+    RESET   <= startup_res OR dma_rst OR (NOT ext_ctrl_sync(0));                         -- Reset is startup reset or DMA reset or Manual reset button
 
     -- startup reset pulse generator
     PG1: entity work.PULSE_GEN
@@ -215,17 +215,17 @@ begin
             PULSE_OUT   => startup_res
         );
 
-    -- manual reset button reset pulse generator
-    PG2: entity work.PULSE_GEN
-        generic map ( 
-           PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
-           RESET_LOW => false
-        )
-        port map (
-            START_PULSE => NOT(ext_ctrl_sync(0)),       -- active low external reset button - eventually this should be hardware debounmced
-            CLK_IN      => SYS_CLK,
-            PULSE_OUT   => manual_res
-        );
+    -- -- manual reset button reset pulse generator
+    -- PG2: entity work.PULSE_GEN
+    --     generic map ( 
+    --        PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
+    --        RESET_LOW => false
+    --     )
+    --     port map (
+    --         START_PULSE => NOT(ext_ctrl_sync(0)),       -- active low external reset button - eventually this should be hardware debounmced
+    --         CLK_IN      => SYS_CLK,
+    --         PULSE_OUT   => manual_res
+    --     );
 
     -- Input Synchronizers
     DIP_SYNC_E : entity work.SYNC_REG
@@ -412,10 +412,10 @@ begin
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
             -- Clock control signals
-            SPD_IN     => ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
-            MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto and manual clock
-            MAN_START  => NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low)
-            CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
+            SPD_IN     => sw_sync(6 downto 4);--ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
+            MAN_SEL    => sw_sync(0);--ext_ctrl_sync(2),             -- selects between auto and manual clock
+            MAN_START  => NOT(button_sync(1));--NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low)
+            CPU_CLOCK  => LEDG(9);--EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -809,7 +809,7 @@ begin
     LEDG(1) <= dma_gnt_sig;             -- DMA grant given
     LEDG(0) <= clk_gnt_sig;             -- Clock Generator grant given
 
-    LEDG(9 downto 3) <= PC_SEGMENT(6 downto 0); -- lower 5 bits of PC_SEGMENT out to LEDs
+    LEDG(8 downto 3) <= PC_SEGMENT(5 downto 0); -- lower 5 bits of PC_SEGMENT out to LEDs
 
     -- 7-SEG Display
     HEX0_DP <= '1';
@@ -817,6 +817,6 @@ begin
     HEX2_DP <= '1';
     HEX3_DP <= '1';
 
-    EXT_CTRL_OUT(2 downto 1) := (others => '0');
+    EXT_CTRL_OUT(2 downto 1) <= (others => '0');
 
 end Structural;
