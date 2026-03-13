@@ -81,7 +81,7 @@ entity DE0_Spikeputor is
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
         LCD_SDA      : inout std_logic;                         -- GPIO0[31], Pin 40
         -- External Control Interface
-        EXT_CTRL_IN  : in std_logic_vector(8 downto 0)          -- external control signals (reset, man clk, manual clk sel, clk speed, others . . .) from DE0 LCD ctrl
+        EXT_CTRL_IN  : in std_logic_vector(8 downto 0);         -- external control signals (reset, man clk, manual clk sel, clk speed, others . . .) from DE0 LCD ctrl
         EXT_CTRL_OUT : out std_logic_vector(2 downto 0)         -- external control outputs (Clock LED, others . . .)
     );
 end DE0_Spikeputor;
@@ -189,7 +189,7 @@ architecture Structural of DE0_Spikeputor is
     -- Input synchronized signals
     signal sw_sync      : std_logic_vector(9 downto 0) := (others => '0');
     signal button_sync  : std_logic_vector(2 downto 0) := (others => '0');
-    signal ext_ctrl_sync : std_logic_vector(11 downto 0) := (others => '0');
+    signal ext_ctrl_sync : std_logic_vector(8 downto 0) := (others => '0');
 
     -- DotStar and LCD Control
     signal led_refresh  : std_logic := '0';                                  -- signal to start the DotStar LED refresh process
@@ -413,7 +413,7 @@ begin
 
             -- Clock control signals
             SPD_IN     => ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
-            MAN_SEL    => ext_ctrl_sync(2)              -- selects between auto and manual clock
+            MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto and manual clock
             MAN_START  => NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low)
             CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
@@ -809,12 +809,14 @@ begin
     LEDG(1) <= dma_gnt_sig;             -- DMA grant given
     LEDG(0) <= clk_gnt_sig;             -- Clock Generator grant given
 
-    LEDG(8 downto 3) <= PC_SEGMENT(5 downto 0); -- lower 5 bits of PC_SEGMENT out to LEDs
+    LEDG(9 downto 3) <= PC_SEGMENT(6 downto 0); -- lower 5 bits of PC_SEGMENT out to LEDs
 
     -- 7-SEG Display
     HEX0_DP <= '1';
     HEX1_DP <= '1';
     HEX2_DP <= '1';
     HEX3_DP <= '1';
+
+    EXT_CTRL_OUT(2 downto 1) := (others => '0');
 
 end Structural;
