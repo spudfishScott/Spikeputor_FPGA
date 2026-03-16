@@ -133,7 +133,7 @@ begin
         end if;
     end process PULSE_GEN_PROCESS;
 
-    -- PULSE_OUT is 1 when the counter is less than the pulse width and START_PULSE is high
+    -- PULSE_OUT is 1 when the counter is less than the pulse width and pulse is active
     PULSE_OUT <= '1' when (counter < PULSE_WIDTH AND pulse_active = '1') else '0';
 
 end Behavior;
@@ -200,7 +200,8 @@ use ieee.numeric_std.all;
 
 entity SYNC_REG is
     generic (
-        WIDTH : Integer := 1                                    -- Width of the signal to be synchronized
+        WIDTH : Integer := 1;                                  -- Width of the signal to be synchronized
+        INITIAL_VALUE : std_vector := '0'                      -- initial value to prep-populate the registers
     );
 
     port (
@@ -211,8 +212,8 @@ entity SYNC_REG is
 end SYNC_REG;
 
 architecture RTL of SYNC_REG is
-    signal reg_meta : std_logic_vector(WIDTH-1 downto 0) := (others => '0');
-    signal reg_sync : std_logic_vector(WIDTH-1 downto 0) := (others => '0');
+    signal reg_meta : std_logic_vector(WIDTH-1 downto 0) := (others => INITIAL_VALUE);
+    signal reg_sync : std_logic_vector(WIDTH-1 downto 0) := (others => INITIAL_VALUE);
 
      -- Quartus Prime specific synchronizer attributes to identify synchronized signals for analysis
     attribute altera_attribute : string;

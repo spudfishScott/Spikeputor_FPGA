@@ -101,6 +101,7 @@ BEGIN
         IF (rising_edge(clk)) THEN
 
             IF (n_rst = '0') THEN                   -- reset all signals and variables
+                -- TODO: change this to a startup delay of 0.3 seconds? keep transceiver reset low the whole time.
                 state <= updatekb;                  -- start by sending caps lock state to keyboard
                 break <= '0';
                 e0_code <= '0';
@@ -120,7 +121,7 @@ BEGIN
             ELSE
                 prev_ps2_code_new <= ps2_code_new;  -- keep track of previous ps2_code_new values to determine low-to-high transitions
                 ascii_new <= '0';                                           --  ascii_new is a one-clock strobe
-                IF prev_ps2_code_new = '0' AND ps2_code_new = '1' THEN		 -- latch in any pending keypresses
+                IF prev_ps2_code_new = '0' AND ps2_code_new = '1' THEN      -- latch in any pending keypresses
                     pending_keypress <= '1';
                 END IF;
 

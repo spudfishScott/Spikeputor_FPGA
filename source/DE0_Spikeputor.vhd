@@ -215,17 +215,17 @@ begin
             PULSE_OUT   => startup_res
         );
 
-    -- -- manual reset button reset pulse generator
-    -- PG2: entity work.PULSE_GEN
-    --     generic map ( 
-    --        PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
-    --        RESET_LOW => false
-    --     )
-    --     port map (
-    --         START_PULSE => NOT(ext_ctrl_sync(0)),       -- active low external reset button - eventually this should be hardware debounmced
-    --         CLK_IN      => SYS_CLK,
-    --         PULSE_OUT   => manual_res
-    --     );
+    -- manual reset button reset pulse generator
+    PG2: entity work.PULSE_GEN
+        generic map ( 
+           PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
+           RESET_LOW => false
+        )
+        port map (
+            START_PULSE => NOT(ext_ctrl_sync(0)),       -- active low external reset button - eventually this should be hardware debounmced
+            CLK_IN      => SYS_CLK,
+            PULSE_OUT   => manual_res
+        );
 
     -- Input Synchronizers
     DIP_SYNC_E : entity work.SYNC_REG
@@ -245,7 +245,10 @@ begin
         );
 
     EXT_CTRL_SYNC_E : entity work.SYNC_REG
-        generic map ( WIDTH => 9 )
+        generic map ( 
+            WIDTH => 9,
+            INITIAL_VALUE => '1'         -- initial value is '1' because reset button is active low
+        )
         port map (
             CLK_IN   => SYS_CLK,
             ASYNC_IN => EXT_CTRL_IN,     -- external signals in
@@ -412,10 +415,10 @@ begin
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
             -- Clock control signals
-            SPD_IN     => sw_sync(6 downto 4);--ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
-            MAN_SEL    => sw_sync(0);--ext_ctrl_sync(2),             -- selects between auto and manual clock
-            MAN_START  => NOT(button_sync(1));--NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low)
-            CPU_CLOCK  => LEDG(9);--EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
+            SPD_IN     => ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
+            MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto and manual clock
+            MAN_START  => NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low)
+            CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -808,7 +811,7 @@ begin
     LEDG(2) <= cpu_gnt_sig;             -- CPU grant given
     LEDG(1) <= dma_gnt_sig;             -- DMA grant given
     LEDG(0) <= clk_gnt_sig;             -- Clock Generator grant given
-
+    LEDG(9) <= '0';
     LEDG(8 downto 3) <= PC_SEGMENT(5 downto 0); -- lower 5 bits of PC_SEGMENT out to LEDs
 
     -- 7-SEG Display
