@@ -119,7 +119,7 @@ begin
     seg_ctrl2 <= seg_ctrl(11 downto 8);
     seg_ctrl3 <= seg_ctrl(15 downto 12);
 
-    WBS_DATA_O <= "000" & SWITCHES & BUTTONS when addr_l = x"9"         -- output data is switch and button states zero padded
+    WBS_DATA_O <= "000" & SWITCHES & (BUTTONS XOR "111") when addr_l = x"9"         -- output data is switch and button states zero padded - buttons inverted to be active high
             else  hex_data                   when addr_l = x"A"         -- output data is hex display register
             else  seg_ctrl                   when addr_l = x"B"         -- output data is 7 segment control register
             else  "000000" & led_data        when addr_l = x"C"         -- output data is led register zero padded

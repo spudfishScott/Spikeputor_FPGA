@@ -17,7 +17,7 @@ entity CLOCK_WSH_M is
         M_CYC_O    : out std_logic;      -- wishbone cycle output - set high to request bus, low to release bus
         M_ACK_I    : in  std_logic;      -- aribiter grant signal - kicks off bus stall process
 
-        SPD_IN     : in std_logic_vector(2 downto 0);   -- Automatic clock frequency selection (slow/med/full based on one-hot values)
+        SPD_IN     : in std_logic_vector(5 downto 0);   -- Automatic clock frequency selection (6 speeds based on one-hot values)
         MAN_SEL    : in std_logic;                      -- Manual/Automatic clock select
         MAN_START  : in std_logic;                      -- Manual clock start signal
 
@@ -53,6 +53,7 @@ begin
                 counter     <= 1;
             else
                 previous_man <= MAN_START;  -- store previous state of manual start signal for edge detection
+                CPU_CLOCK <= '1';           -- default CPU clock light is on so it's on all the time at full speed
 
                 if holding_bus = '0' AND (auto_ticks /= x"00000001" OR MAN_SEL = '1') then   -- not holding the bus and not running at full speed, check for bus request/grant
                     if M_ACK_I = '0' then

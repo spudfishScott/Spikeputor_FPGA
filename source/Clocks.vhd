@@ -239,7 +239,7 @@ use ieee.numeric_std.all;
 
 entity CLK_SEL is
     port (
-        SW_INPUTS : in std_logic_vector(2 downto 0);    -- one-hot speed setting (slow, med, fast for now)
+        SW_INPUTS : in std_logic_vector(5 downto 0);    -- one-hot speed setting (6 speeds for now)
         SPEED_OUT : out std_logic_vector(31 downto 0)   -- 32 bit number to delay the clock
     );
 end CLK_SEL;
@@ -247,11 +247,14 @@ end CLK_SEL;
 architecture Behavior of CLK_SEL is
 begin
 
-    WITH (SW_INPUTS) SELECT   -- select CPU speed via switches 6 through 4 - this whole loigc will likely change - in new design, don't assume 50 MHz system clock
+    WITH (SW_INPUTS) SELECT   -- select CPU speed
         SPEED_OUT <=
-            std_logic_vector(to_unsigned(10_000_000, 32)) when "001",       -- Slow Speed (divide clock by 10 MHz - default 5 Hz)
-            std_logic_vector(to_unsigned(50_000, 32)) when "010",           -- Mid Speed (divide clock by 50kHz - default 1 KHz)
-            std_logic_vector(to_unsigned(1, 32)) when "100",                -- Full Speed (default 50 MHz)
-            std_logic_vector(to_unsigned(100_000_000, 32)) when others;     -- Glacial Speed (divide clock by 100 MHz - default 0.5 Hz)
+            std_logic_vector(to_unsigned(10_000_000, 32))   when "000001",      -- Slow Speed (divide clock by 10 M - default 5 Hz)
+            std_logic_vector(to_unsigned(1_000_000, 32))    when "000010",      -- Speed 2 (divide clock by 1 M - default 50 Hz)
+            std_logic_vector(to_unsigned(100_000, 32))      when "000100",      -- Speed 3 (divide clock by 100 k - default 500 Hz)
+            std_logic_vector(to_unsigned(10_000, 32))       when "001000",      -- Speed 4 (divide clock by 10 k - default 5 kHz)
+            std_logic_vector(to_unsigned(1_000, 32))        when "010000",      -- Speed 5 (divide clock by 1 k - default 50 kHz)
+            std_logic_vector(to_unsigned(1, 32))            when "100000",      -- Full Speed (unity clock - default 50 MHz)
+            std_logic_vector(to_unsigned(100_000_000, 32))  when others;        -- Glacial Speed (divide clock by 100 M - default 0.5 Hz)
 
 end Behavior;
