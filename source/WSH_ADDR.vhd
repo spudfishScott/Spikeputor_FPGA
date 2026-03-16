@@ -161,7 +161,7 @@ begin
             P9_DATA_O  when 9,      -- SEGMENT
             P10_DATA_O when 10,     -- SDRAM
             P11_DATA_O when 11,     -- MATH FPU
-            P12_DATA_O wehn 12,     -- DE0 I/O
+            P12_DATA_O when 12,     -- DE0 I/O
             (others => '0') when others;
 
     -- Generate one-hot strobe signals for each provider based on p_sel

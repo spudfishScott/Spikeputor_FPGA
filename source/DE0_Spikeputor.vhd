@@ -148,7 +148,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- Memory output signals
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
-    signal ack         : std_logic_vector(11 downto 0) := (others => '0');  -- all of the ack signals from the providers
+    signal ack         : std_logic_vector(12 downto 0) := (others => '0');  -- all of the ack signals from the providers
     signal all_acks    : std_logic := '0';                                  -- OR all of the ack signals together for input into masters
 
     -- CPU clock control related signals
@@ -175,6 +175,7 @@ architecture Structural of DE0_Spikeputor is
     signal data9       : std_logic_vector(15 downto 0) := (others => '0');
     signal data10      : std_logic_vector(15 downto 0) := (others => '0');
     signal data11      : std_logic_vector(15 downto 0) := (others => '0');
+    signal data12      : std_logic_vector(15 downto 0) := (others => '0');
 
     signal stb_sel_sig : std_logic_vector(12 downto 0) := (others => '0');
 
@@ -746,7 +747,7 @@ begin
             HEX0_DP     => HEX0_DP,             -- Decimal point for 7 SEG LEDs
             HEX1_DP     => HEX1_DP,
             HEX2_DP     => HEX2_DP,
-            HEX3_DP     => HEX3_DP,
+            HEX3_DP     => HEX3_DP
         );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

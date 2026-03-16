@@ -82,7 +82,7 @@ begin
     port map (
         CLK => CLK,
         LE  => hex_le_sig,
-        D   => WBS_DATA_I(15 downto 0),
+        D   => WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0'),     -- latch new hex display data when CYC, STB, WE are high and address is 0xFFFA, otherwise clear to 0 on reset
         Q   => hex_data
     );
 
@@ -91,7 +91,7 @@ begin
     port map (
         CLK => CLK,
         LE  => seg_ctrl_le_sig,
-        D   => WBS_DATA_I(15 downto 0),
+        D   => WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0'),
         Q   => seg_ctrl
     );
 
@@ -100,7 +100,7 @@ begin
     port map (
         CLK => CLK,
         LE  => led_le_sig,
-        D   => WBS_DATA_I(9 downto 0),
+        D   => WBS_DATA_I(9 downto 0) when RESET_I = '0' else (others => '0'),
         Q   => led_data
     );
 
@@ -111,15 +111,15 @@ begin
     seg_ctrl2 <= seg_ctrl(11 downto 8);
     seg_ctrl3 <= seg_ctrl(15 downto 12);
 
-    WBS_DATA_O <= "00" & SWITCHES & BUTTONS when addr_l = x"9";         -- output data is switch and button states zero padded
-            else  hex_data                  when addr_l = x"A";         -- output data is hex display register
-            else  seg_ctrl                  when addr_l = x"B";         -- output data is 7 segment control register
-            else  "000000" & led_data       when addr_l = x"C";         -- output data is led register zero padded
-            else  (others => '0');                                      -- default output data is 0
+    WBS_DATA_O <= "000" & SWITCHES & BUTTONS when addr_l = x"9"         -- output data is switch and button states zero padded
+            else  hex_data                   when addr_l = x"A"         -- output data is hex display register
+            else  seg_ctrl                   when addr_l = x"B"         -- output data is 7 segment control register
+            else  "000000" & led_data        when addr_l = x"C"         -- output data is led register zero padded
+            else  (others => '0');                                     -- default output data is 0
 
-    hex_le_sig      <= WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND (addr_l = x"A");     -- latch new hex display data when CYC, STB, WE are high and address is 0xFFFA
-    seg_ctrl_le_sig <= WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND (addr_l = x"B");     -- latch new 7 segment control data when CYC, STB, WE are high and address is 0xFFFB
-    led_le_sig      <= WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND (addr_l = x"C");     -- latch new led data when CYC, STB, WE are high and address is 0xFFFC
+    hex_le_sig      <= '1' when RST_I = '1' OR ((WBS_CYC_I AND WBS_STB_I AND WBS_WE_I) = '1' AND addr_l = x"A") else '0';     -- latch new hex display data when CYC, STB, WE are high and address is 0xFFFA
+    seg_ctrl_le_sig <= '1' when RST_I = '1' OR ((WBS_CYC_I AND WBS_STB_I AND WBS_WE_I) = '1' AND addr_l = x"B") else '0';     -- latch new 7 segment control data when CYC, STB, WE are high and address is 0xFFFB
+    led_le_sig      <= '1' when RST_I = '1' OR ((WBS_CYC_I AND WBS_STB_I AND WBS_WE_I) = '1' AND addr_l = x"C") else '0';     -- latch new led data when CYC, STB, WE are high and address is 0xFFFC
 
     -- set up seven segment display outputs based on control signals and hex data register - control signals have priority over hex data bits
     HEX0_DP <= seg_ctrl0(3);     -- decimal point control for hex display 0
@@ -152,11 +152,7 @@ begin
 
     process(clk) is
     begin
-        if RST_I = '1' then -- clear outputs on reset
-            hex_data <= (others => '0');
-            seg_ctrl <= (others => '0');
-            led_data <= (others => '0');
-        elsif rising_edge(clk) then -- send acknowledge when we have a valid cycle and strobe
+        if rising_edge(clk) then -- send acknowledge when we have a valid cycle and strobe
             WBS_ACK_O <= WBS_CYC_I AND WBS_STB_I;
         end if;
     end process;
