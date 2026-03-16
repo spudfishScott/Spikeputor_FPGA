@@ -110,9 +110,9 @@ begin
     addr_l <= WBS_ADDR_I(3 downto 0);     -- only care about the bottom 4 bits of the address since we're only decoding 4 addresses
 
     -- erase registers on reset
-    hex_data_in <= WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0');
-    seg_ctrl_in <= WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0');
-    led_data_in <= WBS_DATA_I(9 downto 0) when RESET_I = '0' else (others => '0');
+    hex_data_in <= WBS_DATA_I(15 downto 0) when RST_I = '0' else (others => '0');
+    seg_ctrl_in <= WBS_DATA_I(15 downto 0) when RST_I = '0' else (others => '0');
+    led_data_in <= WBS_DATA_I(9 downto 0) when RST_I = '0' else (others => '0');
 
     seg_ctrl0 <= seg_ctrl(3 downto 0);
     seg_ctrl1 <= seg_ctrl(7 downto 4);
