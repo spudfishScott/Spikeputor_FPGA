@@ -44,7 +44,7 @@ END PS2_ASCII;
 ARCHITECTURE behavior OF PS2_ASCII IS
     TYPE KEYBUF IS ARRAY(0 to 7) OF STD_LOGIC_VECTOR(6 DOWNTO 0);
 
-    TYPE machine IS (ready, send_wait, new_code, translate, addbuf, updatekb, updatekb2);   --needed states
+    TYPE machine IS (ready, send_wait, new_code, translate, addbuf, updatekb, updatekb2, reset);   --needed states
     SIGNAL state             : machine := updatekb;                              --state machine starts with setting keyboard LEDs
 
     SIGNAL ps2_code_new      : STD_LOGIC := '0';                      -- new PS2 code flag from ps2_keyboard component
@@ -73,6 +73,9 @@ ARCHITECTURE behavior OF PS2_ASCII IS
 
     SIGNAL pending_keypress  : STD_LOGIC := '1';                      -- latched when a keypress is detected, so it will be addressed after the current read cycle
 
+    SIGNAL trans_nrst        : STD_LOGIC := '0';                      -- n_reset signal to send to the PS2 transceiver
+    SIGNAL reset_cnt         : INTEGER RANGE 0 to CLK_FREQ/3;         -- count to wait for 0.3333 seconds
+
 BEGIN
 
     --instantiate PS2 keyboard interface logic
@@ -83,7 +86,7 @@ BEGIN
 
         PORT MAP (
             clk          => clk,                    -- system clock
-            reset_n      => n_rst,                  -- active low synchronous reset
+            reset_n      => trans_nrst,             -- active low synchronous reset
             tx_ena       => tx_ena_sig,             -- enable transmit
             tx_cmd       => tx_cmd_sig,             -- 8-bit command to transmit, MSB is parity bit
             tx_busy      => tx_busy_sig,            -- indicates transmit in progress
@@ -101,8 +104,9 @@ BEGIN
         IF (rising_edge(clk)) THEN
 
             IF (n_rst = '0') THEN                   -- reset all signals and variables
-                -- TODO: change this to a startup delay of 0.3 seconds? keep transceiver reset low the whole time.
-                state <= updatekb;                  -- start by sending caps lock state to keyboard
+                state <= reset;                     -- start by resetting
+                reset_cnt <= CLK_FREQ/3;
+                trans_nrst <= '0';                  -- reset transceiver
                 break <= '0';
                 e0_code <= '0';
                 caps_lock <= '0';
@@ -126,6 +130,15 @@ BEGIN
                 END IF;
 
                 CASE state IS
+                    -- reset state : wait for 0.3 seconds, keeping transceiver reset, then start up by setting caps lock
+                    WHEN reset =>
+                        if reset_cnt = 0 then
+                            state <= updatekb;
+                            trans_nrst <= '1';
+                        else
+                            reset_cnt <= reset_cnt - 1;
+                        end if;
+
                     -- ready state: wait for a new PS2 code to be received or a new key request from the buffer
                     WHEN ready =>
                         tx_ena_sig <= '0';                                          -- turn off transmit signal

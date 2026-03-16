@@ -181,7 +181,7 @@ architecture Structural of DE0_Spikeputor is
     -- clock logic
     signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
     signal startup_res  : std_logic := '1';                                  -- startup reset signal pulse
-    -- signal manual_res   : std_logic := '0';                                  -- manual reset signal pulse
+    signal manual_res   : std_logic := '0';                                  -- manual reset signal pulse
 
     signal SYS_CLK      : std_logic;                                         -- system clock signal
     signal RESET        : std_logic;                                         -- system reset signal

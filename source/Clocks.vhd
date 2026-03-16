@@ -201,7 +201,7 @@ use ieee.numeric_std.all;
 entity SYNC_REG is
     generic (
         WIDTH : Integer := 1;                                  -- Width of the signal to be synchronized
-        INITIAL_VALUE : std_vector := '0'                      -- initial value to prep-populate the registers
+        INITIAL_VALUE : std_logic := '0'                       -- initial value to prep-populate the registers
     );
 
     port (
