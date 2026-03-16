@@ -130,7 +130,7 @@ BEGIN
                 END IF;
 
                 CASE state IS
-                    -- reset state : wait for 0.3 seconds, keeping transceiver reset, then start up by setting caps lock
+                    -- reset state : wait for 0.3 seconds, keeping transceiver reset, then start up by setting num lock
                     WHEN reset =>
                         if reset_cnt = 0 then
                             state <= updatekb;

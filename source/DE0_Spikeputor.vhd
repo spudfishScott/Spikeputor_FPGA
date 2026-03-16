@@ -176,12 +176,11 @@ architecture Structural of DE0_Spikeputor is
     signal data10      : std_logic_vector(15 downto 0) := (others => '0');
     signal data11      : std_logic_vector(15 downto 0) := (others => '0');
 
-    signal stb_sel_sig : std_logic_vector(11 downto 0) := (others => '0');
+    signal stb_sel_sig : std_logic_vector(12 downto 0) := (others => '0');
 
     -- clock logic
     signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
     signal startup_res  : std_logic := '1';                                  -- startup reset signal pulse
-    signal manual_res   : std_logic := '0';                                  -- manual reset signal pulse
 
     signal SYS_CLK      : std_logic;                                         -- system clock signal
     signal RESET        : std_logic;                                         -- system reset signal
@@ -201,7 +200,7 @@ architecture Structural of DE0_Spikeputor is
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL), update CLK_FREQ as well
-    RESET   <= startup_res OR dma_rst OR (NOT ext_ctrl_sync(0));                         -- Reset is startup reset or DMA reset or Manual reset button
+    RESET   <= startup_res OR dma_rst OR NOT ext_ctrl_sync(0);               -- Reset is startup reset or DMA reset or Manual reset button
 
     -- startup reset pulse generator
     PG1: entity work.PULSE_GEN
@@ -213,18 +212,6 @@ begin
             START_PULSE => '1',
             CLK_IN      => SYS_CLK,
             PULSE_OUT   => startup_res
-        );
-
-    -- manual reset button reset pulse generator
-    PG2: entity work.PULSE_GEN
-        generic map ( 
-           PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
-           RESET_LOW => false
-        )
-        port map (
-            START_PULSE => NOT(ext_ctrl_sync(0)),       -- active low external reset button - eventually this should be hardware debounmced
-            CLK_IN      => SYS_CLK,
-            PULSE_OUT   => manual_res
         );
 
     -- Input Synchronizers
@@ -316,6 +303,7 @@ begin
             P9_DATA_O   => data9,
             P10_DATA_O  => data10,
             P11_DATA_O  => data11,
+            P12_DATA_O  => data12,
 
             DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
             STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
@@ -417,9 +405,11 @@ begin
             -- Clock control signals
             SPD_IN     => ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
             MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto and manual clock
-            MAN_START  => NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low)
+            MAN_START  => NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low) - TODO: NEEDS TO BE DEBOUNCED!!! 100 ms
             CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
+
+        EXT_CTRL_OUT(2 downto 1) <= (others => '0');    -- Other external control outputs not used (yet)
 
     -- WISHBONE PROVIDERS --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- RAM (P0), ROM (P1), GPO (P2), GPI (P3), SOUND (P4), VIDEO (P5), SERIAL (P6), STORAGE (P7), KEYBOARD (P8), SEGMENTS (P9), SDRAM (P10), MATH (P11)
@@ -725,6 +715,40 @@ begin
             WBS_WE_I    => arb_we
         );
 
+    -- DE0 I/O Instance as Wishbone Provider (P12)
+    DE0 : entity work.DE0_WSH_P
+        port map (
+            CLK         => SYS_CLK,
+            RST_I       => RESET,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(12),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(12),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_I  => arb_data_o,
+            WBS_DATA_O  => data12,
+            WBS_WE_I    => arb_we,
+
+            -- DE0 I/O
+            -- Inputs
+            BUTTONS     => button_sync,         -- Surface mounted debounced buttons (2 downto 0)
+            SWITCHES    => sw_sync,             -- Surface mounted switches (9 downto 0)
+            -- Outputs
+            LEDS        => LEDG,                -- Green surface-mounted LEDs (9 downto 0)
+            HEX0_D      => HEX0_D,              -- On board 7 Segment LEDs
+            HEX1_D      => HEX1_D,
+            HEX2_D      => HEX2_D,
+            HEX3_D      => HEX3_D,
+            HEX0_DP     => HEX0_DP,             -- Decimal point for 7 SEG LEDs
+            HEX1_DP     => HEX1_DP,
+            HEX2_DP     => HEX2_DP,
+            HEX3_DP     => HEX3_DP,
+        );
+
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     process(SYS_CLK) is
     begin
@@ -796,30 +820,5 @@ begin
             SDA         => LCD_SDA,                                                             -- LCD SDA signal
             BUSY        => lcd_busy
         );
-
-    -- 7 Segment display decoder instance
-    DISPLAY : entity work.WORDTO7SEGS 
-        port map (
-            WORD  => arb_addr(15 downto 0),    -- display current address bus on 7-seg
-            SEGS0 => HEX0_D,
-            SEGS1 => HEX1_D,
-            SEGS2 => HEX2_D,
-            SEGS3 => HEX3_D
-        );
-
-    -- LEDs
-    LEDG(2) <= cpu_gnt_sig;             -- CPU grant given
-    LEDG(1) <= dma_gnt_sig;             -- DMA grant given
-    LEDG(0) <= clk_gnt_sig;             -- Clock Generator grant given
-    LEDG(9) <= '0';
-    LEDG(8 downto 3) <= PC_SEGMENT(5 downto 0); -- lower 5 bits of PC_SEGMENT out to LEDs
-
-    -- 7-SEG Display
-    HEX0_DP <= '1';
-    HEX1_DP <= '1';
-    HEX2_DP <= '1';
-    HEX3_DP <= '1';
-
-    EXT_CTRL_OUT(2 downto 1) <= (others => '0');
 
 end Structural;

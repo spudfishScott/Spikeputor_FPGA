@@ -18,11 +18,11 @@
 --  KEYBOARD (P8)   read keyboard input buffer 0xFFF0 (maybe mouse one day as well)
 --  SEGMENT (P9)    read/write to segment register, which is used to expand the total amount of RAM available
 --  MATH (P11)      floating point unit - 0xFFE0 - 0xFFE7
---  TODO DE0 Board I/O (P12): 
+--  DE0 Board I/O (P12): 
     -- 0xFFF9 - status of switches and buttons - read only
-    -- 0xFFFA - number on 7 segment display
-    -- 0xFFFB - four bits per 7 segment display bit 0: digit on/off, bit 1: decimal point on/off, bit 2: replace digit with '-' sign, bit 3: replace digit with º sign
-    -- 0xFFFC - bottom 10 bits for on-board LEDs
+    -- 0xFFFA - number on 7 segment display - read/write
+    -- 0xFFFB - four bits per 7 segment display bit 0: digit on/off, bit 1: decimal point on/off, bit 2: replace digit with '-' sign, bit 3: replace digit with º sign - read/write
+    -- 0xFFFC - bottom 10 bits for on-board LEDs - read/write
 
 -- Outputs are:
 --  Individual provider select signals, which go to provider STB_I inputs
@@ -42,8 +42,8 @@ entity WSH_ADDR is
         TGD_I       : in std_logic_vector(1 downto 0);      -- when TGD_I is non-zero and WE_I is high, route to P9, SEGMENT write
 
         -- Data out from providers
-        P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0) 0x0000-0xCFFF
-        P1_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from ROM (P1) 0xD000-0xFFFF, 0x810000-0xBFFFFF
+        P0_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from RAM (P0) 0x0000-0xC7FF
+        P1_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from ROM (P1) 0xC800-0xFFFF, 0x810000-0xBFFFFF (ROM segments 0 through 127)
         P2_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPO (P2)
         P3_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from GPI (P3)
         P4_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SOUND (P4)
@@ -54,10 +54,11 @@ entity WSH_ADDR is
         P9_DATA_O   : in std_logic_vector(15 downto 0);     -- Data Output from SEGMENT (P9)
         P10_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from SDRAM (P10) 0x010000-0x7FFFFF
         P11_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from MATH (P11)
+        P12_DATA_O  : in std_logic_vector(15 downto 0);     -- Data Output from DE0 (P12)
 
         -- Output signals
         DATA_O      : out std_logic_vector(15 downto 0);    -- Wishbone data bus output
-        STB_SEL     : out std_logic_vector(11 downto 0)     -- One hot strobe selector for provider STB_I signals
+        STB_SEL     : out std_logic_vector(12 downto 0)     -- One hot strobe selector for provider STB_I signals
     );
 end WSH_ADDR;
 
@@ -66,15 +67,12 @@ architecture RTL of WSH_ADDR is
     constant KEYBOARD_ADDR  : std_logic_vector(7 downto 0) := x"F0"; -- keyboard address - read only
     constant GPO_ADDR       : std_logic_vector(7 downto 0) := x"F1"; -- GPO address - read/write
     constant GPI_ADDR       : std_logic_vector(7 downto 0) := x"F2"; -- GPI address - read only
-    -- Video and Math use ranges which are addressed in the 'math' and 'video' logic below
+    -- Others use ranges which are addressed in the logic below
 
--- sound - use VGA output for sound? three voices, 4-bits each. So one address for volume and waveform control of all three voices, one address for frequency control for each voice - 4 total
--- serial - one address I/O
--- storage - one address I/O
-
-    signal p_sel   : integer range 0 to 11 := 0;                        -- provider selector index
+    signal p_sel   : integer range 0 to 12 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- FPGA RAM selected
-    signal spec    : std_logic := '0';                                  -- special location (p2-p9, p11)
+    signal spec    : std_logic := '0';                                  -- special location (p2-p9, p11-p12)
+    signal de0     : std_logic := '0';                                  -- DE0 I/O flag
     signal math    : std_logic := '0';                                  -- math flag
     signal video   : std_logic := '0';                                  -- video flag
     signal audio   : std_logic := '0';                                  -- audio flag
@@ -84,7 +82,7 @@ architecture RTL of WSH_ADDR is
     signal seg     : std_logic_vector(6 downto 0) := (others => '0');   -- segment portion of the full address
     signal p_addr  : std_logic_vector(15 downto 0) := (others => '0');  -- primary address portion of the full address
     signal addr_l  : std_logic_vector(7 downto 0) := (others => '0');   -- low byte of full address
-    signal p_oh    : std_logic_vector(11 downto 0) := (others => '0');  -- provider one-hot vector
+    signal p_oh    : std_logic_vector(12 downto 0) := (others => '0');  -- provider one-hot vector
 
 begin
     seg    <= ADDR_I(22 downto 16);   -- extract segment identifier from full address
@@ -115,16 +113,21 @@ begin
             '1' when x"F5" to x"F8",
             '0' when others;
 
-    with addr_l select
+    with addr_l select                                                                      -- serial address flag for 0xFFF3 and 0xFFFE
         serial <=
             '1' when x"F3",
             '1' when x"FE",
             '0' when others;
 
-    with addr_l select
+    with addr_l select                                                                      -- filesystem serial address flag for 0xFFF4 and 0xFFFF
         fs_ser <=
             '1' when x"F4",
             '1' when x"FF",
+            '0' when others;
+
+    with addr_l select                                                                      -- de0 i/o address flag for a range (0xFFF9 to 0xFFFC)
+        de0 <=
+            '1' when x"F9" to x"FC",
             '0' when others;
 
     -- assign p_sel based on addressing logic described above
@@ -139,6 +142,7 @@ begin
         else    7 when spec = '1' AND fs_ser = '1'                                        -- read/write STORAGE (via Filesystem Serial)
         else    8 when spec = '1' AND addr_l = KEYBOARD_ADDR                              -- read only KEYBOARD
         else   11 when spec = '1' AND math = '1'                                          -- MATH coprocessor if address matches math range (0xFFE0 - 0xFFE7)
+        else   12 when spec = '1' AND de0 = '1'                                           -- DE) I/O if address matches range (0xFFF9 - 0xFFFC)
         else   10 when sdram_e = '1'                                                      -- SDRAM when ram_e is '1' and we get here (segment /= 0 and not ROM or special)
         else    1;                                                                        -- default to read ROM
 
@@ -157,26 +161,28 @@ begin
             P9_DATA_O  when 9,      -- SEGMENT
             P10_DATA_O when 10,     -- SDRAM
             P11_DATA_O when 11,     -- MATH FPU
+            P12_DATA_O wehn 12,     -- DE0 I/O
             (others => '0') when others;
 
     -- Generate one-hot strobe signals for each provider based on p_sel
     with (p_sel) select
         p_oh <=
-            "000000000001" when 0,
-            "000000000010" when 1,
-            "000000000100" when 2,
-            "000000001000" when 3,
-            "000000010000" when 4,
-            "000000100000" when 5,
-            "000001000000" when 6,
-            "000010000000" when 7,
-            "000100000000" when 8,
-            "001000000000" when 9,
-            "010000000000" when 10,
-            "100000000000" when 11,
-            "000000000000" when others;
+            "0000000000001" when 0,
+            "0000000000010" when 1,
+            "0000000000100" when 2,
+            "0000000001000" when 3,
+            "0000000010000" when 4,
+            "0000000100000" when 5,
+            "0000001000000" when 6,
+            "0000010000000" when 7,
+            "0000100000000" when 8,
+            "0001000000000" when 9,
+            "0010000000000" when 10,
+            "0100000000000" when 11,
+            "1000000000000" when 12,
+            "0000000000000" when others;
 
     -- ouput STB_SEL based on the one-hot result and STB_I
-    STB_SEL <= p_oh when STB_I = '1' else "000000000000";
+    STB_SEL <= p_oh when STB_I = '1' else "0000000000000";
 
 end RTL;
