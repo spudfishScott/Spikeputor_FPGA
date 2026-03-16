@@ -109,6 +109,7 @@ begin
 
     addr_l <= WBS_ADDR_I(3 downto 0);     -- only care about the bottom 4 bits of the address since we're only decoding 4 addresses
 
+    -- erase registers on reset
     hex_data_in <= WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0');
     seg_ctrl_in <= WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0');
     led_data_in <= WBS_DATA_I(9 downto 0) when RESET_I = '0' else (others => '0');
@@ -122,17 +123,18 @@ begin
             else  hex_data                   when addr_l = x"A"         -- output data is hex display register
             else  seg_ctrl                   when addr_l = x"B"         -- output data is 7 segment control register
             else  "000000" & led_data        when addr_l = x"C"         -- output data is led register zero padded
-            else  (others => '0');                                     -- default output data is 0
+            else  (others => '0');                                      -- default output data is 0
 
+    -- latch 0 on reset, otherwise latch new data on write to the appropriate address
     hex_le_sig      <= '1' when RST_I = '1' OR ((WBS_CYC_I AND WBS_STB_I AND WBS_WE_I) = '1' AND addr_l = x"A") else '0';     -- latch new hex display data when CYC, STB, WE are high and address is 0xFFFA
     seg_ctrl_le_sig <= '1' when RST_I = '1' OR ((WBS_CYC_I AND WBS_STB_I AND WBS_WE_I) = '1' AND addr_l = x"B") else '0';     -- latch new 7 segment control data when CYC, STB, WE are high and address is 0xFFFB
     led_le_sig      <= '1' when RST_I = '1' OR ((WBS_CYC_I AND WBS_STB_I AND WBS_WE_I) = '1' AND addr_l = x"C") else '0';     -- latch new led data when CYC, STB, WE are high and address is 0xFFFC
 
     -- set up seven segment display outputs based on control signals and hex data register - control signals have priority over hex data bits
-    HEX0_DP <= seg_ctrl0(3);     -- decimal point control for hex display 0
-    HEX1_DP <= seg_ctrl1(3);     -- decimal point control for hex display 1
-    HEX2_DP <= seg_ctrl2(3);     -- decimal point control for hex display 2
-    HEX3_DP <= seg_ctrl3(3);     -- decimal point control for hex display 3
+    HEX0_DP <= NOT seg_ctrl0(3);     -- decimal point control for hex display 0
+    HEX1_DP <= NOT seg_ctrl1(3);     -- decimal point control for hex display 1
+    HEX2_DP <= NOT seg_ctrl2(3);     -- decimal point control for hex display 2
+    HEX3_DP <= NOT seg_ctrl3(3);     -- decimal point control for hex display 3
 
     HEX0_D <= "0111111" when seg_ctrl0(1) = '1' else                    -- if replace with '-' control bit is 1, turn on only the middle segment
               "0011100" when seg_ctrl0(2) = '1' else                    -- if replace with º control bit is 1, create the ° symbol

@@ -180,7 +180,7 @@ architecture Structural of DE0_Spikeputor is
     signal stb_sel_sig : std_logic_vector(12 downto 0) := (others => '0');
 
     -- clock logic
-    signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(50000000, 32)); -- default clock speed = 1 Hz
+    signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(CLK_FREQ, 32)); -- default clock speed = 1 Hz
     signal startup_res  : std_logic := '1';                                  -- startup reset signal pulse
 
     signal SYS_CLK      : std_logic;                                         -- system clock signal
@@ -206,14 +206,26 @@ begin
     -- startup reset pulse generator
     PG1: entity work.PULSE_GEN
         generic map ( 
-           PULSE_WIDTH => 10_000_000,   -- 10 million clock ticks = 0.2 seconds at 50 MHz
-           RESET_LOW => false
+           PULSE_WIDTH => CLK_FREQ / 5,     -- 0.2 seconds
+           RESET_LOW   => false
         )
         port map (
             START_PULSE => '1',
             CLK_IN      => SYS_CLK,
             PULSE_OUT   => startup_res
         );
+
+    -- manual clock button debouncer via pulse generator
+    MAN_CLK: entity work.PULSE_GEN
+        generic map (
+            PULSE_WIDTH => CLK_FREQ / 10,    -- 0.1 seconds
+            RESET_LOW   => false
+        )
+        port map (
+            START_PULSE => NOT(ext_ctrl_sync(1)),
+            CLK_IN      => SYS_CLK,
+            PULSE_OUT   => man_clk
+        )
 
     -- Input Synchronizers
     DIP_SYNC_E : entity work.SYNC_REG
@@ -406,7 +418,7 @@ begin
             -- Clock control signals
             SPD_IN     => ext_ctrl_sync(5 downto 3),    -- input for clock speed for auto mode
             MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto and manual clock
-            MAN_START  => NOT(ext_ctrl_sync(1)),        -- Manual clock button (active low) - TODO: NEEDS TO BE DEBOUNCED!!! 100 ms
+            MAN_START  => man_clk,                      -- Manual clock button (active low)
             CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
 
