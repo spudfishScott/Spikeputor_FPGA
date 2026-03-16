@@ -48,6 +48,7 @@ architecture rtl of DE0_WSH_P is
     signal addr_l      : std_logic_vector(3 downto 0);     -- the bottom 4 bits of the address input, used for address decoding
 
     signal hex_le_sig  : std_logic := '0';                                      -- latch enable signal for hex display register
+    signal hex_data_in : std_logic_vector(15 downto 0) := (others => '0');      -- data to be latched into hex display register
     signal hex_data    : std_logic_vector(15 downto 0) := (others => '0');      -- register for hex display data - set via 0xFFFA
     signal hex0        : std_logic_vector(6 downto 0) := (others => '1');       -- output for hex display 0
     signal hex1        : std_logic_vector(6 downto 0) := (others => '1');       -- output for hex display 1
@@ -57,6 +58,7 @@ architecture rtl of DE0_WSH_P is
     -- control signals for 7 segment hex display - set via 0xFFFB
     -- seg_ctrl bit 0: digit on/off, bit 1: decimal point on/off, bit 2: replace digit with '-' sign, bit 3: replace digit with º sign
     signal seg_ctrl_le_sig : std_logic := '0';                                  -- latch enable signal for 7 segment control register
+    signal seg_ctrl_in     : std_logic_vector(15 downto 0) := (others => '0');  -- data to be latched into 7 segment control register
     signal seg_ctrl    : std_logic_vector(15 downto 0) := (others => '0');      -- all control signals packed in one word
     signal seg_ctrl0   : std_logic_vector(3 downto 0) := (others => '0');
     signal seg_ctrl1   : std_logic_vector(3 downto 0) := (others => '0');
@@ -64,6 +66,7 @@ architecture rtl of DE0_WSH_P is
     signal seg_ctrl3   : std_logic_vector(3 downto 0) := (others => '0');
 
     signal led_le_sig  : std_logic := '0';                                      -- latch enable signal for board-mounted led register
+    signal led_data_in : std_logic_vector(9 downto 0) := (others => '0');       -- data to be latched into led register
     signal led_data    : std_logic_vector(9 downto 0) := (others => '0');       -- register for led data - set via 0xFFFC
 
 begin
@@ -82,7 +85,7 @@ begin
     port map (
         CLK => CLK,
         LE  => hex_le_sig,
-        D   => WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0'),     -- latch new hex display data when CYC, STB, WE are high and address is 0xFFFA, otherwise clear to 0 on reset
+        D   => hex_data_in,     -- latch new hex display data when CYC, STB, WE are high and address is 0xFFFA, otherwise clear to 0 on reset
         Q   => hex_data
     );
 
@@ -91,7 +94,7 @@ begin
     port map (
         CLK => CLK,
         LE  => seg_ctrl_le_sig,
-        D   => WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0'),
+        D   => seg_ctrl_in,     -- latch new 7 segment control data when CYC, STB, WE are high and address is 0xFFFB, otherwise clear to 0 on reset
         Q   => seg_ctrl
     );
 
@@ -100,11 +103,15 @@ begin
     port map (
         CLK => CLK,
         LE  => led_le_sig,
-        D   => WBS_DATA_I(9 downto 0) when RESET_I = '0' else (others => '0'),
+        D   => led_data_in,     -- latch new led data when CYC, STB, WE are high and address is 0xFFFC, otherwise clear to 0 on reset
         Q   => led_data
     );
 
     addr_l <= WBS_ADDR_I(3 downto 0);     -- only care about the bottom 4 bits of the address since we're only decoding 4 addresses
+
+    hex_data_in <= WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0');
+    seg_ctrl_in <= WBS_DATA_I(15 downto 0) when RESET_I = '0' else (others => '0');
+    led_data_in <= WBS_DATA_I(9 downto 0) when RESET_I = '0' else (others => '0');
 
     seg_ctrl0 <= seg_ctrl(3 downto 0);
     seg_ctrl1 <= seg_ctrl(7 downto 4);
