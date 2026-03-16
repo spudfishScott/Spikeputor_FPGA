@@ -324,7 +324,7 @@ begin
         );
 
         -- Wishbone ACK signal logic
-        all_acks <= ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
+        all_acks <= ack(12) OR ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
         cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal
         dma_ack  <= dma_gnt_sig AND all_acks;
 
