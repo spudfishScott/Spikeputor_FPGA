@@ -53,8 +53,10 @@ begin
                 counter     <= 1;
             else
                 previous_man <= MAN_START;  -- store previous state of manual start signal for edge detection
-                CPU_CLOCK <= '1';           -- default CPU clock light is on so it's on all the time at full speed
-
+                if auto_ticks = x"00000001" then
+                    CPU_CLOCK <= '1';           -- default CPU clock light is on so it's on all the time at full speed
+                end if;
+                
                 if holding_bus = '0' AND (auto_ticks /= x"00000001" OR MAN_SEL = '1') then   -- not holding the bus and not running at full speed, check for bus request/grant
                     if M_ACK_I = '0' then
                         bus_req <= '1';     -- request bus from arbiter if not granted
