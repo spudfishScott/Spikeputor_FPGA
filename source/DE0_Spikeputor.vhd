@@ -52,9 +52,9 @@ entity DE0_Spikeputor is
         UART_RXD     : in std_logic;
         UART_TXD     : out std_logic;
         -- audio out (H, M, L)
-        VGA_R    : out std_logic_vector(3 downto 0);
-        VGA_G    : out std_logic_vector(3 downto 0);
-        VGA_B    : out std_logic_vector(3 downto 0);
+        VGA_R        : out std_logic_vector(3 downto 0);
+        VGA_G        : out std_logic_vector(3 downto 0);
+        VGA_B        : out std_logic_vector(3 downto 0);
         -- GPIO - DE0 GPIO1 pins, but relabel
         SPK_GPI      : in std_logic_vector(15 downto 0);        -- 16 bits of GPI (GPIO1[31 to 16])
         SPK_GPO      : out std_logic_vector(15 downto 0);       -- 16 bits of GPO (GPIO1[15 to 0])
@@ -293,11 +293,10 @@ begin
             DATA_O      => arb_data_o
         );
 
-        -- cpu_ext <= SEGMENT when cpu_tga = '1' else x"00";   
         -- cpu_tga determines if the DATA_SEGMENT or PC_SEGMENT register should be used to extend the address coming out of the CPU
         cpu_ext <= DATA_SEGMENT when cpu_tga = '1' else PC_SEGMENT;
 
-    -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and bank select register signals
+    -- Address comparator to select the proper Wishbone provider based on arbited 24 bit ADDR, WE, STB, and TGD signals
     ADDR_CMP : entity work.WSH_ADDR
         port map (
             ADDR_I      => arb_addr,        -- full 24 bit address
@@ -324,7 +323,8 @@ begin
         );
 
         -- Wishbone ACK signal logic
-        all_acks <= ack(12) OR ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0); -- or all provider ACK_Os together to send to granted master ACK_I
+        -- OR all provider ACK_Os together to send to granted master ACK_I
+        all_acks <= ack(12) OR ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0);
         cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal
         dma_ack  <= dma_gnt_sig AND all_acks;
 
@@ -670,8 +670,7 @@ begin
             WBS_WE_I    => arb_we,
             WBS_DATA_O  => data9,
 
-            -- SEGMENT register
-            -- SEGMENT     => SEGMENT             -- output of SEGMENT provider is a direct connection to the rest of the computer (not on the data bus)
+            -- SEGMENT registers
             DATA_SEGMENT => DATA_SEGMENT,
             PC_SEGMENT  => PC_SEGMENT
         );
