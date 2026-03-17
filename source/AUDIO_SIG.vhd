@@ -240,7 +240,7 @@ begin
                                     if cycle_cnt >= (note_cycle/128) then    -- change the value every 128th of the note cycle
                                         sin_index <= sin_index + 1;         -- increment lookup table index after using the current lookup value
                                         cycle_cnt <= 0;                     -- reset cycle count to count to 1/128th of note cycle again
-                                        if sin_index = 31 then              -- after first half of the sine wave, set a flag to reverse the index in the lookup table
+                                        if sin_index = 63 then              -- after first half of the sine wave, set a flag to reverse the index in the lookup table
                                             sin_index <= 0;                 -- reset the lookup table index
                                             sin2_cnt <= sin2_cnt + 1;       -- 0 and 1 to update each half of the wave, 2 to end
                                         end if;
