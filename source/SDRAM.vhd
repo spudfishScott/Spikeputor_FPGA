@@ -60,10 +60,10 @@ end entity;
 
 architecture rtl of SDRAM is
     constant CAS_LATENCY  : integer := 2; -- stays at 2 cycles unless frequency is >100 MHz, then go to 3 (and change the MODE_REG as well)
-    constant tRCD_CYC     : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3
-    constant tRP_CYC      : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3 
+    constant tRCD_CYC     : integer := 2; -- >20 nS, use 2 cycles until 133 MHz, then go to 3
+    constant tRP_CYC      : integer := 2; -- >20 nS, use 2 cycles until 133 MHz, then go to 3 
     constant tMRD_CYC     : integer := 2; -- always 2 cycles
-    constant tWR_CYC      : integer := 2; -- 20 nS, use 2 cycles until 133 MHz, then go to 3 
+    constant tWR_CYC      : integer := 2; -- >20 nS, use 2 cycles until 133 MHz, then go to 3 
     constant tRFC_CYC     : integer := (70 / (1_000_000_000/CLK_FREQ)) + 1; -- 70 nS
     constant REF_INTERVAL : integer := (15625 / (1_000_000_000/CLK_FREQ)) + 1; -- 15625 nS = 15.625 uS
 
