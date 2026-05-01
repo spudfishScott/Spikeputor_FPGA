@@ -81,8 +81,8 @@ entity DE0_Spikeputor is
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
         LCD_SDA      : inout std_logic;                         -- GPIO0[31], Pin 40
         -- External Control Interface
-        EXT_CTRL_IN  : in std_logic_vector(8 downto 0);         -- external control signals (reset, man clk, manual clk sel, clk speed 6 bits) from DE0 LCD ctrl
-        EXT_CTRL_OUT : out std_logic_vector(2 downto 0)         -- external control outputs (Clock LED, others . . .)
+        EXT_CTRL_IN  : in std_logic_vector(8 downto 0);         -- external control signals (0: reset, 1: man clk, 2: manual clk sel, [3:8]: clk speed 6 bits) from DE0 LCD ctrl (0->EN, 1->8: D0:D7)
+        EXT_CTRL_OUT : out std_logic_vector(2 downto 0)         -- external control outputs (0: Clock LED, others . . .) from DE0 LCD ctrl (0->BL, 1->RS, 2->RW)
     );
 end DE0_Spikeputor;
 
