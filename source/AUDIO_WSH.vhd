@@ -1,5 +1,5 @@
 -- AUDIO Wishbone Interface Provider
--- Write to addresses 0xFFF5 - 0xFFF* to set voices 0 through 3
+-- Write to addresses 0xFFF5 - 0xFFF8 to set voices 0 through 3
 -- Inputs for each voice (16 bits total):
     -- [3:0] NOTE INDEX - 4 bits from 1-12 for each note of the scale starting with C and rising to B. 0 = no sound, anything above 12 is no sound.
     -- [7:4] OCTAVE     - 4 bits from 0-8, anyting higher than 8 is clamped to 8. Octave 0 doesn't work well below Note Index 8 for triangle or sawtooth waveforms.

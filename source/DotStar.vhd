@@ -54,7 +54,7 @@ architecture rtl of dotstar_driver is
     constant NUM_SETS         : natural range 1 to 32 := 25;                                        -- number of LED sets in the whole display array
     constant MAX_LEDS_PER_SET : natural range 1 to 64 := 28;                                        -- max number of LEDs in each set (one more than actual so zero padding always works)
     constant TOTAL_LEDS       : natural range 1 to 512 := 414;                                      -- total number of LEDs (added the list above)
-    constant EXTRA_LEDs       : natural range 0 to 511 := 432 - TOTAL_LEDS + 1;                     -- extra LEDs to make total a multiple of 72 (for end of strip) - temporary (then fix MAX_LEDS_PER_SET = 22)
+    constant EXTRA_LEDs       : natural range 0 to 511 := 432 - TOTAL_LEDS + 1;                     -- extra LEDs to make total a multiple of 72 (for end of strip) - TODO: temporary (then fix MAX_LEDS_PER_SET = 22)
 
     constant START_BITS       : natural range 1 to 32 := 32;                                        -- number of bits in start frame (all '0's)
     constant BITS_PER_LED     : natural range 1 to 32 := 32;                                        -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
@@ -147,7 +147,7 @@ begin
                         end if;
 
                     when LOAD_SET =>                                -- get next set of LEDs to send
-                        if set_index /= NUM_SETS+2 then             -- if not finished all LED sets + extra set for zero padding the end of the last strip
+                        if set_index /= NUM_SETS+2 then             -- if not finished all LED sets + extra set for zero padding the end of the last strip TODO: change to +1 and get rid of EXTRA_LEDs
                             -- for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
                             case set_index is
                                 when 2 =>

@@ -774,7 +774,7 @@ begin
     lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
 
     DOTSTAR : entity work.dotstar_driver 
-        generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
+        generic map ( XMIT_QUANTA => 2 )   -- change XMIT quanta if there are problems updating the full LED set
         port map (
             CLK         => SYS_CLK,
             START       => led_refresh,
