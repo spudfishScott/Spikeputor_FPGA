@@ -202,7 +202,7 @@ architecture Structural of DE0_Spikeputor is
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL), update CLK_FREQ as well
-    RESET   <= startup_res OR dma_rst OR NOT ext_ctrl_sync(0);               -- Reset is startup reset or DMA reset or Manual reset button (external input bit 0)
+    RESET   <= startup_res OR dma_rst OR NOT ext_ctrl_sync(0);               -- Reset is startup reset or DMA reset or Manual reset button (active low, external input bit 0)
 
     -- startup reset pulse generator
     PG1: entity work.PULSE_GEN
@@ -223,7 +223,7 @@ begin
             RESET_LOW   => false
         )
         port map (
-            START_PULSE => NOT(ext_ctrl_sync(1)),                           -- Manual clock button (external input bit 1)
+            START_PULSE => NOT(ext_ctrl_sync(1)),                           -- Manual clock button (active low, external input bit 1)
             CLK_IN      => SYS_CLK,
             PULSE_OUT   => man_clk
         );
@@ -418,7 +418,7 @@ begin
 
             -- Clock control signals
             SPD_IN     => ext_ctrl_sync(8 downto 3),    -- input for clock speed for auto mode
-            MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto and manual clock
+            MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto (high) and manual (low) clock
             MAN_START  => man_clk,                      -- Manual clock button (active low)
             CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
@@ -774,7 +774,7 @@ begin
     lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
 
     DOTSTAR : entity work.dotstar_driver 
-        generic map ( XMIT_QUANTA => 2 )   -- change XMIT quanta if there are problems updating the full LED set
+        generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set
         port map (
             CLK         => SYS_CLK,
             START       => led_refresh,

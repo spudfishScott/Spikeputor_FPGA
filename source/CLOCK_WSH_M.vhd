@@ -1,5 +1,6 @@
 -- A wishbone master interface to hold the bus for a specified number of system clock ticks
 -- This allows a user settable clock for the CPU, either automatic at a set frequency or manual via button press
+-- MAN_SEL = 0 for manual clock and 1 for automatic clock as rate set in SPD_IN (one-hot speeds)
 -- Provides a CPU clock output signal for display purposes (50% duty cycle)
 
 library ieee;
@@ -18,7 +19,7 @@ entity CLOCK_WSH_M is
         M_ACK_I    : in  std_logic;      -- aribiter grant signal - kicks off bus stall process
 
         SPD_IN     : in std_logic_vector(5 downto 0);   -- Automatic clock frequency selection (6 speeds based on one-hot values)
-        MAN_SEL    : in std_logic;                      -- Manual/Automatic clock select
+        MAN_SEL    : in std_logic;                      -- Manual (low)/Automatic(high) clock select
         MAN_START  : in std_logic;                      -- Manual clock start signal
 
         CPU_CLOCK  : out std_logic      -- CPU Clock output for display purposes (should be 50% duty cycle)
@@ -36,7 +37,7 @@ architecture Behavioral of CLOCK_WSH_M is
 begin
     M_CYC_O <= bus_req;     -- bus request in the form of a wishbone master cycle signal
 
-    -- Spikeputor clock speed selector from three one-hot switches
+    -- Spikeputor clock speed selector from thsixree one-hot switches
     CLK_SEL : entity work.CLK_SEL
         port map (
             SW_INPUTS => SPD_IN,
@@ -57,7 +58,7 @@ begin
                     CPU_CLOCK <= '1';           -- default CPU clock light is on so it's on all the time at full speed
                 end if;
                 
-                if holding_bus = '0' AND (auto_ticks /= x"00000001" OR MAN_SEL = '1') then   -- not holding the bus and not running at full speed, check for bus request/grant
+                if holding_bus = '0' AND (auto_ticks /= x"00000001" OR MAN_SEL = '0') then   -- not holding the bus and not running at full speed, check for bus request/grant
                     if M_ACK_I = '0' then
                         bus_req <= '1';     -- request bus from arbiter if not granted
                     end if;
@@ -69,7 +70,7 @@ begin
                     end if;
 
                 else    -- holding bus, counting ticks or waiting for manual button press
-                    if MAN_SEL = '0' then
+                    if MAN_SEL = '1' then
                         if counter < to_integer(unsigned(auto_ticks)) then  -- increment counter until complete
                             counter <= counter + 1;
                             if counter > to_integer(unsigned(auto_ticks))/2 then
