@@ -417,7 +417,7 @@ begin
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
             -- Clock control signals
-            SPD_IN     => ext_ctrl_sync(0 to 5),    -- input for clock speed for auto mode
+            SPD_IN     => ext_ctrl_sync(5 downto 0),    -- input for clock speed for auto mode
             MAN_SEL    => ext_ctrl_sync(6),             -- selects between auto (high) and manual (low) clock
             MAN_START  => man_clk,                      -- Manual clock button (active low)
             CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
