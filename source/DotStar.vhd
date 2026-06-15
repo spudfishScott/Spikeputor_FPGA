@@ -52,9 +52,8 @@ end dotstar_driver;
 architecture rtl of dotstar_driver is
 
     constant NUM_SETS         : natural range 1 to 32 := 25;                                        -- number of LED sets in the whole display array
-    constant MAX_LEDS_PER_SET : natural range 1 to 64 := 28;                                        -- max number of LEDs in each set (one more than actual so zero padding always works)
+    constant MAX_LEDS_PER_SET : natural range 1 to 64 := 22;                                        -- max number of LEDs in each set (one more than actual so zero padding always works)
     constant TOTAL_LEDS       : natural range 1 to 512 := 414;                                      -- total number of LEDs (added the list above)
-    constant EXTRA_LEDs       : natural range 0 to 511 := 432 - TOTAL_LEDS + 1;                     -- extra LEDs to make total a multiple of 72 (for end of strip) - TODO: temporary (then fix MAX_LEDS_PER_SET = 22)
 
     constant START_BITS       : natural range 1 to 32 := 32;                                        -- number of bits in start frame (all '0's)
     constant BITS_PER_LED     : natural range 1 to 32 := 32;                                        -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
@@ -147,8 +146,7 @@ begin
                         end if;
 
                     when LOAD_SET =>                                -- get next set of LEDs to send
-                        if set_index /= NUM_SETS+2 then             -- if not finished all LED sets + extra set for zero padding the end of the last strip TODO: change to +1 and get rid of EXTRA_LEDs
-                            -- for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
+                        if set_index /= NUM_SETS+1 then             -- if not finished all LED sets, for each set, use custom signal names and bit widths, zero pad msb's to MAX_LEDS_PER_SET
                             case set_index is
                                 when 2 =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto PC_SEGMENT'length => '0') & PC_SEGMENT;
@@ -227,8 +225,6 @@ begin
                                     num_leds <= DATA_SEGMENT'length;
                                 when others =>
                                     set_reg  <= (others => '0');
-                                    --TODO: get rid of this and other EXTRA_LED references above
-                                    num_leds <= EXTRA_LEDs;  -- pad with extra LEDs to make total a multiple of 72
                             end case;
 
                             led_index <= 0;                         -- start with first LED in the set
@@ -253,12 +249,19 @@ begin
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for P_WSEG = 1
                                         end if;
-                                    elsif led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
-                                        -- TODO: include ROM/RAM signal for segment = 0 (RAM if PC < 0xC800, ROM otherwise)
-                                        if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
-                                        else
-                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                    elsif led_index = 7 then
+                                        if set_reg(7 downto 0) /= "00000000" then   -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                            if set_reg(led_index) = '1' then
+                                                led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
+                                            else
+                                                led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                            end if;
+                                        else -- RAM if PC < 0xC800, ROM otherwise
+                                            if PC(15 downto 8) < x"C8" then
+                                                led_reg(COLOR_RANGE) <= x"000400";		-- green for RAM
+                                            else
+                                                led_reg(COLOR_RANGE) <= x"040000";		-- blue for ROM
+                                            end if;
                                         end if;
                                     elsif set_reg(led_index) = '1' then
                                         led_reg(COLOR_RANGE) <= x"000004";      -- PC_SEGMENT is all red LEDs
@@ -419,12 +422,19 @@ begin
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for D_WSEG = 1
                                         end if;
-                                    elsif led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
-                                        -- TODO: include ROM/RAM signal for segment = 0 (RAM if MEMORY DATA < 0xC800, ROM otherwise)
-                                        if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
-                                        else
-                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                    elsif led_index = 7 then
+                                        if set_reg(7 downto 0) /= "00000000" then   -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                            if set_reg(led_index) = '1' then
+                                                led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
+                                            else
+                                                led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                            end if;
+                                        else -- RAM if MEMORY DATA < 0xC800, ROM otherwise
+                                            if MDATA(15 downto 8) < x"C8" then
+                                                led_reg(COLOR_RANGE) <= x"000400";		-- green for RAM
+                                            else
+                                                led_reg(COLOR_RANGE) <= x"040000";		-- blue for ROM
+                                            end if;
                                         end if;
                                     elsif set_reg(led_index) = '1' then
                                         led_reg(COLOR_RANGE) <= x"000004";      -- DATA_SEGMENT is all red LEDs

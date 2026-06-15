@@ -249,12 +249,12 @@ begin
 
     WITH (SW_INPUTS) SELECT   -- select CPU speed
         SPEED_OUT <=
-            std_logic_vector(to_unsigned(10_000_000, 32))   when "111110",      -- Slow Speed (divide clock by 10 M - default 5 Hz)
-            std_logic_vector(to_unsigned(1_000_000, 32))    when "111101",      -- Speed 2 (divide clock by 1 M - default 50 Hz)
-            std_logic_vector(to_unsigned(100_000, 32))      when "111011",      -- Speed 3 (divide clock by 100 k - default 500 Hz)
-            std_logic_vector(to_unsigned(10_000, 32))       when "110111",      -- Speed 4 (divide clock by 10 k - default 5 kHz)
-            std_logic_vector(to_unsigned(1_000, 32))        when "101111",      -- Speed 5 (divide clock by 1 k - default 50 kHz)
-            std_logic_vector(to_unsigned(1, 32))            when "011111",      -- Full Speed (unity clock - default 50 MHz)
+            std_logic_vector(to_unsigned(10_000_000, 32))   when "011111",      -- Slow Speed (divide clock by 10 M - default 5 Hz)
+            std_logic_vector(to_unsigned(1_000_000, 32))    when "101111",      -- Speed 2 (divide clock by 1 M - default 50 Hz)
+            std_logic_vector(to_unsigned(100_000, 32))      when "110111",      -- Speed 3 (divide clock by 100 k - default 500 Hz)
+            std_logic_vector(to_unsigned(10_000, 32))       when "111011",      -- Speed 4 (divide clock by 10 k - default 5 kHz)
+            std_logic_vector(to_unsigned(1_000, 32))        when "111101",      -- Speed 5 (divide clock by 1 k - default 50 kHz)
+            std_logic_vector(to_unsigned(1, 32))            when "111110",      -- Full Speed (unity clock - default 50 MHz)
             std_logic_vector(to_unsigned(100_000_000, 32))  when others;        -- Glacial Speed (divide clock by 100 M - default 0.5 Hz)
 
 end Behavior;
