@@ -16,7 +16,7 @@
             -- 0x000D           16 BIT INTEGER A/B - result is quotient, 0xFFE7 is remainder
             -- 0x000E           16 BIT INTEGER A*B - result is 32 bits wide
         -- READ:
-            -- 0x8000           BUSY (1 = result computing, 0 = result ready)
+            -- BUSY (0 = result ready, non-zero = cycles remaining)
     -- 0xFFE1 - Input A High Word (ignored for INTMUL and INTDIV)
     -- 0xFFE2 - Input A Low Word  (use for INTMUL and INTDIV)
     -- 0xFFE3 - Input B High Word (when needed - ignored for INTMUL and INTDIV)
@@ -30,7 +30,7 @@
         -- Store A low in 0xFFE2
         -- Store B high (if used) in 0xFFE3
         -- Store B low (if used) in 0xFFE4
-        -- Store Function in 0xFFE0
+        -- Store Function in 0xFFE0 (resets the busy counter)
         -- Poll 0xFFE0 until 0 (up to 16 cycles and as few as 0, depending on the function)
         -- Read result high from 0xFFE5
         -- Read result low from 0xFFE6

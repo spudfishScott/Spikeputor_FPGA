@@ -227,6 +227,7 @@ begin
                                     num_leds <= DATA_SEGMENT'length;
                                 when others =>
                                     set_reg  <= (others => '0');
+                                    --TODO: get rid of this and other EXTRA_LED references above
                                     num_leds <= EXTRA_LEDs;  -- pad with extra LEDs to make total a multiple of 72
                             end case;
 
@@ -253,6 +254,7 @@ begin
                                             led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for P_WSEG = 1
                                         end if;
                                     elsif led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                        -- TODO: include ROM/RAM signal for segment = 0 (RAM if PC < 0xC800, ROM otherwise)
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
                                         else
@@ -418,6 +420,7 @@ begin
                                             led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for D_WSEG = 1
                                         end if;
                                     elsif led_index = 7 AND set_reg(7 downto 0) /= "00000000" then     -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                        -- TODO: include ROM/RAM signal for segment = 0 (RAM if MEMORY DATA < 0xC800, ROM otherwise)
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
                                         else

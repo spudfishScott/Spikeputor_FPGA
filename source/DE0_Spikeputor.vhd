@@ -81,7 +81,7 @@ entity DE0_Spikeputor is
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
         LCD_SDA      : inout std_logic;                         -- GPIO0[31], Pin 40
         -- External Control Interface
-        EXT_CTRL_IN  : in std_logic_vector(8 downto 0);         -- external control signals (0: reset, 1: man clk, 2: manual clk sel, [3:8]: clk speed 6 bits) from DE0 LCD ctrl (0->EN, 1->8: D0:D7)
+        EXT_CTRL_IN  : in std_logic_vector(8 downto 0);         -- external control signals (8: reset, 7: man clk, 6: man clk sel, 5[5:0] : clk speed 1 -> 6)
         EXT_CTRL_OUT : out std_logic_vector(2 downto 0)         -- external control outputs (0: Clock LED, others . . .) from DE0 LCD ctrl (0->BL, 1->RS, 2->RW)
     );
 end DE0_Spikeputor;
@@ -202,7 +202,7 @@ architecture Structural of DE0_Spikeputor is
 begin
     -- Clock and Reset Signals
     SYS_CLK <= CLOCK_50;                                                     -- This may be a different value in the future (through PLL), update CLK_FREQ as well
-    RESET   <= startup_res OR dma_rst OR NOT ext_ctrl_sync(0);               -- Reset is startup reset or DMA reset or Manual reset button (active low, external input bit 0)
+    RESET   <= startup_res OR dma_rst OR NOT ext_ctrl_sync(8);               -- Reset is startup reset or DMA reset or Manual reset button (active low, external input bit 0)
 
     -- startup reset pulse generator
     PG1: entity work.PULSE_GEN
@@ -223,7 +223,7 @@ begin
             RESET_LOW   => false
         )
         port map (
-            START_PULSE => NOT(ext_ctrl_sync(1)),                           -- Manual clock button (active low, external input bit 1)
+            START_PULSE => NOT(ext_ctrl_sync(7)),                           -- Manual clock button (active low, external input bit 1)
             CLK_IN      => SYS_CLK,
             PULSE_OUT   => man_clk
         );
@@ -417,8 +417,8 @@ begin
             M_ACK_I    => clk_gnt_sig,          -- set high when clock bus request is granted
 
             -- Clock control signals
-            SPD_IN     => ext_ctrl_sync(8 downto 3),    -- input for clock speed for auto mode
-            MAN_SEL    => ext_ctrl_sync(2),             -- selects between auto (high) and manual (low) clock
+            SPD_IN     => ext_ctrl_sync(0 to 5),    -- input for clock speed for auto mode
+            MAN_SEL    => ext_ctrl_sync(6),             -- selects between auto (high) and manual (low) clock
             MAN_START  => man_clk,                      -- Manual clock button (active low)
             CPU_CLOCK  => EXT_CTRL_OUT(0)               -- send clock to external control out for special LED driver (not DotStar)
         );
