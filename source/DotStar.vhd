@@ -422,19 +422,11 @@ begin
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for D_WSEG = 1
                                         end if;
-                                    elsif led_index = 7 then
-                                        if set_reg(7 downto 0) /= "00000000" then   -- msb is ROM/RAM signal, but only if segment register isn't 0
-                                            if set_reg(led_index) = '1' then
-                                                led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
-                                            else
-                                                led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
-                                            end if;
-                                        else -- RAM if MEMORY DATA < 0xC800, ROM otherwise
-                                            if MDATA(15 downto 8) < x"C8" then
-                                                led_reg(COLOR_RANGE) <= x"000400";		-- green for RAM
-                                            else
-                                                led_reg(COLOR_RANGE) <= x"040000";		-- blue for ROM
-                                            end if;
+                                    elsif led_index = 7 and set_reg(7 downto 0) /= "00000000" then   -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                        if set_reg(led_index) = '1' then
+                                            led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
+                                        else
+                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
                                         end if;
                                     elsif set_reg(led_index) = '1' then
                                         led_reg(COLOR_RANGE) <= x"000004";      -- DATA_SEGMENT is all red LEDs
