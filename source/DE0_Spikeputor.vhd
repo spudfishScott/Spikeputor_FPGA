@@ -810,6 +810,7 @@ begin
             DATA_OUT    => DOTSTAR_DATA,                                                        -- DotStar data and clock signals
             CLK_OUT     => DOTSTAR_CLK,
             BUSY        => led_busy
+            -- TODO: include rwaddr_out so data segment display can be changed to reflect ROM/RAM for segment 0
         );
 
     -- the LCD driver shows INST/CONST, instruction interpreted, Next PC, and SEGMENT:RWADDR (-> or <-) MDATA during r/w operations - communicates with actual LCD display via the I2C interface lines

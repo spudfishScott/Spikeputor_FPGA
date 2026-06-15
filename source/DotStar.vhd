@@ -336,10 +336,10 @@ begin
                                             when 17 =>
                                                 led_reg(COLOR_RANGE) <= x"000204";  -- orange for subtraction
                                             when others =>
-                                                led_reg(COLOR_RANGE) <= x"040000";  -- red LEDs for ARITH result
+                                                led_reg(COLOR_RANGE) <= x"000004";  -- red LEDs for ARITH result
                                         end case;
                                     elsif led_index = 17 then   -- addition (flag = '0')
-                                        led_reg(COLOR_RANGE) <= x"040000";          -- cyan for addition
+                                        led_reg(COLOR_RANGE) <= x"040400";          -- cyan for addition
                                     end if;
                                 when 19 =>
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
@@ -423,6 +423,7 @@ begin
                                             led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for D_WSEG = 1
                                         end if;
                                     elsif led_index = 7 and set_reg(7 downto 0) /= "00000000" then   -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                    -- TODO once rwaddr_out signal is available, can fix this the same way that PC was fixed for segment 0
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"040000";      -- blue LED for ROM
                                         else
