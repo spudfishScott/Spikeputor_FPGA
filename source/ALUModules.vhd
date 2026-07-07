@@ -33,7 +33,7 @@ begin
     M_OUT   <= SUM(15 downto 0);
     COUT    <= SUM(16);
 
-    BX      <= 0 & B when SUB = '0' 
+    BX      <= "0" & B when SUB = '0' 
                 else std_logic_vector(resize(unsigned(NOT B), 17) + 1);    -- generate two's complement of B for subtraction (0x10000 for 0)
                  
     SUM     <= std_logic_vector(resize(unsigned(A), 17) + resize(unsigned(BX), 17));    -- add A and B (or A and -B)
