@@ -26,15 +26,15 @@ end ARITH;
 architecture Behavior of ARITH is
 
     signal SUM : std_logic_vector(16 downto 0) := (others => '0'); -- extra bit for the carry
-    signal BX  : std_logic_vector(15 downto 0) := (others => '0'); -- B transformed for the addition operation
+    signal BX  : std_logic_vector(16 downto 0) := (others => '0'); -- B transformed for the addition operation
 
 begin
 
     M_OUT   <= SUM(15 downto 0);
     COUT    <= SUM(16);
 
-    BX      <= B when SUB = '0' 
-                 else std_logic_vector(unsigned(NOT B) + 1);    -- generate two's complement of B for subtraction
+    BX      <= 0 & B when SUB = '0' 
+                else std_logic_vector(resize(unsigned(NOT B), 17) + 1);    -- generate two's complement of B for subtraction (0x10000 for 0)
                  
     SUM     <= std_logic_vector(resize(unsigned(A), 17) + resize(unsigned(BX), 17));    -- add A and B (or A and -B)
 
