@@ -159,7 +159,7 @@ begin
                  "10" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1001" else     -- output "10" during the RW state of JS commands (WBS_DATA_O => PC_SEGMENT)
                  "00";
 
-    PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
+    --PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
 
     process(clk)
     begin
@@ -181,7 +181,8 @@ begin
 
             else
                 -- normal operation
-                WERF_sig <= '0';                -- do not write to registers unless specifically set below
+                WERF_sig <= '0';                   -- do not write to registers unless specifically set below
+                PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);      -- calculate next PC synchronously, not asynchronously
                 if STALL_I = '0' then              -- only proceed if not stalled for debugging, otherwise hold current state and do nothing
                     case st_main is
                         when ST_FETCH_I =>
@@ -246,12 +247,18 @@ begin
 
                                             PC_reg <= (ALU_OUT AND X"FFFE");          -- set PC to address in ALU output to jump (without lsb)
                                             WBS_ADDR_O <= (ALU_OUT AND X"FFFE");      -- set address of next instruction to ALU_OUT
+                                            WERF_sig <= '1';                          -- write PC_INC to register on next clock if JT = 1
                                 else
                                             PC_reg <= PC_INC_calc;      -- increment PC by 2 for next instruction
                                             WBS_ADDR_O <= PC_INC_calc;  -- set address of next instruction to PC+2
+                                            if (INST_reg(9) = '1' AND INST_reg(8 downto 7) = "10") then
+                                                WERF_sig <= '0';            -- do not write to register if conditional jump command, but Z is not correct (JT = 0)
+                                            else
+                                                WERF_sig <= '1';            -- write to register (input based on WDSEL) on next clock
+                                            end if;
                                 end if;
                                 
-                                WERF_sig <= '1';        -- write to register (input based on WDSEL) on next clock
+--                                WERF_sig <= '1';        -- write to register (input based on WDSEL) on next clock
 
                                 WBS_CYC_O <= '0';           -- end wishbone cycle
                                 TGA_sig <= '0';             -- set up address to be extended by PC_SEGMENT register
