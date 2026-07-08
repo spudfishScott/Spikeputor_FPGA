@@ -156,7 +156,7 @@ begin
 
     reg_w_disp <= reg_w_addr when rbsel_out = '0' else (others => '0'); -- display register write unless rbsel is 1
 
-    WBS_TGC_O <= tgc_sig;   -- new code - expose TGC signal to Spikeputor control
+    M_TGC_O <= tgc_sig;   -- new code - expose TGC signal to Spikeputor control
 
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M
