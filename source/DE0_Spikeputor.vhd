@@ -108,6 +108,7 @@ architecture Structural of DE0_Spikeputor is
     signal cpu_we      : std_logic := '0';
     signal cpu_tga     : std_logic := '0';
     signal cpu_tgd     : std_logic_vector(1 downto 0) := "00";
+    signal cpu_tgc     : std_logic := '0';  -- new code
     signal cpu_gnt_sig : std_logic := '0';
 
     -- CPU display signals
@@ -351,6 +352,7 @@ begin
             M_WE_O          => cpu_we,                        -- Wishbone WE to providers
             M_TGA_O         => cpu_tga,                       -- Wishbone user address tag to use extended address for PC (0) or DATA (1)
             M_TGD_O         => cpu_tgd,                       -- Wishbone user data tag to write to one of the SEGMENT registers or to a normal memory address (0b01 = data segment register, 0b10 = pc segment register)
+            M_TGC_O         => cpu_tgc,                       -- Wishbone user cycle tag - set to 1 when display values are latched
 
             -- Direct Display Values
             WSEG_D_DISP     => wseg_d_out,
@@ -766,12 +768,15 @@ begin
     process(SYS_CLK) is
     begin
         if rising_edge(SYS_CLK) then 
-            last_cyc_sig <= arb_cyc;    -- to detect falling edge of CYC_O signal for DotStar update requests
+            last_cyc_sig <= cpu_tgc; -- new code detect falling edge of WBS_TGC_O code was: arb_cyc;    -- to detect falling edge of CYC_O signal for DotStar update requests
         end if;
     end process;
 
-    led_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
-    lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
+    -- led_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+    -- lcd_refresh <= '1' when (last_cyc_sig = '1' AND arb_cyc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
+
+    led_refresh <= '1' when (last_cyc_sig = '1' AND cpu_tgc = '0') AND led_busy = '0' else '0';     -- update DotStar at the end of a CPU wishbone cycle (falling edge) and if DotStar is not busy
+    lcd_refresh <= '1' when (last_cyc_sig = '1' AND cpu_tgc = '0') AND lcd_busy = '0' else '0';     -- update LCD panel at end of a CPU wishbone cycle (falling edge) and if LCD panel is not busy
 
     DOTSTAR : entity work.dotstar_driver 
         generic map ( XMIT_QUANTA => 1 )   -- change XMIT quanta if there are problems updating the full LED set

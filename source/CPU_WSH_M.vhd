@@ -26,6 +26,7 @@ entity CPU_WSH_M is
         M_WE_O    : out std_logic;
         M_TGA_O   : out std_logic;
         M_TGD_O   : out std_logic_vector(1 downto 0);
+        M_TGC_O   : out std_logic;      -- new code
 
         -- Direct Display Values
         WSEG_D_DISP     : out std_logic;
@@ -106,7 +107,7 @@ architecture Behavioral of CPU_WSH_M is
     signal reg_b_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register addresses (Chan B)
     signal reg_w_addr     : std_logic_vector(15 downto 0) := (others => '0');   -- received register Channel to write
     signal reg_w_disp     : std_logic_vector(15 downto 0) := (others => '0');   -- to display selected register Channel to write
-	 
+
 begin
 
     -- wire internal signals to display outputs
@@ -154,6 +155,8 @@ begin
                            else '0';
 
     reg_w_disp <= reg_w_addr when rbsel_out = '0' else (others => '0'); -- display register write unless rbsel is 1
+
+    WBS_TGC_O <= tgc_sig;   -- new code - expose TGC signal to Spikeputor control
 
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M

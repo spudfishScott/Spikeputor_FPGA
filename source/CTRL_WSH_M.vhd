@@ -158,7 +158,7 @@ begin
                  "10" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1001" else     -- output "10" during the RW state of JS commands (WBS_DATA_O => PC_SEGMENT)
                  "00";
 
-    WBS_TGC_O <= '1' when st_main = ST_EXECUTE else '0';    -- new code (if this doesn't work, try setting it the same cycle that st_main is set to ST_EXECUTE)
+    WBS_TGC_O <= '1' when st_main = ST_FETCH_I else '0';    -- new code
 
     process(clk)
     begin
