@@ -28,8 +28,8 @@ entity CPU_WSH_M is
         M_TGD_O   : out std_logic_vector(1 downto 0);
 
         -- Direct Display Values
-        WSEG_D_DISP  : out std_logic;
-        WSEG_P_DISP  : out std_logic;
+        WSEG_D_DISP     : out std_logic;
+        WSEG_P_DISP     : out std_logic;
         INST_DISP       : out std_logic_vector(15 downto 0);
         CONST_DISP      : out std_logic_vector(15 downto 0);
         MDATA_DISP      : out std_logic_vector(16 downto 0);
@@ -87,6 +87,7 @@ architecture Behavioral of CPU_WSH_M is
     signal regb_out  : std_logic_vector(15 downto 0) := (others => '0');
 
     -- Signals for display only
+    signal tgc_sig        : std_logic := '0';                                   -- cycle signal to say when to latch the display signals
     signal mdata_sig      : std_logic_vector(15 downto 0) := (others => '0');   -- to display the read or write memory data
     signal pc_disp_sig    : std_logic_vector(15 downto 0) := (others => '0');   -- to display the program counter
     signal jt_sig         : std_logic := '0';
@@ -109,34 +110,41 @@ architecture Behavioral of CPU_WSH_M is
 begin
 
     -- wire internal signals to display outputs
-    WSEG_D_DISP  <= wseg_d_out;
-    WSEG_P_DISP  <= wseg_p_out;
-    INST_DISP       <= inst_out;
-    CONST_DISP      <= const_out;
-    MDATA_DISP      <= rbsel_out & mdata_sig;
-    RWADDR_DISP     <= rwaddr_out;
-    PC_DISP         <= jt_sig & pc_disp_sig;
+    process(CLK)    -- new code
+    begin           -- new code
+        if rising_edge(CLK) then    -- new code
+            if tgc_sig = '1' then       -- new code
+                WSEG_D_DISP     <= wseg_d_out;
+                WSEG_P_DISP     <= wseg_p_out;
+                INST_DISP       <= inst_out;
+                CONST_DISP      <= const_out;
+                MDATA_DISP      <= rbsel_out & mdata_sig;
+                RWADDR_DISP     <= rwaddr_out;
+                PC_DISP         <= jt_sig & pc_disp_sig;
 
-    ALU_DISP        <= s_alu_out;
-    ALU_CMP_DISP    <= alu_fnleds(6 downto 5) & alu_cmpf & alu_fnleds(7);
-    ALU_SHIFT_DISP  <= alu_fnleds(8) & alu_fnleds(9) & alu_shift_sig & alu_fnleds(10);
-    ALU_BOOL_DISP   <= alu_fnleds(3 downto 0) & alu_bool_sig & alu_fnleds(4);
-    ALU_ARITH_DISP  <= alu_fnleds(11) & alu_arith_sig & alu_fnleds(12);
-    ALU_A_DISP      <= asel_out & alua_sig;
-    ALU_B_DISP      <= bsel_out & alub_sig;
+                ALU_DISP        <= s_alu_out;
+                ALU_CMP_DISP    <= alu_fnleds(6 downto 5) & alu_cmpf & alu_fnleds(7);
+                ALU_SHIFT_DISP  <= alu_fnleds(8) & alu_fnleds(9) & alu_shift_sig & alu_fnleds(10);
+                ALU_BOOL_DISP   <= alu_fnleds(3 downto 0) & alu_bool_sig & alu_fnleds(4);
+                ALU_ARITH_DISP  <= alu_fnleds(11) & alu_arith_sig & alu_fnleds(12);
+                ALU_A_DISP      <= asel_out & alua_sig;
+                ALU_B_DISP      <= bsel_out & alub_sig;
 
-    REGB_OUT_DISP   <= regb_out;
-    REGA_OUT_DISP   <= azero_out & rega_out;
-    REG1_DISP       <= reg_a_addr(1) & reg_b_addr(1) & reg_w_disp(1) & allregs_sig(1);
-    REG2_DISP       <= reg_a_addr(2) & reg_b_addr(2) & reg_w_disp(2) & allregs_sig(2);
-    REG3_DISP       <= reg_a_addr(3) & reg_b_addr(3) & reg_w_disp(3) & allregs_sig(3);
-    REG4_DISP       <= reg_a_addr(4) & reg_b_addr(4) & reg_w_disp(4) & allregs_sig(4);
-    REG5_DISP       <= reg_a_addr(5) & reg_b_addr(5) & reg_w_disp(5) & allregs_sig(5);
-    REG6_DISP       <= reg_a_addr(6) & reg_b_addr(6) & reg_w_disp(6) & allregs_sig(6);
-    REG7_DISP       <= reg_a_addr(7) & reg_b_addr(7) & reg_w_disp(7) & allregs_sig(7);
-    REGIN_DISP      <= wdsel_out & regin_sig;
+                REGB_OUT_DISP   <= regb_out;
+                REGA_OUT_DISP   <= azero_out & rega_out;
+                REG1_DISP       <= reg_a_addr(1) & reg_b_addr(1) & reg_w_disp(1) & allregs_sig(1);
+                REG2_DISP       <= reg_a_addr(2) & reg_b_addr(2) & reg_w_disp(2) & allregs_sig(2);
+                REG3_DISP       <= reg_a_addr(3) & reg_b_addr(3) & reg_w_disp(3) & allregs_sig(3);
+                REG4_DISP       <= reg_a_addr(4) & reg_b_addr(4) & reg_w_disp(4) & allregs_sig(4);
+                REG5_DISP       <= reg_a_addr(5) & reg_b_addr(5) & reg_w_disp(5) & allregs_sig(5);
+                REG6_DISP       <= reg_a_addr(6) & reg_b_addr(6) & reg_w_disp(6) & allregs_sig(6);
+                REG7_DISP       <= reg_a_addr(7) & reg_b_addr(7) & reg_w_disp(7) & allregs_sig(7);
+                REGIN_DISP      <= wdsel_out & regin_sig;
+            end if;     -- new code
+        end if;     -- new code
+    end process;    -- new code
 
-    -- these two intermediate signals are incorporated into the MDATA_DISP and PC_DISP outputs, above
+    -- these three intermediate signals are incorporated into the MDATA_DISP and PC_DISP outputs, above
     mdata_sig       <= mrdata_out when (rbsel_out = '0' OR wseg_d_out = '1') else regb_out;     -- get mdata from memory read or write (rbsel = 1 AND wseg = 0 on ST commands only)
 
     jt_sig          <= '1' when ((inst_out(9) = '1') AND                    -- Calculate value of JT flag (1 = jump, 0 = use pc_inc)
@@ -169,6 +177,7 @@ begin
         WBS_WE_O    => M_WE_O,   -- write enable output from master, input to providers
         WBS_TGA_O   => M_TGA_O,  -- tag for whether to use data segment or pc segment for extended address bus
         WBS_TGD_O   => M_TGD_O,  -- tag for whether to use data to store in memory or in data or pc segment register
+        WBS_TGC_O   => tgc_sig,  -- tag to indicate when to latch the display signals from the control module -- new code
 
         -- Internal Spikeputor signals
         -- Data outputs from Control Logic to other modules

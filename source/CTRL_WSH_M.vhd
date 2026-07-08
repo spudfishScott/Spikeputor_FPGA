@@ -71,6 +71,7 @@ entity CTRL_WSH_M is
         WBS_WE_O    : out std_logic;                        -- write enable output - write when high, read when low
         WBS_TGA_O   : out std_logic;                        -- address tag for whether or not to use extended address bus
         WBS_TGD_O   : out std_logic_vector(1 downto 0);     -- data tag for whether or not data out goes to SEGMENT registers (0b01 = DATA, 0b10 = PC)
+        WBS_TGC_O   : out std_logic;                        -- WBS tag to tell cpu to latch in current values for display   -- new code
 
         -- Spikeputor Signals
             -- Data outputs from Control Logic to other modules
@@ -115,7 +116,7 @@ architecture rtl of CTRL_WSH_M is
     signal MEMRW_reg   : std_logic_vector(15 downto 0) := (others => '0');   -- register to hold address of memory read/write operation
     signal MRDATA_reg  : std_logic_vector(15 downto 0) := (others => '0');   -- MRDATA register (for display)
 
-    signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command)
+    signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command) and not a failed branch
     signal TGA_sig     : std_logic := '0';                                   -- TGA signal to determine which SEGMENT register is used
 
     -- state machine
@@ -133,10 +134,9 @@ begin
     MRDATA      <= MRDATA_reg;
     RWADDR      <= MEMRW_reg;
     RBSEL       <= '1' when INST_reg(9) = '1' AND (INST_REG(7 downto 6) = "11" OR INST_REG(8 downto 6) = "001") else '0'; -- RBSEL = '0' for OPB, '1' for OPC  - RBSEL is '1' for LDS, ST, STC, STS and JS instructions, else '0'
-    -- WSEG        <= '1' when  (INST_reg(9 downto 6) = "1111") else '0';      -- WSEG = 1 when writing to SEGMENT register, 0 otherwise
     WSEG_D   <= '1' when (INST_reg(9 downto 6) = "1111") else '0';          -- WSEG_D = 1 when writing to DATA_SEGMENT register, 0 otherwise
     WSEG_P   <= '1' when (INST_reg(9 downto 6) = "1001") else '0';          -- WSEG_P = 1 when writing to PC_SEGMENT register, 0 otherwise
-    WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command)
+    WERF        <= WERF_sig;                                                -- WERF = 1 during execute phases if instruction is not a store (ST command) and not a failed branch
     WDSEL       <=  "11" when (INST_reg(9 downto 6) = "1110") else          -- Write Data Select:   use SEGMENT as Register Input for LDS instruction
                     "10" when (INST_reg(9 downto 6) = "1010") else                          --      use Memory Read Data as Register Input for LD instruction
                     "00" when (INST_reg(9) = '1' AND INST_reg(7) = '0') else                --      use PC+2 as Register Input for non-segment Branch Instructions
@@ -152,14 +152,13 @@ begin
     WBS_WE_O    <= '1'  when ((INST_reg(9 downto 6) = "1011" OR INST_reg(9 downto 6) = "1111" OR INST_reg(9 downto 6) = "1001") AND (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT))
                              AND RST_I = '0' else '0';                      -- write enable high for STS, ST and STC, JS and JSC instructions during execute with r/w phase
 
-   --WBS_TGA_O <= '1' when st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT else '0';      -- output '1' in TGA_O during memory r/w commands, but NOT for fetching or branching instructions (PC manipulation)
     WBS_TGA_O <= TGA_sig;
 
     WBS_TGD_O <= "01" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1111" else     -- output "01" in TGD_O during the RW state of STS command (WBS_DATA_O => DATA_SEGMENT)
                  "10" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1001" else     -- output "10" during the RW state of JS commands (WBS_DATA_O => PC_SEGMENT)
                  "00";
 
-    --PC_INC_calc <= std_logic_vector(unsigned(PC_reg) + 2);
+    WBS_TGC_O <= '1' when st_main = ST_EXECUTE else '0';    -- new code (if this doesn't work, try setting it the same cycle that st_main is set to ST_EXECUTE)
 
     process(clk)
     begin
@@ -257,8 +256,6 @@ begin
                                                 WERF_sig <= '1';            -- write to register (input based on WDSEL) on next clock
                                             end if;
                                 end if;
-                                
---                                WERF_sig <= '1';        -- write to register (input based on WDSEL) on next clock
 
                                 WBS_CYC_O <= '0';           -- end wishbone cycle
                                 TGA_sig <= '0';             -- set up address to be extended by PC_SEGMENT register
