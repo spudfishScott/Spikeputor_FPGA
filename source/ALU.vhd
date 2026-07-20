@@ -77,7 +77,8 @@ begin
         BFN <=
             "0001" when "000",      -- NOR
             "0111" when "001",      -- NAND
-            "0100" when "010",      -- BnotA
+--            "0100" when "010",      -- BnotA
+            "0010" when "010",      --AnotB     -- truth table (BA): 11 = 0, 10 = 0, 01 = 1, 00 = 0
             "0110" when "011",      -- XOR
             "1000" when "100",      -- AND
             "1010" when "101",      -- A

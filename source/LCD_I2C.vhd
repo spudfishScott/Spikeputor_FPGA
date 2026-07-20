@@ -311,9 +311,11 @@ begin
                                                     end if;
                                                 when "010" =>
                                                     if (s_inst(10) = '0') then
-                                                        string_reg <= x"20426E412020";   -- " BnA  "
+                                                        -- string_reg <= x"20426E412020";   -- " BnA  "
+                                                        string_reg <= x"20416E422020";   -- " AnB  "
                                                     else
-                                                        string_reg <= x"20426E414320";   -- " BnAC "
+                                                        -- string_reg <= x"20426E414320";   -- " BnAC "
+                                                        string_reg <= x"20416E424320";   -- " AnBC "
                                                     end if;
                                                 when "011" =>
                                                     if (s_inst(10) = '0') then
