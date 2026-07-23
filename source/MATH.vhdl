@@ -371,7 +371,7 @@ ENTITY FPCOMPARE IS
         EN    : IN STD_LOGIC := '0';
         A     : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
         B     : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-        RES   : OUT STD_LOGIC_VECTOR(6 downto 0)        -- aeb, aneb, agb, ageb, alb, aleb, unrodered
+        RES   : OUT STD_LOGIC_VECTOR(6 downto 0)        -- aeb, agb, ageb, alb, aleb, aneb, unrodered
     );
 END FPCOMPARE;
 
