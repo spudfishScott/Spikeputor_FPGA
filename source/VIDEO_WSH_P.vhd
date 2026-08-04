@@ -433,7 +433,8 @@ begin
                                 d_in <= x"0008";
                                 state <= COMMAND_WR;
                             when 107 =>      -- step 107: Write 0x27 to Register 0x08 (SDRAM Clock frequency) -- can be as high as 160 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL divided by 2, reg 8 value = 160*2/10 - 1 = 31 = 0x1f)
-                                d_in <= x"0027";
+                                --d_in <= x"0027";
+                                d_in <= x"001f";
                                 state <= DATA_WR;
                             when 108 =>      -- step 108: Select Register 0x09
                                 d_in <= x"0009";
@@ -445,7 +446,8 @@ begin
                                 d_in <= x"000A";
                                 state <= COMMAND_WR;
                             when 111 =>      -- step 111: Write 0x27 to Register 0x0A (System Clock frequency) -- can be as high as 130 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL divided by 2, reg A value = 130*2/10 - 1 = 25 = 0x19)
-                                d_in <= x"0027";
+                                --d_in <= x"0027";
+                                d_in <= x"0019";
                                 state <= DATA_WR;
                             when 112 =>      -- step 112: Select Register 0x01
                                 d_in <= x"0001";
@@ -481,13 +483,15 @@ begin
                                 d_in <= x"00E2";
                                 state <= COMMAND_WR;
                             when 205 =>      -- step 205: Write 0x0B to Register 0xE2 (Auto refresh interval is 779 (0x30B)) -- for 160MHz, auto-refresh interval is (64000000 / 8192) / (1000/DRAM_FREQ) - 2 = 1248 = 0x04E0
-                                d_in <= x"000B";
+                                --d_in <= x"000B";
+                                d_in <= x"00E0";
                                 state <= DATA_WR;
                             when 206 =>      -- step 206: Select Register 0xE3
                                 d_in <= x"00E3";
                                 state <= COMMAND_WR;
                             when 207 =>      -- step 207: Write 0x03 to Register 0xE3
-                                d_in <= x"0003";
+                                --d_in <= x"0003";
+                                d_in <= x"0004";
                                 state <= DATA_WR;
                             when 208 =>      -- step 208: Select Register 0xE4
                                 d_in <= x"00E4";
