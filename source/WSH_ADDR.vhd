@@ -72,7 +72,7 @@ architecture RTL of WSH_ADDR is
     constant GPI_ADDR       : std_logic_vector(7 downto 0) := x"F2"; -- GPI address - read only
     -- Others use ranges which are addressed in the logic below
 
-    signal p_sel   : integer range 0 to 12 := 0;                        -- provider selector index
+    signal p_sel   : integer range 0 to 13 := 0;                        -- provider selector index
     signal ram_e   : std_logic := '0';                                  -- FPGA RAM selected
     signal spec    : std_logic := '0';                                  -- special location (p2-p9, p11-p13)
     signal de0     : std_logic := '0';                                  -- DE0 I/O flag
@@ -115,7 +115,7 @@ begin
     with addr_l select                                                                      -- timer address flag for a range (0xFFE8-0xFFEF)
         timer <=
             '1' when x"E8" to x"EF",
-            '0' when others
+            '0' when others;
 
     with addr_l select                                                                      -- serial address flag for 0xFFF3 and 0xFFFE
         serial <=

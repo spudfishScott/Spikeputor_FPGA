@@ -149,7 +149,7 @@ architecture Structural of DE0_Spikeputor is
 
     -- Memory output signals
     signal data_i      : std_logic_vector(15 downto 0) := (others => '0');
-    signal ack         : std_logic_vector(12 downto 0) := (others => '0');  -- all of the ack signals from the providers
+    signal ack         : std_logic_vector(13 downto 0) := (others => '0');  -- all of the ack signals from the providers
     signal all_acks    : std_logic := '0';                                  -- OR all of the ack signals together for input into masters
 
     -- CPU clock control related signals

@@ -31,35 +31,38 @@ end TIMER_WSH_P;
 
 architecture rtl of TIMER_WSH_P is
 
-    signal timer         : std_logic_vector(47 downto 0) := (others => '0')     -- timer since startup in microseconds
-    signal counter       : integer range 0 to 4095 := 0;                        -- counter to determine microseconds (max. 4 GHz)
-    signal ack           : std_logic := '0';                                    -- wishbone ack signal
+    signal timer         : unsigned(47 downto 0) := (others => '0'); -- timer since startup in microseconds
+    signal counter       : natural range 0 to 1_000_000 := 0;          -- counts one microsecond period
+    signal ack           : std_logic := '0';                           -- wishbone ack signal
 begin
 
     process(CLK)
     begin
-        if counter = CLK_FREQ/1_000_000 then            -- count 50 times for a 50 MHz signal to get a 1 MHz signal
-            counter <= 0;           -- reset counter
-            timer <= timer + 1;     -- increment timer
-        else
-            counter <= counter + 1;
+        if rising_edge(CLK) then
+            if counter = (CLK_FREQ / 1_000_000) - 1 then
+                counter <= 0;            -- reset counter
+                timer <= timer + 1;     -- increment timer by 1 us
+            else
+                counter <= counter + 1;
+            end if;
         end if;
-    end
+    end process;
 
-    WBS_ACK_O   <= ack AND WBS_CYC_I AND WBS_STB_I;         -- ack out is internal ack if CYC and STB are asserted, else 0
-    with (WBS_ADDR_I(3 downto 0)) select            -- select output based on address of register to read
+    WBS_ACK_O <= ack AND WBS_CYC_I AND WBS_STB_I; -- ack out is internal ack if CYC and STB are asserted, else 0
+
+    with WBS_ADDR_I(3 downto 0) select
         WBS_DATA_O <=
-            timer(15 downto 0)   when "1010",       -- 0xFFEA read is [15:0]
-            timer(31 downto 16)  when "1001",       -- 0xFFE9 read is [31:16]
-            timer(47 downto 32)  when "1000",       -- 0xFFE8 read is [47:32]
-            "0000000000000000"   when others;       -- otherwise 0
+            std_logic_vector(timer(15 downto 0))  when "1010", -- 0xFFEA read is [15:0]
+            std_logic_vector(timer(31 downto 16)) when "1001", -- 0xFFE9 read is [31:16]
+            std_logic_vector(timer(47 downto 32)) when "1000", -- 0xFFE8 read is [47:32]
+            (others => '0')                      when others; -- otherwise 0
 
-    process(CLK) is     -- wishbone transaction process
+    process(CLK) is -- wishbone transaction process
     begin
         if rising_edge(CLK) then
-            if (WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0') then         -- wait for wishbone transaction to start
-                ack <= '1';                                                     -- acknowledge on next cycle
-                -- if (WBS_WE_I = '1') then                                        -- write: take action based on which register being written
+            if WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0' then -- wait for wishbone transaction to start
+                ack <= '1'; -- acknowledge on next cycle
+                -- if WBS_WE_I = '1' then                                        -- write: take action based on which register being written
                 --     case WBS_ADDR_I(3 downto 0) is                              -- get bottom nybble of address
                 --         when "1011" =>      -- 0xFFEB = function control - TODO
                 --         when others =>                                          -- everything else is read-only
@@ -67,8 +70,8 @@ begin
                 --     end case;
                 -- end if;
 
-            elsif (WBS_CYC_I = '0' OR WBS_STB_I = '0') then     -- wait for wishbone transaction to end
-                ack <= '0';                 -- reset internal ack signal when that happens
+            elsif WBS_CYC_I = '0' OR WBS_STB_I = '0' then -- wait for wishbone transaction to end
+                ack <= '0'; -- reset internal ack signal when that happens
             end if;
         end if;
     end process;
