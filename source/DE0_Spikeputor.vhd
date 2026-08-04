@@ -177,8 +177,9 @@ architecture Structural of DE0_Spikeputor is
     signal data10      : std_logic_vector(15 downto 0) := (others => '0');
     signal data11      : std_logic_vector(15 downto 0) := (others => '0');
     signal data12      : std_logic_vector(15 downto 0) := (others => '0');
+    signal data13      : std_logic_vector(15 downto 0) := (others => '0');
 
-    signal stb_sel_sig : std_logic_vector(12 downto 0) := (others => '0');
+    signal stb_sel_sig : std_logic_vector(13 downto 0) := (others => '0');
 
     -- clock logic
     signal clk_speed    : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(CLK_FREQ, 32)); -- default clock speed = 1 Hz
@@ -318,6 +319,7 @@ begin
             P10_DATA_O  => data10,
             P11_DATA_O  => data11,
             P12_DATA_O  => data12,
+            P13_DATA_O  => data13,
 
             DATA_O      => data_i,          -- selected provider data output goes to masters' data_i
             STB_SEL     => stb_sel_sig      -- one hot signal, one bit for each provider STB_I
@@ -325,7 +327,7 @@ begin
 
         -- Wishbone ACK signal logic
         -- OR all provider ACK_Os together to send to granted master ACK_I
-        all_acks <= ack(12) OR ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0);
+        all_acks <= ack(13) OR ack(12) OR ack(11) OR ack(10) OR ack(9) OR ack(8) OR ack(7) OR ack(6) OR ack(5) OR ack(4) OR ack(3) OR ack(2) OR ack(1) OR ack(0);
         cpu_ack  <= cpu_gnt_sig AND all_acks;               -- ack signal for an arbited master is wishbone bus ack signal AND master grant signal
         dma_ack  <= dma_gnt_sig AND all_acks;
 
@@ -762,6 +764,25 @@ begin
             HEX1_DP     => HEX1_DP,
             HEX2_DP     => HEX2_DP,
             HEX3_DP     => HEX3_DP
+        );
+
+    -- DE0 TIMER Instance as Wishbone provider (P13)
+    TIMER : entity work.TIMER_WSH_P
+        generic map ( CLK_FREQ => CLK_FREQ )
+        port map (
+            CLK         => SYS_CLK,
+
+            -- Wishbone signals - inputs from the arbiter/comparitor, outputs as described
+            -- handshaking signals
+            WBS_CYC_I   => arb_cyc,
+            WBS_STB_I   => stb_sel_sig(13),     -- strobe signal from Address Comparitor (use other bits for other providers)
+            WBS_ACK_O   => ack(13),             -- ack bit for the full set of provider acks (use other bits for other providers)
+
+            -- memory read/write signals        -- read-only for first version - then add write to implement start/stop timer/countdown
+            WBS_ADDR_I  => arb_addr,
+            WBS_DATA_O  => data13--,
+            --WBS_DATA_I  => arb_data_o,
+            --WBS_WE_I    => arb_we
         );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
