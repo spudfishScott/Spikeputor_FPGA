@@ -103,7 +103,7 @@ begin
 
     with WBS_ADDR_I(7 downto 0) select
         reg_r <=                        -- register to read/write comes from lsb of Wishbone address unless it's blocked (see "Video Interface Notes" in ProjectNotes folder)
-            WBS_ADDR_I(7 downto 0) when x"00" | x"03" | x"04" | x"10" | x"11" | x"20" to x"45" | x"50" to x"73" | 
+            WBS_ADDR_I(7 downto 0) when x"00" | x"03" | x"04" | x"0C" | x"10" | x"11" | x"20" to x"45" | x"50" to x"73" | 
                                         x"76" to x"7E" | x"90" to x"B5" | x"CC" | x"CD" | x"CF" to X"D7" | x"DB" to x"DE",
                              x"FF" when others;
 
