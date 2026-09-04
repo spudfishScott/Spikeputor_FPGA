@@ -218,14 +218,13 @@ begin
             PULSE_OUT   => startup_res
         );
 
-    -- manual clock button debouncer via pulse generator
-    MAN_CLK_DEBOUNCE: entity work.PULSE_GEN
+    -- manual clock button debouncer
+    MAN_CLK_DEBOUNCE: entity work.DEBOUNCE
         generic map (
-            PULSE_WIDTH => CLK_FREQ / 10,    -- 0.1 seconds
-            RESET_LOW   => false
+            DEBOUNCE_TIME => CLK_FREQ / 10    -- 0.1 seconds
         )
         port map (
-            START_PULSE => NOT(ext_ctrl_sync(7)),                           -- Manual clock button (active low, external input bit 1)
+            PULSE_IN    => NOT(ext_ctrl_sync(7)),                           -- Manual clock button (active low, external input bit 1)
             CLK_IN      => SYS_CLK,
             PULSE_OUT   => man_clk
         );

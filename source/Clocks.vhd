@@ -119,7 +119,7 @@ begin
             if pulse_active = '1' then
                 if counter < PULSE_WIDTH then
                     counter <= counter + 1;     -- increment the counter if pulse active and counter not done
-                else 
+                else
                     pulse_active <= '0';        -- end the pulse when counter reaches pulse width
                     counter <= 0;               -- reset counter
                 end if;
@@ -135,6 +135,45 @@ begin
 
     -- PULSE_OUT is 1 when the counter is less than the pulse width and pulse is active
     PULSE_OUT <= '1' when (counter < PULSE_WIDTH AND pulse_active = '1') else '0';
+
+end Behavior;
+
+------------------------------------------------------------------------------------------------------------------
+-- Switch Debouncer
+-- Waits a specific time before allowing a transition in state
+
+entity DEBOUNCE is
+    generic (
+        DEBOUNCE_TIME : natural range 1 to 100_000_000 := 5_000_000     -- debounce delay time (default 0.1 sec at 50 MHz)
+    );
+
+    port (
+        PULSE_IN    : in std_logic;     -- switch signal
+        CLK_IN      : in std_logic;
+        PULSE_OUT   : out std_logic     -- the debouncedd signal
+    );
+end DEBOUNCE;
+
+architecture Behavior of DEBOUNCE is
+    signal counter      : Integer := 0;
+    signal debounced    : std_logic; := '0';
+
+begin
+    DEBOUNCE_PROC : process(CLK_IN)
+    begin
+        if rising_edge(CLK_IN) then
+            if counter < DEBOUNCE_TIME - 1 then
+                counter <= counter + 1;             -- increment counter if it is less than debounce time
+            else
+                if PULSE_IN /= debounced then       -- if the counter has counted all the way up and PULSE_IN has changed, switch the signal and restart the counter
+                    debounced <= PULSE_IN;
+                    counter <= 0;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    PULSE_OUT <= debounced;        -- output is debounced signal
 
 end Behavior;
 

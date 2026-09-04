@@ -37,7 +37,7 @@ architecture Behavioral of CLOCK_WSH_M is
 begin
     M_CYC_O <= bus_req;     -- bus request in the form of a wishbone master cycle signal
 
-    -- Spikeputor clock speed selector from thsixree one-hot switches
+    -- Spikeputor clock speed selector from six one-hot switches
     CLK_SEL : entity work.CLK_SEL
         port map (
             SW_INPUTS => SPD_IN,

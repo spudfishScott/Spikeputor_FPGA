@@ -3,6 +3,7 @@
     -- 0xFFEA - Time since startup in microseconds [15:0]
     -- 0xFFF9 - Time since startup in microseconds [31:16]
     -- 0xFFF8 - Time since startup in microseconds [47:32]
+    --  TIMER (P13)     timers (right now, just microseconds since startup, but maybe can add one or two start/stop countdown timers) - 0xFFE8 - 0xFFEF
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -31,9 +32,9 @@ end TIMER_WSH_P;
 
 architecture rtl of TIMER_WSH_P is
 
-    signal timer         : unsigned(47 downto 0) := (others => '0'); -- timer since startup in microseconds
-    signal counter       : natural range 0 to 1_000_000 := 0;          -- counts one microsecond period
-    signal ack           : std_logic := '0';                           -- wishbone ack signal
+    signal timer         : unsigned(47 downto 0) := (others => '0');    -- timer since startup in microseconds
+    signal counter       : natural range 0 to 1_000_000 := 0;           -- counts one microsecond period
+    signal ack           : std_logic := '0';                            -- wishbone ack signal
 begin
 
     process(CLK)
@@ -64,9 +65,8 @@ begin
                 ack <= '1'; -- acknowledge on next cycle
                 -- if WBS_WE_I = '1' then                                        -- write: take action based on which register being written
                 --     case WBS_ADDR_I(3 downto 0) is                              -- get bottom nybble of address
-                --         when "1011" =>      -- 0xFFEB = function control - TODO
-                --         when others =>                                          -- everything else is read-only
-                --             null;
+                --         when "0101" =>
+                            --   voice0_sig <= WBS_DATA_I;   -- latch the data in, when lsw is latched, set countdown flag to ON
                 --     end case;
                 -- end if;
 
