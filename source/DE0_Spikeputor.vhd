@@ -219,7 +219,7 @@ begin
         );
 
     -- manual clock button debouncer
-    MAN_CLK_DEBOUNCE: entity work.DEBOUNCE
+    MAN_CLK_DEBOUNCE: entity work.CLK_DEBOUNCE
         generic map (
             DEBOUNCE_TIME => CLK_FREQ / 10    -- 0.1 seconds
         )

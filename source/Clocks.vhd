@@ -142,7 +142,7 @@ end Behavior;
 -- Switch Debouncer
 -- Waits a specific time before allowing a transition in state
 
-entity DEBOUNCE is
+entity CLK_DEBOUNCE is
     generic (
         DEBOUNCE_TIME : natural range 1 to 100_000_000 := 5_000_000     -- debounce delay time (default 0.1 sec at 50 MHz)
     );
@@ -152,7 +152,7 @@ entity DEBOUNCE is
         CLK_IN      : in std_logic;
         PULSE_OUT   : out std_logic     -- the debouncedd signal
     );
-end DEBOUNCE;
+end CLK_DEBOUNCE;
 
 architecture Behavior of DEBOUNCE is
     signal counter      : Integer := 0;
