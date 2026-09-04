@@ -141,6 +141,9 @@ end Behavior;
 ------------------------------------------------------------------------------------------------------------------
 -- Switch Debouncer
 -- Waits a specific time before allowing a transition in state
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity CLK_DEBOUNCE is
     generic (
@@ -154,9 +157,9 @@ entity CLK_DEBOUNCE is
     );
 end CLK_DEBOUNCE;
 
-architecture Behavior of DEBOUNCE is
+architecture Behavior of CLK_DEBOUNCE is
     signal counter      : Integer := 0;
-    signal debounced    : std_logic; := '0';
+    signal debounced    : std_logic := '0';
 
 begin
     DEBOUNCE_PROC : process(CLK_IN)
