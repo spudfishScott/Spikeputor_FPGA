@@ -307,7 +307,7 @@ begin
                                 when 6 =>   -- Reg A Out
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         if led_index = 16 then
-                                            led_reg(COLOR_RANGE) <= x"000040";      -- red LED for Zero detect
+                                            led_reg(COLOR_RANGE) <= x"000004";      -- red LED for Zero detect
                                         else
                                             led_reg(COLOR_RANGE) <= x"000400";      -- Register A Output is all green LEDs
                                         end if;
