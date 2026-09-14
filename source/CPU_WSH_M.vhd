@@ -88,7 +88,7 @@ architecture Behavioral of CPU_WSH_M is
     signal regb_out  : std_logic_vector(15 downto 0) := (others => '0');
 
     -- Signals for display only
-    signal tgc_sig        : std_logic_vector(1 downto 0) := "00";;              -- cycle signal to say when to latch the display signals (bit 0) and when to set manual setp mode via software (bit 1)
+    signal tgc_sig        : std_logic_vector(1 downto 0) := "00" ;              -- cycle signal to say when to latch the display signals (bit 0) and when to set manual setp mode via software (bit 1)
     signal mdata_sig      : std_logic_vector(15 downto 0) := (others => '0');   -- to display the read or write memory data
     signal pc_disp_sig    : std_logic_vector(15 downto 0) := (others => '0');   -- to display the program counter
     signal jt_sig         : std_logic := '0';
