@@ -396,7 +396,7 @@ begin
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         led_reg(COLOR_RANGE) <= x"040000";          -- INST and CONST are all blue LEDs
                                     end if;
-                                when 5 =>   -- DATA -- TODO: Maybe blank these unless reading or writing is happening (from inst register)
+                                when 5 =>   -- DATA
                                     if led_index = 16 then      -- msb of MDATA is read/write signal
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"000004";      -- red LED for write (1)

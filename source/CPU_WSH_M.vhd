@@ -26,7 +26,7 @@ entity CPU_WSH_M is
         M_WE_O    : out std_logic;
         M_TGA_O   : out std_logic;
         M_TGD_O   : out std_logic_vector(1 downto 0);
-        M_TGC_O   : out std_logic;      -- new code
+        M_TGC_O   : out std_logic_vector(1 downto 0);
 
         -- Direct Display Values
         WSEG_D_DISP     : out std_logic;
@@ -88,7 +88,7 @@ architecture Behavioral of CPU_WSH_M is
     signal regb_out  : std_logic_vector(15 downto 0) := (others => '0');
 
     -- Signals for display only
-    signal tgc_sig        : std_logic := '0';                                   -- cycle signal to say when to latch the display signals TODO: and when to set manual setp mode via software
+    signal tgc_sig        : std_logic_vector(1 downto 0) := "00";;              -- cycle signal to say when to latch the display signals (bit 0) and when to set manual setp mode via software (bit 1)
     signal mdata_sig      : std_logic_vector(15 downto 0) := (others => '0');   -- to display the read or write memory data
     signal pc_disp_sig    : std_logic_vector(15 downto 0) := (others => '0');   -- to display the program counter
     signal jt_sig         : std_logic := '0';
@@ -111,10 +111,10 @@ architecture Behavioral of CPU_WSH_M is
 begin
 
     -- wire internal signals to display outputs
-    process(CLK)    -- new code
-    begin           -- new code
-        if rising_edge(CLK) then    -- new code
-            if tgc_sig = '1' then       -- new code
+    process(CLK)
+    begin
+        if rising_edge(CLK) then
+            if tgc_sig(0) = '1' then       -- latch values for DotStar inputs when tgc_sig bit 0 goes high
                 WSEG_D_DISP     <= wseg_d_out;
                 WSEG_P_DISP     <= wseg_p_out;
                 INST_DISP       <= inst_out;
@@ -141,9 +141,9 @@ begin
                 REG6_DISP       <= reg_a_addr(6) & reg_b_addr(6) & reg_w_disp(6) & allregs_sig(6);
                 REG7_DISP       <= reg_a_addr(7) & reg_b_addr(7) & reg_w_disp(7) & allregs_sig(7);
                 REGIN_DISP      <= wdsel_out & regin_sig;
-            end if;     -- new code
-        end if;     -- new code
-    end process;    -- new code
+            end if;
+        end if;
+    end process;
 
     -- these three intermediate signals are incorporated into the MDATA_DISP and PC_DISP outputs, above
     mdata_sig       <= mrdata_out when (rbsel_out = '0' OR wseg_d_out = '1') else regb_out;     -- get mdata from memory read or write (rbsel = 1 AND wseg = 0 on ST commands only)
@@ -156,7 +156,7 @@ begin
 
     reg_w_disp <= reg_w_addr when rbsel_out = '0' else (others => '0'); -- display register write unless rbsel is 1
 
-    M_TGC_O <= tgc_sig;   -- new code - expose TGC signal to Spikeputor control
+    M_TGC_O <= tgc_sig;   -- expose TGC signal to Spikeputor control
 
      -- Control Logic Instance
     CTRL : entity work.CTRL_WSH_M
@@ -180,7 +180,7 @@ begin
         WBS_WE_O    => M_WE_O,   -- write enable output from master, input to providers
         WBS_TGA_O   => M_TGA_O,  -- tag for whether to use data segment or pc segment for extended address bus
         WBS_TGD_O   => M_TGD_O,  -- tag for whether to use data to store in memory or in data or pc segment register
-        WBS_TGC_O   => tgc_sig,  -- tag to indicate when to latch the display signals from the control module -- new code
+        WBS_TGC_O   => tgc_sig,  -- tag to indicate when to latch the display signals from the control module (bit 0) and when to turn clock to manual stepping (bit 1)
 
         -- Internal Spikeputor signals
         -- Data outputs from Control Logic to other modules

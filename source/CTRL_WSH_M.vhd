@@ -71,7 +71,7 @@ entity CTRL_WSH_M is
         WBS_WE_O    : out std_logic;                        -- write enable output - write when high, read when low
         WBS_TGA_O   : out std_logic;                        -- address tag for whether or not to use extended address bus
         WBS_TGD_O   : out std_logic_vector(1 downto 0);     -- data tag for whether or not data out goes to SEGMENT registers (0b01 = DATA, 0b10 = PC)
-        WBS_TGC_O   : out std_logic;                        -- WBS tag to tell cpu to latch in current values for display   -- new code
+        WBS_TGC_O   : out std_logic_vector(1 downto 0);     -- WBS tag to tell cpu to latch in current values for display (bit 0) and when to go to manual clock mode (bit 1)
 
         -- Spikeputor Signals
             -- Data outputs from Control Logic to other modules
@@ -118,6 +118,7 @@ architecture rtl of CTRL_WSH_M is
 
     signal WERF_sig    : std_logic := '0';                                   -- Write Enable for Register File - on during execute phase if instruction is not a store (ST command) and not a failed branch
     signal TGA_sig     : std_logic := '0';                                   -- TGA signal to determine which SEGMENT register is used
+    signal man_mode    : std_logic := '0';                                   -- internal signal for manual clock mode
 
     -- state machine
     type fsm_main is (ST_FETCH_I, ST_FETCH_I_WAIT, ST_FETCH_C, ST_FETCH_C_WAIT, ST_EXECUTE, ST_EXECUTE_RW, ST_EXECUTE_RW_WAIT);
@@ -158,7 +159,8 @@ begin
                  "10" when (st_main = ST_EXECUTE_RW OR st_main = ST_EXECUTE_RW_WAIT) AND INST_reg(9 downto 6) = "1001" else     -- output "10" during the RW state of JS commands (WBS_DATA_O => PC_SEGMENT)
                  "00";
 
-    WBS_TGC_O <= '1' when st_main = ST_FETCH_I else '0';    -- new code
+    WBS_TGC_O(0) <= '1' when st_main = ST_FETCH_I else '0';                 -- bit 0 of TGC is a flag for when to update the DotStar LEDs
+    WBS_TGC_O(1) <= man_mode;                                               -- bit 1 of TGC is a flag for when to do software manual clock mode
 
     process(clk)
     begin
@@ -170,6 +172,7 @@ begin
                 prev_PC    <= RESET_VECTOR;        -- set display PC pipeline to reset vector
                 WERF_sig   <= '0';                 -- do not write to registers during reset
                 TGA_sig    <= '0';                 -- extend address with PC_SEGMENT register
+                man_mode   <= '0';                 -- clear manual clock mode
                 MRDATA_reg <= (others => '0');     -- clear MRDATA registere
                 MEMRW_reg  <= (others => '0');     -- clear memory r/w address
 
@@ -233,6 +236,12 @@ begin
 
                         when ST_EXECUTE =>
                             -- execute instruction
+                            if INST_reg = "1010100000000000" then               -- special opcode to set MANUAL CLOCK mode   (instruction is A(z, z, z))
+                                man_mode <= '1';
+                            elsif INST_reg = "1011000000000000" then            -- special opcode to unset MANUAL CLOCK mode (instruction is B(z, z, z))
+                                man_mode <= '0';
+                            end if;
+
                             if INST_reg(9 downto 7) = "101" OR INST_reg(9 downto 6) = "1111" OR INST_reg(9 downto 6) = "1001" then     -- operation requires memory read or write or segment write (LD or ST commands, JS commands, SDS but not LDS)
                                 WBS_ADDR_O <= ALU_OUT;                          -- address for memory r/w is ALU output (not applicable for STS and JS, but doesn't matter to set it)
                                 MEMRW_reg  <= ALU_OUT;                          -- store address in a register for display
