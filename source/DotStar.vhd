@@ -11,6 +11,7 @@ entity dotstar_driver is
         -- INPUTS
         CLK          : in  std_logic;
         START        : in  std_logic;
+        RWADDR       : in std_logic_vector(15 downto 0);  -- current read/write data address to set RAM/ROM LED
 
         -- DotStar Signals in reverse display order
         DATA_SEGMENT : in std_logic_vector(8 downto 0);   -- Data Segment register (to extend address bus), prepended with D_WSEG     0 -> 4
@@ -418,12 +419,19 @@ begin
                                         if set_reg(led_index) = '1' then
                                             led_reg(COLOR_RANGE) <= x"000204";      -- orange LED for D_WSEG = 1
                                         end if;
-                                    elsif led_index = 7 and set_reg(7 downto 0) /= "00000000" then   -- msb is ROM/RAM signal, but only if segment register isn't 0
-                                    -- TODO once rwaddr_out signal is available, can fix this the same way that PC was fixed for segment 0
-                                        if set_reg(led_index) = '1' then
-                                            led_reg(COLOR_RANGE) <= x"000004";      -- red LED for ROM
-                                        else
-                                            led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                    elsif led_index = 7 then
+                                        if  set_reg(7 downto 0) /= "00000000" then   -- msb is ROM/RAM signal, but only if segment register isn't 0
+                                            if set_reg(led_index) = '1' then
+                                                led_reg(COLOR_RANGE) <= x"000004";      -- red LED for ROM
+                                            else
+                                                led_reg(COLOR_RANGE) <= x"000400";      -- green LED for RAM
+                                            end if;
+                                        else    -- RAM if Data Address < 0xC800, ROM otherwise
+                                            if RWADDR(15 downto 8) < x"C8" then
+                                                led_reg(COLOR_RANGE) <= x"000400";		-- green for RAM
+                                            else
+                                                led_reg(COLOR_RANGE) <= x"000004";		-- red for ROM
+                                            end if;
                                         end if;
                                     elsif set_reg(led_index) = '1' then
                                         led_reg(COLOR_RANGE) <= x"040000";      -- DATA_SEGMENT is all blue LEDs

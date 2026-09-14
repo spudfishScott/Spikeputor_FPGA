@@ -656,7 +656,7 @@ begin
                             when 614 =>      -- step 614: Select Register 0x25
                                 d_in <= x"0025";
                                 state <= COMMAND_WR;
-                            when 615 =>      -- step 615: Write 0x04 to Register 0x25 (bits 12:8 of main image width = 0x04 for 1024)
+                            when 615 =>      -- step 615: Write 0x04 to Register 0x25 (bits 12:8 of main image width = 0x04 for 1024) -- Might change this to 0x08 for default two-page main screen
                                 d_in <= x"0004";
                                 state <= DATA_WR;
                             when 616 =>      -- step 616: Select Register 0x26

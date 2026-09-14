@@ -6,6 +6,7 @@ use ieee.numeric_std.all;
 use work.Types.all;
 
 entity SEGMENT_WSH_P is
+    generic ( RESET_SEGMENT : std_logic_vector(7 downto 0) := x"00" );     -- Segments reset to 0 by default
     port (
         -- SYSCON inputs
         CLK         : in std_logic;
@@ -58,8 +59,8 @@ begin
         Q   => pc_segment_sig
     );
 
-    -- if RST = '1', clear the registers
-    data_in     <= WBS_DATA_I(7 downto 0) when RST_I = '0' else (7 downto 0 => '0');
+    -- if RST = '1', set the registers to the reset segment
+    data_in     <= WBS_DATA_I(7 downto 0) when RST_I = '0' else RESET_SEGMENT;
 
     le_data_sig <= '1' when (WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(0)) = '1' OR RST_I = '1' else '0';   -- bit 0 of TGD is for DATA SEGMENT
     le_pc_sig   <= '1' when (WBS_CYC_I AND WBS_STB_I AND WBS_WE_I AND WBS_TGD_I(1)) = '1' OR RST_I = '1' else '0';   -- bit 1 of TGD is for PC SEGMENT

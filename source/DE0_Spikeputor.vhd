@@ -92,6 +92,7 @@ architecture Structural of DE0_Spikeputor is
     constant DEFAULT_BAUD    : std_logic_vector(3 downto 0) := "0111";          -- Default baud rate for UART communication ("0111" is index for 115200)
     constant DEFAULT_FS_BAUD : std_logic_vector(3 downto 0) := "0111";          -- Default baud rate for filesystem serial is 115200
     constant RESET_VECTOR    : std_logic_vector(15 downto 0) := x"0000";        -- Address PC is set to on RESET
+    constant RESET_SEGMENT   : std_logic_vector(7 downto 0) := x"00";
 
     -- Signal Declarations
     signal DATA_SEGMENT      : std_logic_vector(7 downto 0) := (others => '0');
@@ -657,6 +658,7 @@ begin
 
     -- SEGMENTS Instance as Wishbone provider (P9)
     SEG : entity work.SEGMENT_WSH_P
+        generic map ( RESET_SEGMENT => RESET_SEGMENT )
         port map (
             CLK         => SYS_CLK,
             RST_I       => RESET,
@@ -803,6 +805,7 @@ begin
         port map (
             CLK         => SYS_CLK,
             START       => led_refresh,
+            RWADDR      => rwaddr_out,
 
             INST        => inst_out,                                                            -- bits: Instruction (16 bits)
             CONST       => const_out,                                                           -- bits: Constant (16 bits)
@@ -835,7 +838,6 @@ begin
             DATA_OUT    => DOTSTAR_DATA,                                                        -- DotStar data and clock signals
             CLK_OUT     => DOTSTAR_CLK,
             BUSY        => led_busy
-            -- TODO: include rwaddr_out so data segment display can be changed to reflect ROM/RAM for segment 0
         );
 
     -- the LCD driver shows INST/CONST, instruction interpreted, Next PC, and SEGMENT:RWADDR (-> or <-) MDATA during r/w operations - communicates with actual LCD display via the I2C interface lines
