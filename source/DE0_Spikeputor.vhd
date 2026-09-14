@@ -422,7 +422,7 @@ begin
 
             -- Clock control signals
             SPD_IN     => ext_ctrl_sync(5 downto 0),        -- input for clock speed for auto mode
-            MAN_SEL    => ext_ctrl_sync(6) OR cpu_tgc(1),   -- selects between auto (high) and manual (low) clock [either from external switch or from internal command]
+            MAN_SEL    => ext_ctrl_sync(6) AND NOT(cpu_tgc(1)),   -- selects between auto (high) and manual (low) clock [either from external switch or from internal command]
             MAN_START  => man_clk,                          -- Manual clock button (active low)
             CPU_CLOCK  => EXT_CTRL_OUT(0)                   -- send clock to external control out for special LED driver (not DotStar)
         );
