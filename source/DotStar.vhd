@@ -265,7 +265,7 @@ begin
                                             end if;
                                         end if;
                                     elsif set_reg(led_index) = '1' then
-                                        led_reg(COLOR_RANGE) <= x"000004";      -- PC_SEGMENT is all red LEDs
+                                        led_reg(COLOR_RANGE) <= x"040000";      -- PC_SEGMENT is all blue LEDss
                                     end if;
                                 when 1 =>   -- GPI
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
