@@ -60,12 +60,12 @@ architecture rtl of dotstar_driver is
     constant BITS_PER_LED     : natural range 1 to 32 := 32;                                        -- number of bits per LED (1 brightness + 3 colors x 8 bits each)
     constant END_BITS         : natural range 0 to 1024 := ((TOTAL_LEDS + 15) / 16) * 8;            -- number of bits in end frame (at least (n/2) bits, rounded up to next byte, all '1's)
 
-    constant RED              : std_logic_vector(23 downto 0) := x"000004"                          -- red LED color
-    constant GREEN            : std_logic_vector(23 downto 0) := x"000400"                          -- green LED color
-    constant BLUE             : std_logic_vector(23 downto 0) := x"040000"                          -- blue LED color
-    constant ORANGE           : std_logic_vector(23 downto 0) := x"000204"                          -- orange/yellow LED color
-    constant CYAN             : std_logic_vector(23 downto 0) := x"040400"                          -- cyan LED color
-    constant WHITE            : std_logic_vector(23 downto 0) := x"040404"                          -- white LED color
+    constant RED              : std_logic_vector(23 downto 0) := x"000004";                         -- red LED color
+    constant GREEN            : std_logic_vector(23 downto 0) := x"000400";                         -- green LED color
+    constant BLUE             : std_logic_vector(23 downto 0) := x"040000";                         -- blue LED color
+    constant ORANGE           : std_logic_vector(23 downto 0) := x"000204";                         -- orange/yellow LED color
+    constant CYAN             : std_logic_vector(23 downto 0) := x"040400";                         -- cyan LED color
+    constant WHITE            : std_logic_vector(23 downto 0) := x"040404";                         -- white LED color
 
     subtype COLOR_RANGE      is integer range BITS_PER_LED-9 downto 0;                              -- range for color data within LED register
     subtype BRIGHTNESS_RANGE is integer range BITS_PER_LED-1 downto BITS_PER_LED-8;                 -- range for brightness data within LED register

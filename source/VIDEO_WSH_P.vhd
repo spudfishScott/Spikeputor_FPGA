@@ -524,7 +524,7 @@ begin
                                 d_in <= x"0004";
                                 state <= DATA_WR;
                             when 304 =>      -- step 304: Select Register 0x01
-                                d_in <= x"0003";
+                                d_in <= x"0001";
                                 state <= COMMAND_WR;
                             when 305 =>      -- step 305: Write 0x03 to Register 0x01 (24-bit TFT output, 16-bit Host Data Bus, SPI enable)
                                 d_in <= x"0003";
