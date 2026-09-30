@@ -270,9 +270,9 @@ begin
                                                     end if;
                                                 when "111" =>
                                                     if (s_inst(10) = '0') then
-                                                        string_reg <= x"434D5054C450";   -- "CMPLE "
+                                                        string_reg <= x"434D504C4520";   -- "CMPLE "
                                                     else
-                                                        string_reg <= x"434D5054C453";   -- "CMPLEC"
+                                                        string_reg <= x"434D504C4543";   -- "CMPLEC"
                                                     end if;
                                                 when others =>
                                                     string_reg <= x"3F3F3F3F3F3F";       -- "??????"

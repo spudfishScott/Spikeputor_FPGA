@@ -431,8 +431,8 @@ begin
                                 state <= DATA_WR;
                             when 106 =>      -- step 106: Select Register 0x08
                                 d_in <= x"0008";
-                                state <= COMMAND_WR;
-                            when 107 =>      -- step 107: Write 0x27 to Register 0x08 (SDRAM Clock frequency) -- can be as high as 160 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL divided by 2, reg 8 value = 160*2/10 - 1 = 31 = 0x1f)
+                                state <= COMMAND_WR;                                                          -- TODO: REVISIT THESE AND CHANGE PLL MULTIPLIERS!!!
+                            when 107 =>      -- step 107: Write 0x27 to Register 0x08 (SDRAM Clock frequency) -- can be as high as 160 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL 2 divided by 2, reg 8 value = 160*2/10 - 1 = 31 = 0x1f)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
                             when 108 =>      -- step 108: Select Register 0x09
@@ -444,7 +444,7 @@ begin
                             when 110 =>      -- step 110: Select Register 0x0A
                                 d_in <= x"000A";
                                 state <= COMMAND_WR;
-                            when 111 =>      -- step 111: Write 0x27 to Register 0x0A (System Clock frequency) -- can be as high as 130 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL divided by 2, reg A value = 130*2/10 - 1 = 25 = 0x19)
+                            when 111 =>      -- step 111: Write 0x27 to Register 0x0A (System Clock frequency) -- can be as high as 130 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL 3 divided by 2, reg A value = 130*2/10 - 1 = 25 = 0x19)
                                 d_in <= x"0027";
                                 state <= DATA_WR;
                             when 112 =>      -- step 112: Select Register 0x01
@@ -511,14 +511,25 @@ begin
                                 end if;
 
                             -- ADDITIONAL CHIP CONFIG
-                            when 300 =>      -- step 300: Select Register 0x01
-                                d_in <= x"0001";
+                            when 300 =>      -- step 300: Select Register 0xCE
+                                d_in <= x"00CE";
                                 state <= COMMAND_WR;
-                            when 301 =>      -- step 301: Write 0x01 to Register 0x01 (24-bit TFT output, 16-bit Host Data Bus)
-                                d_in <= x"0001";
+                            when 301 =>      -- step 301: Write 0x80 to register 0xCE (select GT30L32S4W as font rom chip)
+                                d_in <= x"0080";
+                                state <= DATA_WR;
+                            when 302 =>      -- step 302: Select Register 0xBB
+                                d_in <= x"00BB";
+                                state <= COMMAND_WR;
+                            when 303 =>      -- step 303: Write 0x04 to register 0xBB (SPI Clock period for ROM font chips)
+                                d_in <= x"0004";
+                                state <= DATA_WR;
+                            when 304 =>      -- step 304: Select Register 0x01
+                                d_in <= x"0003";
+                                state <= COMMAND_WR;
+                            when 305 =>      -- step 305: Write 0x03 to Register 0x01 (24-bit TFT output, 16-bit Host Data Bus, SPI enable)
+                                d_in <= x"0003";
                                 state <= DATA_WR;
                                 cmd_index <= 400;
-                            -- REGISTERS 0x02 and 0x03 STAY AT THEIR DEFAULT VALUES FOR NOW
 
                             -- SET SCREEN PARAMETERS AND TIMING
                             when 400 =>      -- step 400: Select Register 0x12
