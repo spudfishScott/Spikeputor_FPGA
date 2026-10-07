@@ -70,7 +70,8 @@ begin
     -- ADDR_OUT  <= ("0" & SECTOR_ADDR & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE)
     --     else ("0" & SECTOR_ADDR & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
     ADDR_OUT  <= ("0" & address(20 downto 15) & "000000000000000") when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE) AND address(20 downto 15) /= "000000"
-            else "0000000111000000000000" when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE) AND address(20 downto 15) = "000000"
+            else "0000000111000000000000" when (p_state = ERASE_FLASH OR p_state = WAIT_ERASE) AND address(20 downto 15) = "000000"  -- this is an 8K sector
+            ---- to erase the other 8K sectors 0-6 (0x80:0000-0x80:DFFF requires custom setup but can be done (replace the 111 (for sector 7) with other 3-bit numbers)))
             else ("0" & address);                                 -- set address to write to or sector to erase (when erase_flash was selected)
 
     -- wire DATA_OUT, WR_OUT and ERASE_OUT connections
@@ -191,7 +192,7 @@ begin
                             p_state <= ERASE_FLASH;                         -- move to next header read state
                         end if;
 
-    -- ERASE_FLASH: send the command to erase the entire flash card
+    -- ERASE_FLASH: send the command to erase the sector
                     when ERASE_FLASH =>
                         if FLASH_RDY = '1' then
                             p_state <= WAIT_ERASE;                          -- move to the next state and wait for flash to finish erasing
