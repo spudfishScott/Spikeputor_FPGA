@@ -426,26 +426,26 @@ begin
                             when 104 =>      -- step 104: Select Register 0x07
                                 d_in <= x"0007";
                                 state <= COMMAND_WR;
-                            when 105 =>      -- step 105: Write 0x04 to Register 0x07 (PLL 2 Divided by 4 for SDRAM Clock frequency)
-                                d_in <= x"0004";
+                            when 105 =>      -- step 105: Write 0x02 to Register 0x07 (PLL 2 Divided by 2 for SDRAM Clock frequency)
+                                d_in <= x"0002";
                                 state <= DATA_WR;
                             when 106 =>      -- step 106: Select Register 0x08
                                 d_in <= x"0008";
-                                state <= COMMAND_WR;                                                          -- TODO: REVISIT THESE AND CHANGE PLL MULTIPLIERS!!!
-                            when 107 =>      -- step 107: Write 0x27 to Register 0x08 (SDRAM Clock frequency) -- can be as high as 160 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL 2 divided by 2, reg 8 value = 160*2/10 - 1 = 31 = 0x1f)
-                                d_in <= x"0027";
+                                state <= COMMAND_WR;
+                            when 107 =>      -- step 107: Write 0x1F to Register 0x08 (SDRAM Clock frequency) -- can be as high as 160 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL 2 divided by 2, reg 8 value = 160*2/10 - 1 = 31 = 0x1f)
+                                d_in <= x"001F";
                                 state <= DATA_WR;
                             when 108 =>      -- step 108: Select Register 0x09
                                 d_in <= x"0009";
                                 state <= COMMAND_WR;
-                            when 109 =>      -- step 109: Write 0x04 to Register 0x09 (PLL 3 Divided by 4 for System Clock frequency)
-                                d_in <= x"0004";
+                            when 109 =>      -- step 109: Write 0x02 to Register 0x09 (PLL 3 Divided by 2 for System Clock frequency)
+                                d_in <= x"0002";
                                 state <= DATA_WR;
                             when 110 =>      -- step 110: Select Register 0x0A
                                 d_in <= x"000A";
                                 state <= COMMAND_WR;
-                            when 111 =>      -- step 111: Write 0x27 to Register 0x0A (System Clock frequency) -- can be as high as 130 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL 3 divided by 2, reg A value = 130*2/10 - 1 = 25 = 0x19)
-                                d_in <= x"0027";
+                            when 111 =>      -- step 111: Write 0x19 to Register 0x0A (System Clock frequency) -- can be as high as 130 according to https://github.com/wwatson4506/TeensyRA8876-8080 (PLL 3 divided by 2, reg A value = 130*2/10 - 1 = 25 = 0x19)
+                                d_in <= x"0019";
                                 state <= DATA_WR;
                             when 112 =>      -- step 112: Select Register 0x01
                                 d_in <= x"0001";
