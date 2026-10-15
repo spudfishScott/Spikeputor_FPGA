@@ -414,7 +414,7 @@ begin
                             when 100 =>      -- step 100: Select Register 0x05
                                 d_in <= x"0005";
                                 state <= COMMAND_WR;
-                            when 101 =>      -- step 101: Write 0x06 to Register 0x05 (PLL1 Divided by 8)
+                            when 101 =>      -- step 101: Write 0x06 to Register 0x05 (PLL1 Divided by 8 for Pixel Clock frequency) 
                                 d_in <= x"0006";
                                 state <= DATA_WR;
                             when 102 =>      -- step 102: Select Register 0x06
@@ -426,7 +426,7 @@ begin
                             when 104 =>      -- step 104: Select Register 0x07
                                 d_in <= x"0007";
                                 state <= COMMAND_WR;
-                            when 105 =>      -- step 105: Write 0x04 to Register 0x07 (PLL 2 Divided by 4)
+                            when 105 =>      -- step 105: Write 0x04 to Register 0x07 (PLL 2 Divided by 4 for SDRAM Clock frequency)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
                             when 106 =>      -- step 106: Select Register 0x08
@@ -438,7 +438,7 @@ begin
                             when 108 =>      -- step 108: Select Register 0x09
                                 d_in <= x"0009";
                                 state <= COMMAND_WR;
-                            when 109 =>      -- step 109: Write 0x04 to Register 0x09 (PLL 3 Divided by 4)
+                            when 109 =>      -- step 109: Write 0x04 to Register 0x09 (PLL 3 Divided by 4 for System Clock frequency)
                                 d_in <= x"0004";
                                 state <= DATA_WR;
                             when 110 =>      -- step 110: Select Register 0x0A
