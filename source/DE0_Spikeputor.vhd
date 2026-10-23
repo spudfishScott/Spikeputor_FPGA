@@ -781,9 +781,9 @@ begin
 
             -- memory read/write signals        -- read-only for first version - then add write to implement start/stop timer/countdown
             WBS_ADDR_I  => arb_addr,
-            WBS_DATA_O  => data13--,
-            --WBS_DATA_I  => arb_data_o,
-            --WBS_WE_I    => arb_we
+            WBS_DATA_O  => data13,
+            WBS_DATA_I  => arb_data_o,
+            WBS_WE_I    => arb_we
         );
 
     -- DISPLAY INTERFACES --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
