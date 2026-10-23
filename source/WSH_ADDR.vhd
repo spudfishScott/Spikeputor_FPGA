@@ -23,7 +23,10 @@
     -- 0xFFFA - number on 7 segment display - read/write
     -- 0xFFFB - four bits per 7 segment display bit 0: digit on/off, bit 1: decimal point on/off, bit 2: replace digit with '-' sign, bit 3: replace digit with º sign - read/write
     -- 0xFFFC - bottom 10 bits for on-board LEDs - read/write
---  TIMER (P13)     timers (right now, just microseconds since startup, but maybe can add one or two start/stop countdown timers) - 0xFFE8 - 0xFFEF
+--  TIMER (P13)
+    -- 0xFFE8-0xFFEA: number of microseconds since power-on (read-only)
+    -- 0xFFEB-0xFFED: countdown timer (read/write) - set values, then they are counted down every microsecond. At 0, countdown stops.
+    -- 0xFFEE-0xFFEF: currently unused
 -- 0xFFFD currently unused
 
 -- Outputs are:
@@ -99,7 +102,7 @@ begin
     sdram_e <= '1' when (seg /= "0000000" AND ADDR_I(23) = '0')                             -- SDRAM: not segment 0 and not a ROM address
                    else '0';
 
-    spec    <= '1' when seg = "0000000" AND p_addr(15 downto 8) = x"FF"                     -- special I/O segment:address 00:0Fxx
+    spec    <= '1' when seg = "0000000" AND p_addr(15 downto 8) = x"FF"                     -- special I/O segment:address 00:FFxx
                    else '0';
 
     with addr_l select                                                                      -- video address flag for a range (0xFF00 to 0xFFDF)

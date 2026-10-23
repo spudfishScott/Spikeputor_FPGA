@@ -3,7 +3,10 @@
     -- 0xFFEA - Time since startup in microseconds [15:0]
     -- 0xFFF9 - Time since startup in microseconds [31:16]
     -- 0xFFF8 - Time since startup in microseconds [47:32]
-    --  TIMER (P13)     timers (right now, just microseconds since startup, but maybe can add one or two start/stop countdown timers) - 0xFFE8 - 0xFFEF
+
+    -- 0xFFED - Countdown timer [15:0]
+    -- 0xFFEC - Countdown timer [31:16]
+    -- 0xFFEB - Countdown timer [47:32]
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -23,16 +26,17 @@ entity TIMER_WSH_P is
         WBS_ACK_O   : out std_logic;
 
         -- memory read/write signals (read-opnly for now)
-        WBS_ADDR_I  : in std_logic_vector(23 downto 0);       -- lsb is ignored, but it is still part of the address bus
-        WBS_DATA_O  : out std_logic_vector(15 downto 0)--;    -- data output to master
-        --WBS_DATA_I  : in std_logic_vector(15 downto 0);     -- data input from master
-        --WBS_WE_I    : in std_logic                          -- write enable input - when high, master is writing, when low, master is reading
+        WBS_ADDR_I  : in std_logic_vector(23 downto 0);         -- lsb is ignored, but it is still part of the address bus
+        WBS_DATA_O  : out std_logic_vector(15 downto 0);        -- data output to master
+        WBS_DATA_I  : in std_logic_vector(15 downto 0);         -- data input from master
+        WBS_WE_I    : in std_logic                              -- write enable input - when high, master is writing, when low, master is reading
     );
 end TIMER_WSH_P;
 
 architecture rtl of TIMER_WSH_P is
 
     signal timer         : unsigned(47 downto 0) := (others => '0');    -- timer since startup in microseconds
+    signal countdown     : unsigned(47 downto 0) := (others => '0');    -- countdown timer
     signal counter       : natural range 0 to 1_000_000 := 0;           -- counts one microsecond period
     signal ack           : std_logic := '0';                            -- wishbone ack signal
 begin
@@ -41,10 +45,36 @@ begin
     begin
         if rising_edge(CLK) then
             if counter = (CLK_FREQ / 1_000_000) - 1 then
-                counter <= 0;            -- reset counter
-                timer <= timer + 1;     -- increment timer by 1 us
+                counter <= 0;                           -- reset counter
+                timer <= timer + 1;                     -- increment timer by 1 us
+
+                if countdown /= 0 and not               -- count down only when we're about to reset any portion of the countdown timer
+                    (WBS_CYC_I = '1' and WBS_STB_I = '1' and ack = '0' and WBS_WE_I = '1' and
+                    (WBS_ADDR_I(3 downto 0) = "1101" or
+                     WBS_ADDR_I(3 downto 0) = "1100" or
+                     WBS_ADDR_I(3 downto 0) = "1011")) then
+                        countdown <= countdown - 1;     -- decrement countdown timer
+                end if;
             else
                 counter <= counter + 1;
+            end if;
+
+            if WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0' then   -- wait for wishbone transaction to start
+                ack <= '1'; -- acknowledge on next cycle
+                if WBS_WE_I = '1' then                                                  -- write: take action based on which register being written
+                    case WBS_ADDR_I(3 downto 0) is                                      -- get bottom nybble of address and set the desired portion of countdown register
+                        when "1101" =>
+                            countdown(15 downto 0)  <= unsigned(WBS_DATA_I);
+                        when "1100" =>
+                            countdown(31 downto 16) <= unsigned(WBS_DATA_I);
+                        when "1011" =>
+                            countdown(47 downto 32) <= unsigned(WBS_DATA_I);
+                        when others =>
+                            null;
+                    end case;
+                end if;
+            elsif WBS_CYC_I = '0' OR WBS_STB_I = '0' then               -- wait for wishbone transaction to end
+                ack <= '0';         -- reset internal ack signal when that happens
             end if;
         end if;
     end process;
@@ -53,27 +83,36 @@ begin
 
     with WBS_ADDR_I(3 downto 0) select
         WBS_DATA_O <=
-            std_logic_vector(timer(15 downto 0))  when "1010", -- 0xFFEA read is [15:0]
-            std_logic_vector(timer(31 downto 16)) when "1001", -- 0xFFE9 read is [31:16]
-            std_logic_vector(timer(47 downto 32)) when "1000", -- 0xFFE8 read is [47:32]
-            (others => '0')                      when others; -- otherwise 0
+            std_logic_vector(timer(15 downto 0))      when "1010",      -- 0xFFEA read is [15:0]
+            std_logic_vector(timer(31 downto 16))     when "1001",      -- 0xFFE9 read is [31:16]
+            std_logic_vector(timer(47 downto 32))     when "1000",      -- 0xFFE8 read is [47:32]
+            std_logic_vector(countdown(15 downto 0))  when "1101",      -- 0xFFED read is [15:0]
+            std_logic_vector(countdown(31 downto 16)) when "1100",      -- 0xFFEC read is [31:16]
+            std_logic_vector(countdown(47 downto 32)) when "1011",      -- 0xFFEB read is [47:32]
+            (others => '0')                           when others;      -- otherwise 0
 
-    process(CLK) is -- wishbone transaction process
-    begin
-        if rising_edge(CLK) then
-            if WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0' then -- wait for wishbone transaction to start
-                ack <= '1'; -- acknowledge on next cycle
-                -- if WBS_WE_I = '1' then                                        -- write: take action based on which register being written
-                --     case WBS_ADDR_I(3 downto 0) is                              -- get bottom nybble of address
-                --         when "0101" =>
-                            --   voice0_sig <= WBS_DATA_I;   -- latch the data in, when lsw is latched, set countdown flag to ON
-                --     end case;
-                -- end if;
+    -- process(CLK) is -- wishbone transaction process
+    -- begin
+    --     if rising_edge(CLK) then
+    --         if WBS_CYC_I = '1' AND WBS_STB_I = '1' AND ack = '0' then   -- wait for wishbone transaction to start
+    --             ack <= '1'; -- acknowledge on next cycle
+    --             if WBS_WE_I = '1' then                                                  -- write: take action based on which register being written
+    --                 case WBS_ADDR_I(3 downto 0) is                                      -- get bottom nybble of address and set the desired portion of countdown register
+    --                     when "1101" =>
+    --                         countdown(15 downto 0)  <= unsigned(WBS_DATA_I);
+    --                     when "1100" =>
+    --                         countdown(31 downto 16) <= unsigned(WBS_DATA_I);
+    --                     when "1011" =>
+    --                         countdown(47 downto 32) <= unsigned(WBS_DATA_I);
+    --                     when others =>
+    --                         null;
+    --                 end case;
+    --             end if;
 
-            elsif WBS_CYC_I = '0' OR WBS_STB_I = '0' then -- wait for wishbone transaction to end
-                ack <= '0'; -- reset internal ack signal when that happens
-            end if;
-        end if;
-    end process;
+    --         elsif WBS_CYC_I = '0' OR WBS_STB_I = '0' then               -- wait for wishbone transaction to end
+    --             ack <= '0';         -- reset internal ack signal when that happens
+    --         end if;
+    --     end if;
+    -- end process;
 
 end rtl;
