@@ -74,8 +74,8 @@ entity DE0_Spikeputor is
         SER_TX       : out std_logic;                           -- GPIO0[28], Pin 37
         SER_RX       : in std_logic;                            -- GPIO0[29], Pin 38
         -- Filesystem Serial Interface
-        FSSER_TX     : out std_logic;                           -- GPIO0[26], Pin 35
-        FSSER_RX     : in std_logic;                            -- GPIO0[27], Pin 36
+        FSSER_TX     : out std_logic;                           -- GPIO0[27], Pin 36 - to FS RXD
+        FSSER_RX     : in std_logic;                            -- GPIO0[26], Pin 35 - to FS TXD
         FSSER_NRST   : out std_logic;                           -- GPIO0[25], pin 34
         -- LCD I2C Interface -- relabel to SDA and SCL
         LCD_SCL      : inout std_logic;                         -- GPIO0[30], Pin 39
