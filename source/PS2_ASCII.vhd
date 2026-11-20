@@ -74,7 +74,7 @@ ARCHITECTURE behavior OF PS2_ASCII IS
     SIGNAL pending_keypress  : STD_LOGIC := '1';                      -- latched when a keypress is detected, so it will be addressed after the current read cycle
 
     SIGNAL trans_nrst        : STD_LOGIC := '0';                      -- n_reset signal to send to the PS2 transceiver
-    SIGNAL reset_cnt         : INTEGER RANGE 0 to CLK_FREQ/3;         -- count to wait for 0.3333 seconds
+    SIGNAL reset_cnt         : INTEGER RANGE 0 to CLK_FREQ;           -- count to wait for 0.3333 seconds
 
 BEGIN
 
@@ -130,10 +130,10 @@ BEGIN
                 END IF;
 
                 CASE state IS
-                    -- reset state : wait for 0.3 seconds, keeping transceiver reset, then start up by setting num lock
+                    -- reset state : wait for 0.333 seconds, keeping transceiver reset, then start up by setting num lock after .667 seconds
                     WHEN reset =>
-                        if reset_cnt = 0 then
-                            state <= updatekb;
+                        if reset_cnt = CLK_FREQ / 3 then
+                            state <= ready;     -- go to ready for another 0.667 seconds, then reset num lock and caps lock
                             trans_nrst <= '1';
                         else
                             reset_cnt <= reset_cnt - 1;
@@ -163,12 +163,21 @@ BEGIN
                             state <= send_wait;                                     -- wait until wishbone provider has received it
                         END IF;
 
-                        WHEN send_wait =>                                           -- wait until request is cleared before continuing
-                            IF key_req = '0' THEN
-                                state <= ready;
+                        IF reset_cnt /= 0 THEN                                      -- finish startup countdown then reset keyboard state
+                            IF reset_cnt = 1 THEN
+                                reset_cnt <= 0;
+                                state <= updatekb;
                             ELSE
-                                state <= send_wait;
+                                reset_cnt <= reset_cnt - 1;
                             END IF;
+                        END IF;
+
+                    WHEN send_wait =>                                           -- wait until request is cleared before continuing
+                        IF key_req = '0' THEN
+                            state <= ready;
+                        ELSE
+                            state <= send_wait;
+                        END IF;
 
                     -- new_code state: determine what to do with the new PS2 code  
                     WHEN new_code =>
