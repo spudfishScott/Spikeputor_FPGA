@@ -211,7 +211,8 @@ begin
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto ALU_SHIFT'length => '0') & ALU_SHIFT;
                                     num_leds <= ALU_SHIFT'length;
                                 when 21 =>
-                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto cmp_sig'length => '0') & cmp_sig; -- cmp_sig(cmp_sig'reverse_range) if LED strip is flipped
+                                    -- set_reg  <= (MAX_LEDS_PER_SET-1 downto cmp_sig'length => '0') & cmp_sig; 
+                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto cmp_sig'length => '0') & cmp_sig(cmp_sig'reverse_range);  -- LED strip is flipped
                                     num_leds <= cmp_sig'length;
                                 when 22 =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto ALU_OUT'length => '0') & ALU_OUT;

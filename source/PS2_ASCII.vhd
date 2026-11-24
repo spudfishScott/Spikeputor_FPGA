@@ -36,8 +36,8 @@ ENTITY PS2_ASCII IS
         ps2_clk    : INOUT  STD_LOGIC;                        -- clock signal from PS2 keyboard
         ps2_data   : INOUT  STD_LOGIC;                        -- data signal from PS2 keyboard
         key_req    : IN STD_LOGIC;                            -- assert this input to request next key in buffer, clear it when data has been received
-        ascii_new  : OUT STD_LOGIC;                           -- output flag to indicate key request has been fulfilled, 0x0000 = buffer empty
-        ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)         -- ASCII value
+        ascii_new  : OUT STD_LOGIC;                           -- output flag to indicate key request has been fulfilled
+        ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)         -- ASCII value, 0x0000 = buffer empty
     );
 END PS2_ASCII;
 
@@ -105,7 +105,7 @@ BEGIN
 
             IF (n_rst = '0') THEN                   -- reset all signals and variables
                 state <= reset;                     -- start by resetting
-                reset_cnt <= CLK_FREQ/3;
+                reset_cnt <= CLK_FREQ / 3;          -- set reset_cnt to 0.333 seconds
                 trans_nrst <= '0';                  -- reset transceiver
                 break <= '0';
                 e0_code <= '0';
@@ -130,14 +130,16 @@ BEGIN
                 END IF;
 
                 CASE state IS
-                    -- reset state : wait for 0.333 seconds, keeping transceiver reset, then start up by setting num lock after .667 seconds
+                    -- this works as written, which is to just wait one clock tick after reset before setting trans_nrst and waiting 0.333 seconds before resetting num lock and caps lock
+                    -- TODO: try instead: setting trans_nrst here, one clock tick after reset then counting down here in reset state for 0.333 seconds, then going to updatekbd state. 
+                    --                      if not, we need to be in ready state for 0.333 secs before going to updatekbd state, not here (maybe to get a code(s) from starting up keyboard?)
                     WHEN reset =>
-                        if reset_cnt = CLK_FREQ / 3 then
-                            state <= ready;     -- go to ready for another 0.667 seconds, then reset num lock and caps lock
+                   --     if reset_cnt = CLK_FREQ / 3 then
+                            state <= ready;     -- go to ready for 0.333 seconds, then reset num lock and caps lock
                             trans_nrst <= '1';
-                        else
-                            reset_cnt <= reset_cnt - 1;
-                        end if;
+                   --     else
+                   --         reset_cnt <= reset_cnt - 1;
+                   --     end if;
 
                     -- ready state: wait for a new PS2 code to be received or a new key request from the buffer
                     WHEN ready =>
@@ -156,14 +158,14 @@ BEGIN
                                 IF (buffer_tail + 1) MOD 8 = buffer_head THEN       -- mark buffer empty if tail will = head after this character
                                     buffer_empty <= '1';
                                 END IF;
-                            ELSE                                                    -- ouput 0x00 when buffer is empty
+                            ELSE                                                    -- output 0x00 when buffer is empty
                                 ascii_code <= (others => '0');
                             END IF;
                             ascii_new <= '1';                                       -- set new ASCII code indicator
                             state <= send_wait;                                     -- wait until wishbone provider has received it
                         END IF;
 
-                        IF reset_cnt /= 0 THEN                                      -- finish startup countdown then reset keyboard state
+                        IF reset_cnt /= 0 THEN                                      -- countdown for 0.333 seconds then reset keyboard state TODO: move to reset state as described above
                             IF reset_cnt = 1 THEN
                                 reset_cnt <= 0;
                                 state <= updatekb;
@@ -471,7 +473,7 @@ BEGIN
                                 END IF;
                             ELSE                                                    -- four ascii code keypress
                                 key_buffer(buffer_head) <= ascii(6 DOWNTO 0);       -- put each of the four keypresses into the buffer
-                                key_buffer(buffer_head + 1) <= additionals(22 DOWNTO 16);
+                                key_buffer((buffer_head + 1) MOD 8) <= additionals(22 DOWNTO 16);
                                 key_buffer((buffer_head + 2) MOD 8) <= additionals(14 DOWNTO 8);
                                 key_buffer((buffer_head + 3) MOD 8) <= additionals(6 DOWNTO 0);
                                 buffer_tail <= buffer_head;                 -- purge buffer for these keystrokes, otherwise we might overwrite a portion of a previous set
