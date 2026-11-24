@@ -211,8 +211,10 @@ begin
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto ALU_SHIFT'length => '0') & ALU_SHIFT;
                                     num_leds <= ALU_SHIFT'length;
                                 when 21 =>
-                                    -- set_reg  <= (MAX_LEDS_PER_SET-1 downto cmp_sig'length => '0') & cmp_sig; 
-                                    set_reg  <= (MAX_LEDS_PER_SET-1 downto cmp_sig'length => '0') & cmp_sig(cmp_sig'reverse_range);  -- LED strip is flipped
+                                    -- set_reg  <= (MAX_LEDS_PER_SET-1 downto cmp_sig'length => '0') & cmp_sig;
+                                    set_reg <=  (MAX_LEDS_PER_SET-1 downto cmp_sig'length => '0') &
+                                                cmp_sig(0) & cmp_sig(1) & cmp_sig(2) &
+                                                cmp_sig(3) & cmp_sig(4) & cmp_sig(5);  -- LED strip is flipped
                                     num_leds <= cmp_sig'length;
                                 when 22 =>
                                     set_reg  <= (MAX_LEDS_PER_SET-1 downto ALU_OUT'length => '0') & ALU_OUT;
@@ -374,14 +376,14 @@ begin
                                     elsif led_index = 18 then   -- shift left (flag = '0')
                                         led_reg(COLOR_RANGE) <= GREEN;              -- green LED for shift left
                                     end if;
-                                when 21 =>  -- CMP
+                                when 21 =>  -- CMP (LED strip is flipped)
                                     if set_reg(led_index) = '1' then                -- only color the LEDs if they are on
                                         case led_index is
-                                            when 0 =>
+                                            when 5 =>
                                                 led_reg(COLOR_RANGE) <= WHITE;      -- white LED for CMP selected
-                                            when 1 =>
+                                            when 4 =>
                                                 led_reg(COLOR_RANGE) <= BLUE;       -- blue LED for CMP result
-                                            when 2 | 3 | 4 =>
+                                            when 3 | 2 | 1 =>
                                                 led_reg(COLOR_RANGE) <= RED;        -- red LED for N, V, Z
                                             when others =>
                                                 case ALU_CMP(6 downto 5) is -- select color for the cmpfn LED from the two cmpfn bits

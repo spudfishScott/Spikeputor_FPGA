@@ -130,18 +130,17 @@ BEGIN
                 END IF;
 
                 CASE state IS
-                    -- this works as written, which is to just wait one clock tick after reset before setting trans_nrst and waiting 0.333 seconds before resetting num lock and caps lock
-                    -- TODO: try instead: setting trans_nrst here, one clock tick after reset then counting down here in reset state for 0.333 seconds, then going to updatekbd state. 
-                    --                      if not, we need to be in ready state for 0.333 secs before going to updatekbd state, not here (maybe to get a code(s) from starting up keyboard?)
                     WHEN reset =>
-                   --     if reset_cnt = CLK_FREQ / 3 then
-                            state <= ready;     -- go to ready for 0.333 seconds, then reset num lock and caps lock
-                            trans_nrst <= '1';
-                   --     else
-                   --         reset_cnt <= reset_cnt - 1;
-                   --     end if;
+                        if reset_cnt = CLK_FREQ / 3 then
+                            state <= reset;                                         -- stay in reset state
+                            trans_nrst <= '1';                                      -- turn off transceiver reset signal
+                        elsif reset_cnt = 0 then
+                            state <= updatekb;                                      -- update keyboard after 0.333 seconds
+                        else
+                            state <= reset;                                         -- stay in reset state
+                        end if;
+                        reset_cnt <= reset_cnt - 1;                                 -- decrement reset counter
 
-                    -- ready state: wait for a new PS2 code to be received or a new key request from the buffer
                     WHEN ready =>
                         tx_ena_sig <= '0';                                          -- turn off transmit signal
 
@@ -163,15 +162,6 @@ BEGIN
                             END IF;
                             ascii_new <= '1';                                       -- set new ASCII code indicator
                             state <= send_wait;                                     -- wait until wishbone provider has received it
-                        END IF;
-
-                        IF reset_cnt /= 0 THEN                                      -- countdown for 0.333 seconds then reset keyboard state TODO: move to reset state as described above
-                            IF reset_cnt = 1 THEN
-                                reset_cnt <= 0;
-                                state <= updatekb;
-                            ELSE
-                                reset_cnt <= reset_cnt - 1;
-                            END IF;
                         END IF;
 
                     WHEN send_wait =>                                           -- wait until request is cleared before continuing
